@@ -96,6 +96,19 @@ def get_settings():
             return json.load(f)
     return {}
 
+@app.get("/api/db-test")
+def test_db_connection():
+    try:
+        from utils.db import get_connection
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+                res = cur.fetchone()
+        return {"status": "ok", "result": res}
+    except Exception as e:
+        import traceback
+        return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}
+
 @app.post("/api/settings")
 async def save_settings(request: Request):
     data = await request.json()
