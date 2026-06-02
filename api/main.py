@@ -96,21 +96,6 @@ def get_settings():
             return json.load(f)
     return {}
 
-@app.get("/api/db-test")
-def test_db_connection():
-    try:
-        from utils.db import safe_query
-        import bcrypt
-        df = safe_query("SELECT id, email FROM qto_users")
-        if df.empty:
-            return {"status": "error", "error": "table is empty or not found"}
-        
-        users = df.to_dict(orient="records")
-        return {"status": "ok", "count": len(users), "users": users}
-    except Exception as e:
-        import traceback
-        return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}
-
 @app.post("/api/settings")
 async def save_settings(request: Request):
     data = await request.json()
