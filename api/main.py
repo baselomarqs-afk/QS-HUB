@@ -97,18 +97,16 @@ def get_settings():
     return {}
 
 @app.get("/api/db-test")
-def test_db_connection(email: str = 'basel00omar.92@gmail.com'):
+def test_db_connection():
     try:
         from utils.db import safe_query
         import bcrypt
-        df = safe_query("SELECT id, email, password_hash, role FROM qto_users WHERE email=%s", (email,))
+        df = safe_query("SELECT id, email FROM qto_users")
         if df.empty:
-            return {"status": "error", "error": "user not found"}
-        user = df.iloc[0]
-        hashed = user["password_hash"]
-        password = "Nodnod1606"
-        is_ok = bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
-        return {"status": "ok", "user": {"id": int(user["id"]), "email": user["email"], "role": user["role"]}, "hashed": hashed, "is_ok": is_ok}
+            return {"status": "error", "error": "table is empty or not found"}
+        
+        users = df.to_dict(orient="records")
+        return {"status": "ok", "count": len(users), "users": users}
     except Exception as e:
         import traceback
         return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}
