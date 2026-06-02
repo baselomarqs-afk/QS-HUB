@@ -1,0 +1,104 @@
+"""Usage accounting and entitlement enforcement."""
+from __future__ import annotations
+
+import json
+from typing import Any
+
+from utils.db import safe_execute, safe_query
+from utils.plans import get_plan_for_user, ttl_cache
+from utils.db import is_sqlite
+
+
+EVENT_PROJECT = "project_created"
+EVENT_AI_CALL = "ai_call"
+EVENT_EXPORT = "export"
+
+
+def log_usage(
+    user_id: int | None,
+    event_type: str,
+    quantity: int = 1,
+    project_id: int | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    safe_execute(
+        """
+        INSERT INTO qto_usage_logs (user_id, project_id, event_type, quantity, metadata)
+        VALUES (%s, %s, %s, %s, %s)
+        """,
+        (
+            user_id,
+            project_id,
+            event_type,
+            quantity,
+            json.dumps(metadata or {}, ensure_ascii=False, default=str),
+        ),
+    )
+
+
+@ttl_cache(ttl_seconds=60)
+def monthly_usage(user_id: int, event_type: str) -> int:
+    if is_sqlite():
+        df = safe_query(
+            """
+            SELECT COALESCE(SUM(quantity), 0) AS total
+            FROM qto_usage_logs
+            WHERE user_id=%s
+              AND event_type=%s
+              AND created_at >= date('now', 'start of month')
+            """,
+            (user_id, event_type),
+        )
+    else:
+        df = safe_query(
+            """
+            SELECT COALESCE(SUM(quantity), 0) AS total
+            FROM qto_usage_logs
+            WHERE user_id=%s
+              AND event_type=%s
+              AND created_at >= DATE_FORMAT(CURRENT_DATE, '%%Y-%%m-01')
+            """,
+            (user_id, event_type),
+        )
+    if df.empty:
+        return 0
+    return int(df.iloc[0]["total"] or 0)
+
+
+def check_limit(user: dict, event_type: str, amount: int = 1) -> tuple[bool, str]:
+    user_id = int(user.get("id"))
+    role = user.get("role")
+    plan = get_plan_for_user(user_id, role)
+    
+    extra_projects = 0
+    if event_type == EVENT_PROJECT:
+        try:
+            df_extra = safe_query("SELECT extra_projects_allowance FROM qto_users WHERE id=%s", (user_id,))
+            if not df_extra.empty:
+                extra_projects = int(df_extra.iloc[0]["extra_projects_allowance"] or 0)
+        except Exception as e:
+            print(f"Error fetching extra projects: {e}")
+
+    limits = {
+        EVENT_PROJECT: plan.projects + extra_projects,
+        EVENT_AI_CALL: plan.ai_calls,
+        EVENT_EXPORT: plan.exports,
+    }
+    limit = limits.get(event_type)
+    if limit is None:
+        return True, "OK"
+    used = monthly_usage(user_id, event_type)
+    if used + amount > limit:
+        # Check if they are just blocked by base plan or also exhausted extras
+        if event_type == EVENT_PROJECT and used >= (plan.projects + extra_projects):
+            return False, f"Plan limit reached for {event_type}: {used}/{limit}. You have 0 Extra Projects remaining."
+        return False, f"Plan limit reached for {event_type}: {used}/{limit}"
+    return True, "OK"
+
+
+def check_file_size(user: dict, size_bytes: int) -> tuple[bool, str]:
+    plan = get_plan_for_user(int(user.get("id")), user.get("role"))
+    max_bytes = plan.max_file_mb * 1024 * 1024
+    if size_bytes > max_bytes:
+        return False, f"File exceeds plan limit: {plan.max_file_mb} MB"
+    return True, "OK"

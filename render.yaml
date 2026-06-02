@@ -1,0 +1,43 @@
+services:
+  # ── Main Web App: FastAPI + React SPA ──────────────────────────
+  - type: web
+    name: qto-web-app
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    healthCheckPath: /api/health
+    envVarGroups:
+      - qto-env
+    envVars:
+      - key: QTO_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ALLOW_ORIGINS
+        sync: false
+      - key: AI_API_KEY_1
+        sync: false
+      - key: DODO_API_KEY
+        sync: false
+      - key: DODO_WEBHOOK_SECRET
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: STORAGE_PROVIDER
+        value: s3
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+
+  # ── Background Worker ──────────────────────────────────────────
+  - type: worker
+    name: qto-background-worker
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: "python worker.py"
+    plan: starter
+    envVarGroups:
+      - qto-env

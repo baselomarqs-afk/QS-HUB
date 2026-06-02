@@ -1,0 +1,38 @@
+fastapi>=0.111.0
+python-multipart>=0.0.9
+uvicorn>=0.30.0
+python-dotenv>=1.0.0
+
+# Data processing
+pandas>=2.2.0
+openpyxl==3.1.2
+numpy==1.26.4
+
+# PDF extraction
+pymupdf==1.24.0
+opencv-python-headless==4.9.0.80
+Pillow==10.3.0
+
+# AI
+google-genai
+
+# Database
+pymysql>=1.1.1
+
+# Auth & Security
+bcrypt>=4.1.0
+sentry-sdk>=2.0.0
+
+# Payments
+dodopayments>=0.2.0
+
+# Storage
+boto3>=1.34.0
+
+# Reports
+matplotlib>=3.8.0
+
+# NOTE: easyocr is intentionally excluded — it pulls in PyTorch (~2GB)
+# which exceeds free-tier RAM. OCR features degrade gracefully.
+# To enable OCR: pip install easyocr
+# NOTE: streamlit is no longer needed — the API is fully decoupled.

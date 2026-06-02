@@ -1,0 +1,186 @@
+"""
+STEP 2 — Classify Pages
+AI reads each page title/text and assigns drawing type
+User can correct any misclassification
+"""
+import pandas as pd
+import os, io, re, json
+from pdf_engine.smart_classifier import classify_all_pages, PAGE_ITEMS_MAP
+from pdf_engine.pdf_loader import page_to_pil
+from workflow.workflow_state import mark_step_done
+
+# Candidate types per PDF kind — used by the AI-vision refiner
+_STRUCT_TYPES = ["foundations", "tie_beam", "upper_columns", "neck_columns",
+                 "columns_1f", "columns_2f", "columns_roof",
+                 "slab_1st", "slab_2nd", "roof_slab"]
+_ARCH_TYPES   = ["ground_floor_plan", "first_floor_plan", "second_floor_plan",
+                 "roof_floor_plan", "elevations", "setting_out", "schedules"]
+
+
+def _ai_classify(page_arr, pdf_type: str):
+    """Classify ONE page by vision when keyword matching is unsure. Returns a
+    PAGE_ITEMS_MAP key or None."""
+    api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("AI_API_KEY")
+    if not api_key:
+        return None
+    choices = _STRUCT_TYPES if pdf_type == "structural" else _ARCH_TYPES
+    try:
+        from google import genai
+        from google.genai import types
+        pil = page_to_pil(page_arr)
+        w, h = pil.size
+        if max(w, h) > 1600:
+            s = 1600 / max(w, h); pil = pil.resize((int(w*s), int(h*s)))
+        buf = io.BytesIO(); pil.save(buf, format="PNG"); img = buf.getvalue()
+        prompt = (f"This is one page of a UAE villa {pdf_type} drawing set. "
+                  f"Classify it as EXACTLY one of these types:\n{', '.join(choices)}\n\n"
+                  "READ THE TITLE BLOCK / SHEET TITLE to decide. Guidance:\n"
+                  "- ground_floor_plan / first_floor_plan / second_floor_plan: architectural "
+                  "room plans — use the floor number written on the sheet (GROUND/G, FIRST/1ST, SECOND/2ND).\n"
+                  "- roof_floor_plan: roof architectural plan.\n"
+                  "- setting_out: site / plot / boundary / location plan.\n"
+                  "- schedules: door schedule and/or window schedule TABLES.\n"
+                  "- elevations: facade/elevation views.  - sections: cut-through views.\n"
+                  "- foundations / tie_beam / columns_* / slab_1f / slab_2f / roof_slab: "
+                  "structural framing plans + schedules — use the level named on the sheet "
+                  "(e.g. '2ND FLR SLAB'=slab_2f, '2ND FLR COL'=columns_2f).\n"
+                  'Return ONLY: {"type":"<one type>"}')
+        client = genai.Client(api_key=api_key)
+        resp = client.models.generate_content(
+            model="gemini-3.1-flash-lite",
+            contents=[types.Part.from_bytes(data=img, mime_type="image/png"), prompt])
+        raw = re.sub(r"```json|```", "", resp.text).strip()
+        t = json.loads(raw).get("type")
+        return t if t in PAGE_ITEMS_MAP else None
+    except Exception:
+        return None
+
+
+from utils.i18n import t
+
+def render_step2() -> bool:
+    import streamlit as st
+    st.markdown(t("classify_title"))
+    st.caption(t("classify_caption"))
+
+    str_pages  = st.session_state.get("str_pages", [])
+    arch_pages = st.session_state.get("arch_pages", [])
+    str_texts  = st.session_state.get("str_texts", [])
+    arch_texts = st.session_state.get("arch_texts", [])
+
+    # Auto-classify if not done yet
+    if "classified_pages" not in st.session_state:
+        with st.spinner(t("classify_running")):
+            classified = []
+            for i, txt in enumerate(str_texts):
+                classified.append({
+                    "pdf":        "structural",
+                    "page_index": i,
+                    "page_num":   i + 1,
+                    "text_preview": txt[:100].replace("\n", " "),
+                    **_classify_single(txt, "structural"),
+                })
+            for i, txt in enumerate(arch_texts):
+                classified.append({
+                    "pdf":        "architectural",
+                    "page_index": i,
+                    "page_num":   i + 1,
+                    "text_preview": txt[:100].replace("\n", " "),
+                    **_classify_single(txt, "architectural"),
+                })
+
+        # Verify EVERY page with AI Vision (more reliable than keywords on
+        # unseen drawings). Vision wins when it returns a valid type.
+        prog = st.progress(0.0, text="AI-verifying every page by image…")
+        for n, p in enumerate(classified):
+            src = str_pages if p["pdf"] == "structural" else arch_pages
+            if p["page_index"] < len(src):
+                g = _ai_classify(src[p["page_index"]], p["pdf"])
+                if g:
+                    p["detected_type"] = g
+                    p["confidence"]    = "high(ai)"
+                    p["items"] = PAGE_ITEMS_MAP.get(g, {}).get("extract_items", [])
+            prog.progress((n + 1) / len(classified))
+        prog.empty()
+
+        st.session_state["classified_pages"] = classified
+
+    classified = st.session_state["classified_pages"]
+
+    # Show classification results as editable table
+    st.markdown("### Auto-Classification Results | نتائج التصنيف التلقائي")
+
+    drawing_types = ["unknown"] + list(PAGE_ITEMS_MAP.keys())
+
+    for page in classified:
+        col_img, col_info, col_edit = st.columns([2, 2, 2])
+
+        pages_src = (
+            st.session_state.get("str_pages", []) if page["pdf"] == "structural"
+            else st.session_state.get("arch_pages", [])
+        )
+
+        with col_img:
+            if page["page_index"] < len(pages_src):
+                st.image(
+                    page_to_pil(pages_src[page["page_index"]]),
+                    caption=f"{page['pdf']} P{page['page_num']}",
+                    use_container_width=True
+                )
+
+        with col_info:
+            _conf = str(page.get("confidence", "low"))
+            conf_icon = "" if _conf.startswith("high") else {"medium": "", "low": ""}.get(_conf, "⚪")
+            ai_tag = " (AI vision)" if "ai" in _conf else ""
+            st.markdown(f"**{conf_icon} Auto-detected{ai_tag}:**")
+            st.markdown(f"`{page.get('detected_type','unknown')}`")
+            st.caption(page["text_preview"])
+
+        with col_edit:
+            current_idx = drawing_types.index(page.get("detected_type","unknown")) if page.get("detected_type","unknown") in drawing_types else 0
+            new_type = st.selectbox(
+                "Drawing Type",
+                options=drawing_types,
+                index=current_idx,
+                key=f"cls_{page['pdf']}_{page['page_index']}",
+                format_func=lambda x: x.replace("_", " ").title() if x != "unknown" else " Unknown — select type"
+            )
+            page["detected_type"] = new_type
+            if new_type != "unknown":
+                page["items"] = PAGE_ITEMS_MAP.get(new_type, {}).get("extract_items", [])
+
+        st.divider()
+
+    # Update session state
+    st.session_state["classified_pages"] = classified
+
+    ready = [p for p in classified if p["detected_type"] != "unknown"]
+    unknown = [p for p in classified if p["detected_type"] == "unknown"]
+
+    if unknown:
+        st.warning(f" {len(unknown)} pages still unclassified — please assign types above")
+
+    st.info(f" {len(ready)} pages ready for extraction")
+
+    if ready and st.button(t("classify_next_btn"), type="primary", use_container_width=True):
+        mark_step_done("classify")
+        return True
+
+    return False
+
+
+
+def _classify_single(text: str, pdf_type: str) -> dict:
+    from pdf_engine.smart_classifier import PAGE_ITEMS_MAP
+    text_lower = text.lower()
+    scores = {}
+    for ptype, config in PAGE_ITEMS_MAP.items():
+        score = sum(1 for kw in config.get("drawing_keywords", []) if kw.lower() in text_lower)
+        scores[ptype] = score
+    best  = max(scores, key=scores.get)
+    score = scores[best]
+    return {
+        "detected_type": best if score > 0 else "unknown",
+        "confidence": "high" if score >= 2 else "medium" if score == 1 else "low",
+        "items": PAGE_ITEMS_MAP.get(best, {}).get("extract_items", []) if score > 0 else [],
+    }

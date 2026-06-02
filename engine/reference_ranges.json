@@ -1,0 +1,389 @@
+{
+  "excavation": {
+    "count": 12,
+    "min": 295.0,
+    "max": 1400.0,
+    "median": 750.0,
+    "mean": 765.3,
+    "stdev": 343.6,
+    "unit": "m3"
+  },
+  "road_base": {
+    "count": 11,
+    "min": 40.0,
+    "max": 195.0,
+    "median": 102.0,
+    "mean": 102.5,
+    "stdev": 45.9,
+    "unit": "m3"
+  },
+  "backfill": {
+    "count": 23,
+    "min": 355.0,
+    "max": 1500.0,
+    "median": 790.0,
+    "mean": 835.0,
+    "stdev": 322.1,
+    "unit": "m3"
+  },
+  "foundation_pcc": {
+    "count": 23,
+    "min": 9.0,
+    "max": 45.0,
+    "median": 22.0,
+    "mean": 23.1,
+    "stdev": 7.5,
+    "unit": "m3"
+  },
+  "foundation_concrete": {
+    "count": 23,
+    "min": 20.0,
+    "max": 140.0,
+    "median": 48.0,
+    "mean": 59.8,
+    "stdev": 32.7,
+    "unit": "m3"
+  },
+  "column_concrete": {
+    "count": 27,
+    "min": 2.0,
+    "max": 50.0,
+    "median": 21.0,
+    "mean": 24.9,
+    "stdev": 12.8,
+    "unit": "m3"
+  },
+  "tie_beam_concrete": {
+    "count": 23,
+    "min": 4.0,
+    "max": 44.0,
+    "median": 22.0,
+    "mean": 21.4,
+    "stdev": 8.2,
+    "unit": "m3"
+  },
+  "solid_block": {
+    "unit": "m2",
+    "count": 20,
+    "min": 75.0,
+    "max": 600.0,
+    "median": 207.5,
+    "mean": 267.6,
+    "stdev": 182.79,
+    "values": [
+      75.0,
+      75.0,
+      95.0,
+      100.0,
+      110.0,
+      120.0,
+      120.0,
+      145.0,
+      150.0,
+      150.0,
+      265.0,
+      265.0,
+      295.0,
+      300.0,
+      430.0,
+      475.0,
+      484.0,
+      500.0,
+      598.0,
+      600.0
+    ],
+    "samples": [
+      "20cm Solid Block Work under external tie beams & steps",
+      "Insulated 20cm block work (for external walls)",
+      "20cm Solid Block Work (For villa , U.G.W.T)"
+    ]
+  },
+  "wall_footing": {
+    "count": 16,
+    "min": 1.0,
+    "max": 16.0,
+    "median": 3.2,
+    "mean": 4.6,
+    "stdev": 4.6,
+    "unit": "m3"
+  },
+  "slab_on_grade": {
+    "count": 23,
+    "min": 12.0,
+    "max": 60.0,
+    "median": 24.0,
+    "mean": 29.4,
+    "stdev": 12.6,
+    "unit": "m3"
+  },
+  "staircase_concrete": {
+    "count": 53,
+    "min": 1.0,
+    "max": 70.8,
+    "median": 9.5,
+    "mean": 19.1,
+    "stdev": 25.4,
+    "unit": "m3"
+  },
+  "parapet": {
+    "count": 24,
+    "min": 3.0,
+    "max": 35.0,
+    "median": 6.0,
+    "mean": 14.7,
+    "stdev": 11.7,
+    "unit": "m3"
+  },
+  "internal_block": {
+    "count": 34,
+    "min": 22.0,
+    "max": 715.0,
+    "median": 217.5,
+    "mean": 300.2,
+    "stdev": 217.0,
+    "unit": "m2"
+  },
+  "granite": {
+    "count": 26,
+    "min": 10.0,
+    "max": 165.0,
+    "median": 32.0,
+    "mean": 46.7,
+    "stdev": 40.4,
+    "unit": "m2"
+  },
+  "marble": {
+    "count": 31,
+    "min": 7.0,
+    "max": 73.0,
+    "median": 22.0,
+    "mean": 28.8,
+    "stdev": 19.3,
+    "unit": "rm"
+  },
+  "wall_tiles": {
+    "count": 22,
+    "min": 170.0,
+    "max": 800.0,
+    "median": 343.2,
+    "mean": 415.0,
+    "stdev": 191.0,
+    "unit": "m2"
+  },
+  "skirting": {
+    "count": 29,
+    "min": 11.0,
+    "max": 448.0,
+    "median": 242.0,
+    "mean": 245.6,
+    "stdev": 142.3,
+    "unit": "rm"
+  },
+  "door_openings": {
+    "unit": "no.",
+    "count": 24,
+    "min": 1.0,
+    "max": 28.0,
+    "median": 12.0,
+    "mean": 11.92,
+    "stdev": 8.78,
+    "values": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      8.0,
+      9.0,
+      10.0,
+      10.0,
+      12.0,
+      12.0,
+      13.0,
+      14.0,
+      14.0,
+      19.0,
+      20.0,
+      20.0,
+      21.0,
+      21.0,
+      23.0,
+      25.0,
+      28.0
+    ],
+    "samples": [
+      "Sub Frames For All Doors",
+      "D (1)  (supply rate of 8000. dhs / door)",
+      "D (2) (supply rate of 3000 dhs / door)"
+    ]
+  },
+  "compound_wall": {
+    "count": 22,
+    "min": 32.0,
+    "max": 190.0,
+    "median": 111.0,
+    "mean": 113.2,
+    "stdev": 33.0,
+    "unit": "rm"
+  },
+  "interlock_paving": {
+    "count": 23,
+    "min": 80.0,
+    "max": 1390.4,
+    "median": 351.0,
+    "mean": 427.9,
+    "stdev": 304.9,
+    "unit": "m2"
+  },
+  "polyethylene": {
+    "unit": "sqm",
+    "count": 7,
+    "min": 210.0,
+    "max": 585.0,
+    "median": 450.0,
+    "mean": 404.57,
+    "stdev": 148.07,
+    "values": [
+      210.0,
+      210.0,
+      380.0,
+      450.0,
+      460.0,
+      537.0,
+      585.0
+    ],
+    "samples": [
+      "Polythene sheet (1000 guage & as per consultant approval)",
+      "Polythene sheet (1000 guage & as per consultant approval)",
+      "Polythene sheet (1000 guage & as per consultant approval)"
+    ]
+  },
+  "neck_column_concrete": {
+    "count": 19,
+    "min": 3.0,
+    "max": 9.0,
+    "median": 4.0,
+    "mean": 4.7,
+    "stdev": 1.7,
+    "unit": "m3"
+  },
+  "thermal_block": {
+    "count": 5,
+    "min": 450.0,
+    "max": 600.0,
+    "median": 560.0,
+    "mean": 530.0,
+    "stdev": 62.4,
+    "unit": "m2"
+  },
+  "window_openings": {
+    "count": 8,
+    "min": 56.0,
+    "max": 290.0,
+    "median": 200.0,
+    "mean": 189.1,
+    "stdev": 73.8,
+    "unit": "m2"
+  },
+  "foundation_bitumen": {
+    "count": 10,
+    "min": 570.0,
+    "max": 1600.0,
+    "median": 650.0,
+    "mean": 732.0,
+    "stdev": 306.6,
+    "unit": "m2"
+  },
+  "strap_beam": {
+    "count": 6,
+    "min": 2.0,
+    "max": 8.0,
+    "median": 2.0,
+    "mean": 4.0,
+    "stdev": 3.1,
+    "unit": "m3"
+  },
+  "beam_concrete": {
+    "count": 11,
+    "min": 15.0,
+    "max": 34.0,
+    "median": 18.0,
+    "mean": 20.1,
+    "stdev": 6.2,
+    "unit": "m3"
+  },
+  "slab_concrete": {
+    "count": 11,
+    "min": 80.0,
+    "max": 170.0,
+    "median": 125.0,
+    "mean": 129.3,
+    "stdev": 35.5,
+    "unit": "m3"
+  },
+  "internal_plaster": {
+    "count": 11,
+    "min": 1050.0,
+    "max": 2000.0,
+    "median": 1450.0,
+    "mean": 1513.2,
+    "stdev": 315.6,
+    "unit": "m2"
+  },
+  "external_plaster": {
+    "count": 11,
+    "min": 480.0,
+    "max": 1300.0,
+    "median": 925.0,
+    "mean": 950.5,
+    "stdev": 223.0,
+    "unit": "m2"
+  },
+  "internal_paint": {
+    "count": 11,
+    "min": 720.0,
+    "max": 1400.0,
+    "median": 910.0,
+    "mean": 1007.3,
+    "stdev": 212.6,
+    "unit": "m2"
+  },
+  "external_paint": {
+    "count": 11,
+    "min": 480.0,
+    "max": 1300.0,
+    "median": 925.0,
+    "mean": 950.5,
+    "stdev": 223.0,
+    "unit": "m2"
+  },
+  "wet_waterproofing": {
+    "count": 12,
+    "min": 38.0,
+    "max": 78.0,
+    "median": 45.5,
+    "mean": 50.4,
+    "stdev": 14.2,
+    "unit": "m2"
+  },
+  "roof_waterproofing": {
+    "count": 11,
+    "min": 190.0,
+    "max": 360.0,
+    "median": 258.0,
+    "mean": 258.4,
+    "stdev": 56.3,
+    "unit": "m2"
+  },
+  "ceiling_plaster": {
+    "count": 7,
+    "min": 260.0,
+    "max": 450.0,
+    "median": 330.0,
+    "mean": 329.3,
+    "stdev": 69.3,
+    "unit": "m2"
+  }
+}

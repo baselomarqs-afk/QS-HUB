@@ -1,0 +1,34 @@
+services:
+  # ── Main App: FastAPI serves API + built React SPA ─────────────
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - QTO_ENV=production
+    volumes:
+      - qto_storage:/app/.qto_storage
+      - qto_cache:/app/.qto_cache
+    depends_on:
+      - worker
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Background Worker: AI extraction queue ─────────────────────
+  worker:
+    build: .
+    command: python worker.py
+    env_file:
+      - .env
+    volumes:
+      - qto_storage:/app/.qto_storage
+      - qto_cache:/app/.qto_cache
+
+volumes:
+  qto_storage:
+  qto_cache:
