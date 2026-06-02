@@ -1,0 +1,33 @@
+.env
+.streamlit/secrets.toml
+__pycache__/
+*.py[cod]
+.pytest_cache/
+tests/.pytest_cache/
+.qto_cache/
+.gemini_cache/
+_logs/
+tmp/
+scratch/
+_dev_scripts/
+_schedule_images/
+*.sqlite3
+*.db
+
+# Runtime user data & cache (must never be committed — privacy + bloat)
+.qto_storage/
+_qto_cache/
+*.bak
+
+# Validation harness output (machine-specific; regenerate locally)
+validation_set/manifest.json
+validation_set/out_*.xlsx
+validation_set/*.log
+validation_set/batch*.json
+validation_set/quick_p1.py
+test_keys.py
+
+# Frontend build artifacts (Docker builds these fresh)
+frontend/node_modules/
+frontend/dist/
+node_modules/

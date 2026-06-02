@@ -1,0 +1,600 @@
+{
+  "B:\\work\\2 villas\\New folder\\STR-002.pdf": {
+    "0": {
+      "type": "foundation",
+      "source": "fitz",
+      "confidence": 0.91,
+      "rationale": "fitz keyword match"
+    },
+    "1": {
+      "type": "column_schedule",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing explicitly includes a 'GROUND COLUMN LAYOUT' plan and a corresponding 'SCHEDULE OF GROUND COLUMNS' table detailing reinforcement for columns."
+    },
+    "2": {
+      "type": "column_schedule",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing includes a 'SCHEDULE OF GROUND COLUMNS' table and a layout plan for first-floor columns."
+    },
+    "3": {
+      "type": "column_schedule",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing includes both a column layout plan and a 'SCHEDULE OF GROUND COLUMNS' table."
+    },
+    "4": {
+      "type": "tie_beam",
+      "source": "fitz",
+      "confidence": 0.91,
+      "rationale": "fitz keyword match"
+    },
+    "5": {
+      "type": "slab_1f",
+      "source": "fitz",
+      "confidence": 0.91,
+      "rationale": "fitz keyword match"
+    },
+    "6": {
+      "type": "slab_1f",
+      "source": "fitz",
+      "confidence": 0.91,
+      "rationale": "fitz keyword match"
+    },
+    "7": {
+      "type": "slab_1f",
+      "source": "fitz",
+      "confidence": 0.91,
+      "rationale": "fitz keyword match"
+    },
+    "8": {
+      "type": "arch_section",
+      "source": "AI",
+      "confidence": 0.9,
+      "rationale": "The drawing shows various vertical cross-sections of building elements (parapet walls and slabs), which are classified as architectural sections."
+    },
+    "9": {
+      "type": "arch_section",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing displays structural sections and details for a staircase, which is classified as an architectural section."
+    },
+    "10": {
+      "type": "foundation",
+      "source": "fitz",
+      "confidence": 0.91,
+      "rationale": "fitz keyword match"
+    }
+  },
+  "B:\\work\\2 villas\\New folder\\837-1680-ARCH-12-01-2026.pdf": {
+    "0": {
+      "type": "arch_elevation",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The document displays high-quality 3D architectural renderings showing the exterior facade of the villa from different perspectives."
+    },
+    "1": {
+      "type": "arch_site",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The document is a Plot Affection Plan issued by the Municipality, which defines the site boundaries and location details."
+    },
+    "2": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing title is explicitly labeled as 'DOCUMENTS' and the sheet is empty, containing no technical architectural or structural plans."
+    },
+    "3": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "This page is a 'Drawing List' (an index or table of contents for the set of construction drawings) rather than a specific architectural or structural plan."
+    },
+    "4": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The document is an 'Architectural Check List' form used for building permit submissions, not an architectural floor plan or construction drawing."
+    },
+    "5": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The document is an 'Area Sheet' table that summarizes building calculations and ratios, which does not correspond to any of the structural or architectural drawing types provided in the list."
+    },
+    "6": {
+      "type": "arch_site",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing is a setting layout plan showing the villa footprint relative to the plot boundaries and road, which fits the definition of a site plan."
+    },
+    "7": {
+      "type": "arch_gf",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing explicitly states 'GROUND FLOOR PLAN' and displays architectural room layouts, labels, and dimensions for the ground level."
+    },
+    "8": {
+      "type": "arch_1f",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing is explicitly titled 'FIRST FLOOR PLAN' and shows the architectural layout, room labels, and dimensions for the first floor of the villa."
+    },
+    "9": {
+      "type": "arch_roof",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing is explicitly titled 'ROOF FLOOR PLAN' and shows the layout of the top level of the building, including a terrace, a bedroom, and a pergola."
+    },
+    "10": {
+      "type": "arch_roof",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing explicitly states it is a 'TOP ROOF PLAN' and shows the architectural layout of the roof area including terraces and a pergola."
+    },
+    "11": {
+      "type": "arch_elevation",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing depicts a vertical exterior view of a building facade, labeled as 'ELEVATION -01'."
+    },
+    "12": {
+      "type": "arch_elevation",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The document is explicitly labeled 'ELEVATION -02' and shows the vertical facade view of the building."
+    },
+    "13": {
+      "type": "arch_elevation",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing shows a vertical view of the building facade with grid lines and height levels, explicitly labeled as 'ELEVATION -03'."
+    },
+    "14": {
+      "type": "arch_elevation",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing shows a vertical view of the building facade with floor levels and is explicitly labeled 'ELEVATION - 04' and 'ELEVATION - 02'."
+    },
+    "15": {
+      "type": "arch_section",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing is explicitly titled 'SECTION A-A' and depicts a vertical cross-section through the building, showing floor levels and interior wall profiles."
+    },
+    "16": {
+      "type": "arch_section",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing is explicitly titled 'SECTION B-B' and shows a vertical cut-through view of the building structure."
+    },
+    "17": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing is a specific structural and architectural detail sheet for 'Stair Details', which is not included in the provided classification categories."
+    },
+    "18": {
+      "type": "window_schedule",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing explicitly provides a comprehensive schedule of window and door types, dimensions, and construction details, titled 'VILLA WINDOWS' and 'VILLA DOORS'."
+    },
+    "19": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "This drawing represents a minor structure (car shed detail) and does not fit into any of the primary building structural or architectural plan categories listed."
+    },
+    "20": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "This page shows specific structural/architectural details for an external car shed, which does not fit into any of the provided building floor plan or schedule categories."
+    },
+    "21": {
+      "type": "arch_section",
+      "source": "AI",
+      "confidence": 0.95,
+      "rationale": "The drawing focuses on structural/architectural details of a pergola, including specifically labeled 'SECTION - AA', elevation, and plan views."
+    },
+    "22": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 0.9,
+      "rationale": "The page is a construction detail sheet focusing on water proofing methods, expansion joints, and door frame installation details, which does not fit into the specific structural or architectural floor plan categories provided."
+    },
+    "23": {
+      "type": "arch_site",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing depicts the plot boundaries, the building footprint placement within the plot, and the compound wall details."
+    },
+    "24": {
+      "type": "arch_site",
+      "source": "AI",
+      "confidence": 0.9,
+      "rationale": "The drawing depicts a plot boundary layout with details for temporary fencing and signage, which aligns with site planning documents."
+    },
+    "25": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "This page is a material and color schedule (finishes schedule) for the project, which does not fit into any of the provided structural or architectural layout/schedule categories."
+    },
+    "26": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing is a cover sheet labeled 'AC - DRAWING DETAILS' which does not correspond to any of the specific technical drawing categories listed."
+    },
+    "27": {
+      "type": "arch_gf",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing is explicitly titled 'GROUND FLOOR PLAN' and displays architectural room layouts such as kitchen, living area, and majlis."
+    },
+    "28": {
+      "type": "arch_1f",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing is explicitly titled 'FIRST FLOOR PLAN' and displays architectural layout features such as room labels, doors, and bathrooms."
+    },
+    "29": {
+      "type": "arch_roof",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing explicitly labels itself as a 'ROOF FLOOR PLAN' and shows the architectural layout of the roof area including a terrace, lift access, and mechanical equipment."
+    },
+    "30": {
+      "type": "arch_roof",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing is explicitly titled 'TOP ROOF PLAN' and shows the layout of the roof level, including terrace areas and A/C units."
+    }
+  },
+  "C:\\Users\\basel\\villa_qto\\_uploaded_str.pdf": {
+    "0": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The document contains general structural notes and specifications rather than a specific architectural or structural plan, schedule, or section."
+    },
+    "1": {
+      "type": "column_schedule",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing explicitly contains an 'UNDER GROUND COLUMN LAYOUT' plan and a 'SCHEDULE OF UNDER GROUND COLUMNS' table."
+    },
+    "2": {
+      "type": "column_schedule",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing explicitly includes a 'GROUND COLUMN LAYOUT' plan and a corresponding 'SCHEDULE OF GROUND FLOOR COLUMNS' table."
+    },
+    "3": {
+      "type": "column_schedule",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing explicitly includes a 'SCHEDULE OF FIRST FLOOR COLUMNS' table and a corresponding column layout plan."
+    },
+    "4": {
+      "type": "column_schedule",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing explicitly includes a 'ROOF COLUMN LAYOUT' plan and a 'SCHEDULE OF ROOF FLOOR COLUMNS' table."
+    },
+    "5": {
+      "type": "foundation",
+      "source": "fitz",
+      "confidence": 0.91,
+      "rationale": "fitz keyword match"
+    },
+    "6": {
+      "type": "tie_beam",
+      "source": "fitz",
+      "confidence": 0.91,
+      "rationale": "fitz keyword match"
+    },
+    "7": {
+      "type": "slab_1f",
+      "source": "fitz",
+      "confidence": 0.91,
+      "rationale": "fitz keyword match"
+    },
+    "8": {
+      "type": "slab_roof",
+      "source": "fitz",
+      "confidence": 0.88,
+      "rationale": "fitz keyword match"
+    },
+    "9": {
+      "type": "slab_roof",
+      "source": "fitz",
+      "confidence": 0.88,
+      "rationale": "fitz keyword match"
+    },
+    "10": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing is a dedicated structural detail page for stairs, which does not fit into any of the provided categories."
+    },
+    "11": {
+      "type": "unknown",
+      "source": "fitz",
+      "confidence": 0.91,
+      "rationale": "fitz keyword match"
+    },
+    "12": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "This document is a 'Check List' page for Sharjah Municipality submission, not a structural or architectural drawing page."
+    }
+  },
+  "C:\\Users\\basel\\villa_qto\\_uploaded_arch.pdf": {
+    "0": {
+      "type": "arch_site",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing is explicitly titled 'SITE DEVELOPMENT PLAN' and shows the plot boundary, road access, and building footprint."
+    },
+    "1": {
+      "type": "arch_gf",
+      "source": "fitz",
+      "confidence": 0.85,
+      "rationale": "fitz keyword match"
+    },
+    "2": {
+      "type": "arch_roof",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing title explicitly labels the floor plan as 'SECOND FLOOR PLAN' and displays interior rooms such as a hall, pantry, and bedroom."
+    },
+    "3": {
+      "type": "arch_elevation",
+      "source": "fitz",
+      "confidence": 0.85,
+      "rationale": "fitz keyword match"
+    },
+    "4": {
+      "type": "arch_elevation",
+      "source": "fitz",
+      "confidence": 0.85,
+      "rationale": "fitz keyword match"
+    },
+    "5": {
+      "type": "arch_section",
+      "source": "fitz",
+      "confidence": 0.85,
+      "rationale": "fitz keyword match"
+    },
+    "6": {
+      "type": "window_schedule",
+      "source": "fitz",
+      "confidence": 0.85,
+      "rationale": "fitz keyword match"
+    },
+    "7": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 0.95,
+      "rationale": "The drawing shows labeled vertical sections of a staircase across three different floor levels (Ground, First, and Second Floor Plans), which constitutes a sectional detail."
+    },
+    "8": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing is explicitly titled 'SECTION C-C' and depicts a vertical cross-section through the building, showing floor levels and a staircase."
+    },
+    "9": {
+      "type": "unknown",
+      "source": "fitz",
+      "confidence": 0.85,
+      "rationale": "fitz keyword match"
+    }
+  },
+  "C:\\Users\\basel\\Downloads\\ARCH.pdf": {
+    "0": {
+      "type": "arch_site",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing is titled 'SETTING LAYOUT' and displays plot dimensions, boundaries, and site levels relative to the 'SIKKA' (alleyways), which is characteristic of a site plan."
+    },
+    "1": {
+      "type": "arch_elevation",
+      "source": "fitz",
+      "confidence": 0.85,
+      "rationale": "fitz keyword match"
+    },
+    "2": {
+      "type": "arch_gf",
+      "source": "fitz",
+      "confidence": 0.85,
+      "rationale": "fitz keyword match"
+    },
+    "3": {
+      "type": "arch_1f",
+      "source": "AI",
+      "confidence": 0.9,
+      "rationale": "The drawing is clearly labeled as a 'MEZZANINE FLOOR PLAN', which typically corresponds to the first level above the ground floor in this building typology."
+    },
+    "4": {
+      "type": "arch_roof",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing is explicitly titled 'ROOF FLOOR PLAN' and shows the architectural layout of the roof level."
+    },
+    "5": {
+      "type": "arch_roof",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing is explicitly titled 'TOP ROOF FLOOR PLAN' and displays rooftop elements like water tanks and roof levels."
+    },
+    "6": {
+      "type": "arch_elevation",
+      "source": "fitz",
+      "confidence": 0.85,
+      "rationale": "fitz keyword match"
+    },
+    "7": {
+      "type": "arch_elevation",
+      "source": "fitz",
+      "confidence": 0.85,
+      "rationale": "fitz keyword match"
+    },
+    "8": {
+      "type": "arch_section",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing is explicitly titled 'SECTION X-X' and provides a cut-through vertical view showing floor levels and interior heights."
+    },
+    "9": {
+      "type": "arch_section",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing is explicitly labeled as 'SECTION Y-Y' and depicts a vertical cross-section of the building showing floor levels and interior spaces."
+    },
+    "10": {
+      "type": "arch_section",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing explicitly labels the views as 'SECTION - 1', 'SECTION - 2', and 'SECTION - 3', representing vertical cut-through views of the building levels."
+    },
+    "11": {
+      "type": "door_schedule",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing displays a detailed table-like collection of various door types (e.g., AL1, AL2, etc.) with their specific dimensions, descriptions, and location assignments."
+    },
+    "12": {
+      "type": "door_schedule",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing presents a detailed schedule of specific door types (numbered SHOP-18 through SHOP-37), including their elevations, dimensions, and specifications."
+    },
+    "13": {
+      "type": "window_schedule",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "DOORS AND WINDOWS DETAILS 3 containing elevations and details for W1, W2, W3 and doors D1-D7"
+    },
+    "14": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 0.9,
+      "rationale": "The drawing specifically shows 'Staircase Part Plans' for various levels, which is a detailed architectural component rather than a general floor plan or structural layout."
+    },
+    "15": {
+      "type": "arch_section",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing is labeled as 'SECTION-A' and depicts a vertical cut-through view of the staircase, which is a standard architectural section."
+    },
+    "16": {
+      "type": "arch_section",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing depicts lift details including section views and vertical floor-to-floor level annotations, which are characteristic of architectural section details."
+    },
+    "17": {
+      "type": "foundation",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing explicitly shows an 'Underground Water Tank Plan' and structural cross-sections detailing 'Raft Foundation' and associated waterproofing layers."
+    },
+    "18": {
+      "type": "arch_elevation",
+      "source": "fitz",
+      "confidence": 0.85,
+      "rationale": "fitz keyword match"
+    },
+    "19": {
+      "type": "slab_roof",
+      "source": "fitz",
+      "confidence": 0.85,
+      "rationale": "fitz keyword match"
+    },
+    "20": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The page contains plumbing and drainage installation details (sanitary fixtures, manhole, gully trap, roof drain, and vent pipe), which do not fall into the provided structural or architectural layout categories."
+    },
+    "21": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The page contains various construction details for roofing, drainage, and pipe penetrations, rather than a structural layout or architectural plan."
+    },
+    "22": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing contains architectural construction details for thresholds, skirting, trenches, and corner guards, which does not fit into any of the provided category definitions."
+    },
+    "23": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "The drawing contains architectural details (handrails, steps, and false ceiling specifications) rather than a floor plan, schedule, or structural layout."
+    },
+    "24": {
+      "type": "arch_section",
+      "source": "AI",
+      "confidence": 0.95,
+      "rationale": "The drawing contains typical construction details (sections) for vanity units and kitchen cabinets, which are represented as cut-through vertical views."
+    },
+    "25": {
+      "type": "arch_elevation",
+      "source": "fitz",
+      "confidence": 0.85,
+      "rationale": "fitz keyword match"
+    },
+    "26": {
+      "type": "arch_section",
+      "source": "fitz",
+      "confidence": 0.85,
+      "rationale": "fitz keyword match"
+    },
+    "27": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "This page contains construction details and cross-sections for waterproofing, EIFS insulation, and mechanical supports, which does not fit into any of the provided building-level layout or schedule categories."
+    },
+    "28": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "This page contains technical construction details for EIFS (Exterior Insulation and Finish Systems) waterproofing, not architectural floor plans or structural framing schedules."
+    },
+    "29": {
+      "type": "arch_section",
+      "source": "AI",
+      "confidence": 0.95,
+      "rationale": "The drawing illustrates construction details for a roof system and wall insulation (sections), which falls under architectural detailing/section drawings."
+    },
+    "30": {
+      "type": "unknown",
+      "source": "AI",
+      "confidence": 1.0,
+      "rationale": "This page provides technical construction details for a cat ladder, which does not fit into any of the provided architectural plan or structural schedule categories."
+    },
+    "31": {
+      "type": "arch_elevation",
+      "source": "fitz",
+      "confidence": 0.85,
+      "rationale": "fitz keyword match"
+    },
+    "32": {
+      "type": "arch_elevation",
+      "source": "fitz",
+      "confidence": 0.85,
+      "rationale": "fitz keyword match"
+    }
+  }
+}

@@ -1,0 +1,709 @@
+{
+  "excavation": {
+    "unit": "m3",
+    "count": 11,
+    "min": 295.0,
+    "max": 1400.0,
+    "median": 750.0,
+    "mean": 680.27,
+    "stdev": 332.7,
+    "values": [
+      295.0,
+      295.0,
+      318.0,
+      450.0,
+      660.0,
+      750.0,
+      760.0,
+      780.0,
+      875.0,
+      900.0,
+      1400.0
+    ],
+    "samples": [
+      "Excvation works",
+      "Excvation works (as per soil report 1.5m)",
+      "Excvation works (as per soil report 1.5m)"
+    ]
+  },
+  "road_base": {
+    "unit": "m3",
+    "count": 5,
+    "min": 65.0,
+    "max": 138.0,
+    "median": 102.0,
+    "mean": 106.4,
+    "stdev": 30.65,
+    "values": [
+      65.0,
+      92.0,
+      102.0,
+      135.0,
+      138.0
+    ],
+    "samples": [
+      "Roadbase Layer as per required (250 mm)",
+      "Roadbase Layer as per required (200 mm)",
+      "Roadbase Layer as per required (250 mm)"
+    ]
+  },
+  "backfill": {
+    "unit": "m3",
+    "count": 11,
+    "min": 355.0,
+    "max": 1465.0,
+    "median": 790.0,
+    "mean": 762.73,
+    "stdev": 350.84,
+    "values": [
+      355.0,
+      355.0,
+      375.0,
+      475.0,
+      790.0,
+      790.0,
+      825.0,
+      900.0,
+      980.0,
+      1080.0,
+      1465.0
+    ],
+    "samples": [
+      "Back filling work required & Compaction",
+      "Back filling work required",
+      "Back filling work required"
+    ]
+  },
+  "foundation_pcc": {
+    "unit": "m3",
+    "count": 11,
+    "min": 9.0,
+    "max": 31.0,
+    "median": 22.0,
+    "mean": 20.09,
+    "stdev": 8.1,
+    "values": [
+      9.0,
+      9.0,
+      12.0,
+      13.0,
+      20.0,
+      22.0,
+      24.0,
+      25.0,
+      26.0,
+      30.0,
+      31.0
+    ],
+    "samples": [
+      "100mm thick PPC under footing & tie beams (as per spec. )",
+      "100mm thick PPC under footing & tie beams",
+      "100mm thick PPC under footing & tie beams"
+    ]
+  },
+  "foundation_concrete": {
+    "unit": "m3",
+    "count": 11,
+    "min": 20.0,
+    "max": 125.0,
+    "median": 38.0,
+    "mean": 50.82,
+    "stdev": 31.96,
+    "values": [
+      20.0,
+      20.0,
+      25.0,
+      32.0,
+      37.0,
+      38.0,
+      48.0,
+      62.0,
+      72.0,
+      80.0,
+      125.0
+    ],
+    "samples": [
+      "R.C.C Footings (as per approved drawings & consultant spec.)",
+      "R.C.C Footings (as per approved drawings & consultant spec.)",
+      "R.C.C Footings (as per approved drawings & consultant spec.)"
+    ]
+  },
+  "column_concrete": {
+    "unit": "m3",
+    "count": 15,
+    "min": 2.0,
+    "max": 50.0,
+    "median": 21.0,
+    "mean": 22.53,
+    "stdev": 15.99,
+    "values": [
+      2.0,
+      4.0,
+      6.0,
+      6.0,
+      13.0,
+      13.0,
+      14.0,
+      21.0,
+      25.0,
+      28.0,
+      30.0,
+      38.0,
+      43.0,
+      45.0,
+      50.0
+    ],
+    "samples": [
+      "R.C.C for Neck40 Columns (as per approved drawings & levels)",
+      "R.C.C columns",
+      "R.C.C columns"
+    ]
+  },
+  "tie_beam_concrete": {
+    "unit": "m3",
+    "count": 11,
+    "min": 4.0,
+    "max": 31.0,
+    "median": 22.0,
+    "mean": 18.36,
+    "stdev": 8.57,
+    "values": [
+      4.0,
+      9.0,
+      9.0,
+      12.0,
+      18.0,
+      22.0,
+      24.0,
+      24.0,
+      24.0,
+      25.0,
+      31.0
+    ],
+    "samples": [
+      "R.C.C for TIE Beams & Strap beams",
+      "R.C.C for TIE Beams",
+      "R.C.C for TIE Beams"
+    ]
+  },
+  "solid_block": {
+    "unit": "m2",
+    "count": 20,
+    "min": 75.0,
+    "max": 600.0,
+    "median": 207.5,
+    "mean": 267.6,
+    "stdev": 182.79,
+    "values": [
+      75.0,
+      75.0,
+      95.0,
+      100.0,
+      110.0,
+      120.0,
+      120.0,
+      145.0,
+      150.0,
+      150.0,
+      265.0,
+      265.0,
+      295.0,
+      300.0,
+      430.0,
+      475.0,
+      484.0,
+      500.0,
+      598.0,
+      600.0
+    ],
+    "samples": [
+      "20cm Solid Block Work under external tie beams & steps",
+      "Insulated 20cm block work (for external walls)",
+      "20cm Solid Block Work (For villa , U.G.W.T)"
+    ]
+  },
+  "wall_footing": {
+    "unit": "m3",
+    "count": 8,
+    "min": 2.0,
+    "max": 16.0,
+    "median": 3.5,
+    "mean": 4.88,
+    "stdev": 4.61,
+    "values": [
+      2.0,
+      2.0,
+      3.0,
+      3.0,
+      4.0,
+      4.0,
+      5.0,
+      16.0
+    ],
+    "samples": [
+      "WALL FOOTING (as per drawings locations & sections)",
+      "WALL FOOTING",
+      "WALL FOOTING"
+    ]
+  },
+  "slab_on_grade": {
+    "unit": "m3",
+    "count": 11,
+    "min": 12.0,
+    "max": 45.0,
+    "median": 24.0,
+    "mean": 23.91,
+    "stdev": 9.58,
+    "values": [
+      12.0,
+      12.0,
+      18.0,
+      19.0,
+      19.0,
+      24.0,
+      26.0,
+      27.0,
+      29.0,
+      32.0,
+      45.0
+    ],
+    "samples": [
+      "10cm thick slab on grade with A252 mesh",
+      "10cm thick slab on grade with A252 mesh",
+      "10cm thick slab on grade with A252 mesh"
+    ]
+  },
+  "staircase_concrete": {
+    "unit": "m3",
+    "count": 40,
+    "min": 1.0,
+    "max": 70.8,
+    "median": 9.5,
+    "mean": 17.25,
+    "stdev": 18.7,
+    "values": [
+      1.0,
+      1.0,
+      3.0,
+      3.0,
+      3.0,
+      3.0,
+      4.0,
+      4.0,
+      4.0,
+      4.0,
+      5.0,
+      5.0,
+      5.0,
+      5.0,
+      5.0,
+      5.0,
+      6.0,
+      7.0,
+      9.0,
+      9.0,
+      10.0,
+      11.0,
+      12.0,
+      14.0,
+      14.0,
+      15.0,
+      15.0,
+      15.0,
+      15.0,
+      25.0,
+      30.0,
+      32.0,
+      33.0,
+      33.0,
+      35.0,
+      39.0,
+      56.0,
+      56.0,
+      68.0,
+      70.8
+    ],
+    "samples": [
+      "R.C.C for Staircase",
+      "marble  staircase landing ((supply rate 100 DHS.)",
+      "marble  staircase steps   (supply rate 100 DHS.)"
+    ]
+  },
+  "parapet": {
+    "unit": "m3",
+    "count": 11,
+    "min": 4.0,
+    "max": 23.0,
+    "median": 6.0,
+    "mean": 8.91,
+    "stdev": 7.08,
+    "values": [
+      4.0,
+      4.0,
+      4.0,
+      5.0,
+      6.0,
+      6.0,
+      6.0,
+      6.0,
+      12.0,
+      22.0,
+      23.0
+    ],
+    "samples": [
+      "R.C.C for Parapet (OR coping beam)",
+      "R.C.C for Parapet (coping beam)",
+      "R.C.C for Parapet (coping beam)"
+    ]
+  },
+  "internal_block": {
+    "unit": "m2",
+    "count": 24,
+    "min": 22.0,
+    "max": 570.0,
+    "median": 217.5,
+    "mean": 243.83,
+    "stdev": 150.46,
+    "values": [
+      22.0,
+      24.0,
+      68.0,
+      110.0,
+      118.0,
+      160.0,
+      165.0,
+      165.0,
+      170.0,
+      200.0,
+      210.0,
+      210.0,
+      225.0,
+      225.0,
+      260.0,
+      265.0,
+      275.0,
+      310.0,
+      310.0,
+      315.0,
+      370.0,
+      540.0,
+      565.0,
+      570.0
+    ],
+    "samples": [
+      "20cm Hollow block (for internal walls & parapt as per th dra",
+      "10cm Hollow block (for internal walls  & parapt as per drawi",
+      "20cm Hollow block (for internal walLs & parapet as per the d"
+    ]
+  },
+  "granite": {
+    "unit": "m2",
+    "count": 23,
+    "min": 15.0,
+    "max": 105.0,
+    "median": 32.0,
+    "mean": 40.87,
+    "stdev": 25.26,
+    "values": [
+      15.0,
+      18.0,
+      20.0,
+      20.0,
+      22.0,
+      22.0,
+      23.0,
+      30.0,
+      30.0,
+      30.0,
+      30.0,
+      32.0,
+      35.0,
+      38.0,
+      38.0,
+      38.0,
+      40.0,
+      48.0,
+      65.0,
+      68.0,
+      68.0,
+      105.0,
+      105.0
+    ],
+    "samples": [
+      "Granite entrance front , back side & sitting  (supply rate 1",
+      "Granite  steps  (supply rate 100 DHS.)",
+      "Granite skirting  (supply rate 25 DHS.)"
+    ]
+  },
+  "marble": {
+    "unit": "rm",
+    "count": 19,
+    "min": 13.0,
+    "max": 73.0,
+    "median": 22.0,
+    "mean": 24.95,
+    "stdev": 13.75,
+    "values": [
+      13.0,
+      13.0,
+      13.0,
+      13.0,
+      15.0,
+      18.0,
+      18.0,
+      20.0,
+      21.0,
+      22.0,
+      24.0,
+      25.0,
+      26.0,
+      30.0,
+      30.0,
+      30.0,
+      35.0,
+      35.0,
+      73.0
+    ],
+    "samples": [
+      "Marble treshhold (supply rate of 80 DHS.)",
+      "Marble treshhold  (supply rate 50 DHS.)",
+      "Marble treshhold  (supply rate 50 DHS.)"
+    ]
+  },
+  "wall_tiles": {
+    "unit": "m2",
+    "count": 12,
+    "min": 170.0,
+    "max": 800.0,
+    "median": 336.5,
+    "mean": 376.92,
+    "stdev": 153.9,
+    "values": [
+      170.0,
+      295.0,
+      295.0,
+      310.0,
+      310.0,
+      333.0,
+      340.0,
+      360.0,
+      400.0,
+      450.0,
+      460.0,
+      800.0
+    ],
+    "samples": [
+      "ceramic   wall tiles (supply rate 30 DHS.)",
+      "ceramic wall tiles for all wet areas  (supply rate 30 DHS.)",
+      "ceramic wall tiles for all wet areas  (supply rate 30 DHS.)"
+    ]
+  },
+  "skirting": {
+    "unit": "rm",
+    "count": 16,
+    "min": 11.0,
+    "max": 410.0,
+    "median": 222.5,
+    "mean": 223.81,
+    "stdev": 126.24,
+    "values": [
+      11.0,
+      15.0,
+      50.0,
+      170.0,
+      170.0,
+      180.0,
+      180.0,
+      195.0,
+      250.0,
+      280.0,
+      290.0,
+      295.0,
+      315.0,
+      360.0,
+      410.0,
+      410.0
+    ],
+    "samples": [
+      "ceramic skirting (supply rate 10 DHS.)",
+      "Skirting for CERMIC  (supply rate 10 DHS.)",
+      "Skirting for CERMIC  (supply rate 10 DHS.)"
+    ]
+  },
+  "door_openings": {
+    "unit": "no.",
+    "count": 24,
+    "min": 1.0,
+    "max": 28.0,
+    "median": 12.0,
+    "mean": 11.92,
+    "stdev": 8.78,
+    "values": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      8.0,
+      9.0,
+      10.0,
+      10.0,
+      12.0,
+      12.0,
+      13.0,
+      14.0,
+      14.0,
+      19.0,
+      20.0,
+      20.0,
+      21.0,
+      21.0,
+      23.0,
+      25.0,
+      28.0
+    ],
+    "samples": [
+      "Sub Frames For All Doors",
+      "D (1)  (supply rate of 8000. dhs / door)",
+      "D (2) (supply rate of 3000 dhs / door)"
+    ]
+  },
+  "compound_wall": {
+    "unit": "rm",
+    "count": 11,
+    "min": 32.0,
+    "max": 132.0,
+    "median": 111.0,
+    "mean": 103.18,
+    "stdev": 26.18,
+    "values": [
+      32.0,
+      84.0,
+      103.0,
+      110.0,
+      110.0,
+      111.0,
+      111.0,
+      112.0,
+      112.0,
+      118.0,
+      132.0
+    ],
+    "samples": [
+      "ALL the civil work required for COMPOUND WALL",
+      "ALL the civil work required for COMPOUND WALL",
+      "ALL the civil work required for COMPOUND WALL"
+    ]
+  },
+  "interlock_paving": {
+    "unit": "m2",
+    "count": 11,
+    "min": 150.0,
+    "max": 940.0,
+    "median": 351.0,
+    "mean": 394.64,
+    "stdev": 221.65,
+    "values": [
+      150.0,
+      215.0,
+      220.0,
+      300.0,
+      315.0,
+      351.0,
+      375.0,
+      375.0,
+      500.0,
+      600.0,
+      940.0
+    ],
+    "samples": [
+      "Interlock work (supply rate of 25 DHS/SQM)",
+      "Interlock work (supply rate of 25 DHS/SQM)",
+      "Interlock work (supply rate of 25 DHS/SQM)"
+    ]
+  },
+  "polyethylene": {
+    "unit": "sqm",
+    "count": 7,
+    "min": 210.0,
+    "max": 585.0,
+    "median": 450.0,
+    "mean": 404.57,
+    "stdev": 148.07,
+    "values": [
+      210.0,
+      210.0,
+      380.0,
+      450.0,
+      460.0,
+      537.0,
+      585.0
+    ],
+    "samples": [
+      "Polythene sheet (1000 guage & as per consultant approval)",
+      "Polythene sheet (1000 guage & as per consultant approval)",
+      "Polythene sheet (1000 guage & as per consultant approval)"
+    ]
+  },
+  "neck_column_concrete": {
+    "unit": "mᶾ",
+    "count": 7,
+    "min": 3.0,
+    "max": 8.0,
+    "median": 4.0,
+    "mean": 4.43,
+    "stdev": 1.72,
+    "values": [
+      3.0,
+      3.0,
+      4.0,
+      4.0,
+      4.0,
+      5.0,
+      8.0
+    ],
+    "samples": [
+      "R.C.C for Neck Columns (as per drawings details & levels )",
+      "R.C.C for Neck Columns (as per drawings details & levels )",
+      "R.C.C for Neck Columns (as per approved drawings & levels)"
+    ]
+  },
+  "thermal_block": {
+    "unit": "sqm",
+    "count": 2,
+    "min": 520.0,
+    "max": 600.0,
+    "median": 560.0,
+    "mean": 560.0,
+    "stdev": 0,
+    "values": [
+      520.0,
+      600.0
+    ],
+    "samples": [
+      "25cm Thermal block (for External walLs as per th drawing)",
+      "25cm Thermal block (for External walLs as per th drawing)"
+    ]
+  },
+  "window_openings": {
+    "unit": "m2",
+    "count": 3,
+    "min": 108.0,
+    "max": 325.0,
+    "median": 200.0,
+    "mean": 211.0,
+    "stdev": 108.92,
+    "values": [
+      108.0,
+      200.0,
+      325.0
+    ],
+    "samples": [
+      "Alminuim windows (supply of 600 0dhs per sqm)",
+      "Alminuim windows (supply of 650dhs per sqm)",
+      "Alminuim windows (supply of 550dhs per sqm)"
+    ]
+  }
+}

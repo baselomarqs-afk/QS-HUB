@@ -1,0 +1,45 @@
+# Render Blueprint for THE QS HUB web product (React SPA + FastAPI, one service).
+# Usage: in Render → New → Blueprint, point it at this file (or rename it to
+# render.yaml). Fill the secret values (sync:false) in the Render dashboard.
+# NOTE: this replaces the old Streamlit-based render.yaml for the web product.
+services:
+  - type: web
+    name: qshub-web
+    runtime: docker
+    dockerfilePath: ./Dockerfile.web
+    plan: starter
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: APP_BASE_URL          # public URL of this service, e.g. https://app.example.com
+        sync: false
+      - key: JWT_SECRET            # REQUIRED — long random string; no hardcoded fallback in prod
+        sync: false
+      - key: TIDB_HOST
+        sync: false
+      - key: TIDB_PORT
+        value: "4000"
+      - key: TIDB_USER
+        sync: false
+      - key: TIDB_PASSWORD
+        sync: false
+      - key: TIDB_DATABASE
+        sync: false
+      - key: DODO_ENVIRONMENT
+        value: live_mode
+      - key: DODO_PAYMENTS_API_KEY
+        sync: false
+      - key: DODO_WEBHOOK_SECRET
+        sync: false
+      - key: DODO_PRODUCT_TIER_1
+        sync: false
+      - key: DODO_PRODUCT_TIER_2
+        sync: false
+      - key: DODO_PRODUCT_TIER_3
+        sync: false
+      - key: DODO_PRODUCT_TIER_4
+        sync: false
+      - key: AI_API_KEY_1
+        sync: false
+      - key: SENTRY_DSN
+        sync: false

@@ -1,0 +1,2071 @@
+{
+  "sources": [
+    [
+      "FATIMA HUSSEIN MURAD DWF",
+      "B:\\work\\projects estimation\\projects\\new quasis ALI\\DONE\\DONE PAYMENT\\FATIMA HUSSEIN MURAD DWF\\final BOQ FATMA.xlsx"
+    ],
+    [
+      "HUSSAIN IBRAHIM",
+      "B:\\work\\projects estimation\\projects\\new quasis ALI\\DONE\\DONE PAYMENT\\HUSSAIN IBRAHIM\\final BOQ detaled.xlsx"
+    ],
+    [
+      "Hamad Suroor",
+      "B:\\work\\projects estimation\\projects\\new quasis ALI\\DONE\\DONE PAYMENT\\Hamad Suroor\\boq detailed.xlsx"
+    ],
+    [
+      "RASHED MAZROUI",
+      "B:\\work\\projects estimation\\projects\\new quasis ALI\\DONE\\DONE PAYMENT\\RASHED MAZROUI\\boq detailed.xlsx"
+    ],
+    [
+      "TENDER FOLDER-M.ALFALASI",
+      "B:\\work\\projects estimation\\projects\\new quasis ALI\\DONE\\DONE PAYMENT\\TENDER FOLDER-M.ALFALASI\\boq detailed.xlsx"
+    ],
+    [
+      "Tender Docks (Mrs Farah Ali-9253318)",
+      "B:\\work\\projects estimation\\projects\\new quasis ALI\\DONE\\DONE PAYMENT\\Tender Docks (Mrs Farah Ali-9253318)\\FINAL BOQ farah detailed.xlsx"
+    ],
+    [
+      "YUSSEF HIUISEEN",
+      "B:\\work\\projects estimation\\projects\\new quasis ALI\\DONE\\DONE PAYMENT\\YUSSEF HIUISEEN\\Final Boq (MR.yousef).xlsx"
+    ],
+    [
+      "ali",
+      "B:\\work\\projects estimation\\projects\\new quasis ALI\\DONE\\DONE PAYMENT\\ali\\boq detailed.xlsx"
+    ],
+    [
+      "june 2024",
+      "B:\\work\\projects estimation\\projects\\new quasis ALI\\DONE\\DONE PAYMENT\\june 2024\\boq detailed.xlsx"
+    ],
+    [
+      "downloads/ali",
+      "B:\\work\\projects estimation\\projects\\downloads\\ali\\BOQ.xlsx"
+    ],
+    [
+      "downloads/new villa",
+      "B:\\work\\projects estimation\\projects\\downloads\\new villa\\BOQ.xlsx"
+    ],
+    [
+      "downloads/jhangir 4",
+      "B:\\work\\projects estimation\\projects\\downloads\\jhangir 4\\3 pj jhangir\\LAST VERSION TENDER MR MARWAN (1)\\LAST VERSION TENDER MR MARWAN\\BOQ.xls"
+    ],
+    [
+      "downloads/new villa mode",
+      "B:\\work\\projects estimation\\projects\\downloads\\new villa mode\\G+1+S.B+S.P\\Villa  BOQ.xlsx"
+    ],
+    [
+      "downloads/new client",
+      "B:\\work\\projects estimation\\projects\\downloads\\new client\\BOQ.xlsx"
+    ]
+  ],
+  "by_project": {
+    "FATIMA HUSSEIN MURAD DWF": {
+      "backfill": {
+        "qty": 740.0,
+        "unit": "m3"
+      },
+      "foundation_pcc": {
+        "qty": 25.0,
+        "unit": "m3"
+      },
+      "foundation_concrete": {
+        "qty": 72.0,
+        "unit": "m3"
+      },
+      "neck_column_concrete": {
+        "qty": 4.0,
+        "unit": "m3"
+      },
+      "tie_beam_concrete": {
+        "qty": 18.0,
+        "unit": "m3"
+      },
+      "foundation_bitumen": {
+        "qty": 675.0,
+        "unit": "m2"
+      },
+      "strap_beam": {
+        "qty": 2.0,
+        "unit": "m3"
+      },
+      "slab_on_grade": {
+        "qty": 35.0,
+        "unit": "m3"
+      },
+      "column_concrete": {
+        "qty": 30.0,
+        "unit": "m3"
+      },
+      "beam_concrete": {
+        "qty": 24.0,
+        "unit": "m3"
+      },
+      "slab_concrete": {
+        "qty": 165.0,
+        "unit": "m3"
+      },
+      "staircase_concrete": {
+        "qty": 11.0,
+        "unit": "m3"
+      },
+      "parapet": {
+        "qty": 25.0,
+        "unit": "m3"
+      },
+      "internal_block": {
+        "qty": 715.0,
+        "unit": "m2"
+      },
+      "internal_plaster": {
+        "qty": 1800.0,
+        "unit": "m2"
+      },
+      "external_plaster": {
+        "qty": 1200.0,
+        "unit": "m2"
+      },
+      "internal_paint": {
+        "qty": 1110.0,
+        "unit": "m2"
+      },
+      "external_paint": {
+        "qty": 1200.0,
+        "unit": "m2"
+      },
+      "wet_waterproofing": {
+        "qty": 78.0,
+        "unit": "m2"
+      },
+      "roof_waterproofing": {
+        "qty": 270.0,
+        "unit": "m2"
+      },
+      "marble": {
+        "qty": 45.0,
+        "unit": "rm"
+      },
+      "interlock_paving": {
+        "qty": 560.0,
+        "unit": "m2"
+      },
+      "wall_tiles": {
+        "qty": 565.0,
+        "unit": "m2"
+      },
+      "skirting": {
+        "qty": 385.0,
+        "unit": "rm"
+      },
+      "compound_wall": {
+        "qty": 95.0,
+        "unit": "rm"
+      }
+    },
+    "HUSSAIN IBRAHIM": {
+      "road_base": {
+        "qty": 4.0,
+        "unit": "m3"
+      },
+      "backfill": {
+        "qty": 740.0,
+        "unit": "m3"
+      },
+      "foundation_pcc": {
+        "qty": 24.0,
+        "unit": "m3"
+      },
+      "foundation_concrete": {
+        "qty": 72.0,
+        "unit": "m3"
+      },
+      "neck_column_concrete": {
+        "qty": 4.0,
+        "unit": "m3"
+      },
+      "tie_beam_concrete": {
+        "qty": 18.0,
+        "unit": "m3"
+      },
+      "foundation_bitumen": {
+        "qty": 665.0,
+        "unit": "m2"
+      },
+      "strap_beam": {
+        "qty": 2.0,
+        "unit": "m3"
+      },
+      "slab_on_grade": {
+        "qty": 35.0,
+        "unit": "m3"
+      },
+      "column_concrete": {
+        "qty": 28.0,
+        "unit": "m3"
+      },
+      "beam_concrete": {
+        "qty": 23.0,
+        "unit": "m3"
+      },
+      "slab_concrete": {
+        "qty": 160.0,
+        "unit": "m3"
+      },
+      "staircase_concrete": {
+        "qty": 10.0,
+        "unit": "m3"
+      },
+      "parapet": {
+        "qty": 26.0,
+        "unit": "m3"
+      },
+      "internal_block": {
+        "qty": 675.0,
+        "unit": "m2"
+      },
+      "internal_plaster": {
+        "qty": 1825.0,
+        "unit": "m2"
+      },
+      "external_plaster": {
+        "qty": 1160.0,
+        "unit": "m2"
+      },
+      "ceiling_plaster": {
+        "qty": 3.0,
+        "unit": "m2"
+      },
+      "internal_paint": {
+        "qty": 1110.0,
+        "unit": "m2"
+      },
+      "external_paint": {
+        "qty": 1160.0,
+        "unit": "m2"
+      },
+      "wet_waterproofing": {
+        "qty": 78.0,
+        "unit": "m2"
+      },
+      "roof_waterproofing": {
+        "qty": 270.0,
+        "unit": "m2"
+      },
+      "marble": {
+        "qty": 43.0,
+        "unit": "rm"
+      },
+      "interlock_paving": {
+        "qty": 575.0,
+        "unit": "m2"
+      },
+      "wall_tiles": {
+        "qty": 560.0,
+        "unit": "m2"
+      },
+      "skirting": {
+        "qty": 375.0,
+        "unit": "rm"
+      },
+      "compound_wall": {
+        "qty": 93.0,
+        "unit": "rm"
+      }
+    },
+    "Hamad Suroor": {
+      "road_base": {
+        "qty": 40.0,
+        "unit": "m3"
+      },
+      "backfill": {
+        "qty": 470.0,
+        "unit": "m3"
+      },
+      "foundation_pcc": {
+        "qty": 15.0,
+        "unit": "m3"
+      },
+      "foundation_concrete": {
+        "qty": 40.0,
+        "unit": "m3"
+      },
+      "neck_column_concrete": {
+        "qty": 4.0,
+        "unit": "m3"
+      },
+      "tie_beam_concrete": {
+        "qty": 17.0,
+        "unit": "m3"
+      },
+      "strap_beam": {
+        "qty": 1250.0,
+        "unit": "m3"
+      },
+      "wall_footing": {
+        "qty": 2.0,
+        "unit": "m3"
+      },
+      "slab_on_grade": {
+        "qty": 20.0,
+        "unit": "m3"
+      },
+      "column_concrete": {
+        "qty": 18.0,
+        "unit": "m3"
+      },
+      "beam_concrete": {
+        "qty": 15.0,
+        "unit": "m3"
+      },
+      "slab_concrete": {
+        "qty": 90.0,
+        "unit": "m3"
+      },
+      "staircase_concrete": {
+        "qty": 6.0,
+        "unit": "m3"
+      },
+      "parapet": {
+        "qty": 3.0,
+        "unit": "m3"
+      },
+      "internal_block": {
+        "qty": 10.0,
+        "unit": "m2"
+      },
+      "internal_plaster": {
+        "qty": 1050.0,
+        "unit": "m2"
+      },
+      "external_plaster": {
+        "qty": 480.0,
+        "unit": "m2"
+      },
+      "ceiling_plaster": {
+        "qty": 290.0,
+        "unit": "m2"
+      },
+      "internal_paint": {
+        "qty": 720.0,
+        "unit": "m2"
+      },
+      "external_paint": {
+        "qty": 480.0,
+        "unit": "m2"
+      },
+      "foundation_bitumen": {
+        "qty": 650.0,
+        "unit": "m2"
+      },
+      "wet_waterproofing": {
+        "qty": 40.0,
+        "unit": "m2"
+      },
+      "roof_waterproofing": {
+        "qty": 190.0,
+        "unit": "m2"
+      },
+      "skirting": {
+        "qty": 242.0,
+        "unit": "rm"
+      },
+      "marble": {
+        "qty": 15.0,
+        "unit": "rm"
+      },
+      "interlock_paving": {
+        "qty": 370.0,
+        "unit": "m2"
+      },
+      "wall_tiles": {
+        "qty": 270.0,
+        "unit": "m2"
+      },
+      "compound_wall": {
+        "qty": 110.0,
+        "unit": "rm"
+      }
+    },
+    "RASHED MAZROUI": {
+      "road_base": {
+        "qty": 60.0,
+        "unit": "m3"
+      },
+      "backfill": {
+        "qty": 645.0,
+        "unit": "m3"
+      },
+      "foundation_pcc": {
+        "qty": 25.0,
+        "unit": "m3"
+      },
+      "foundation_concrete": {
+        "qty": 62.0,
+        "unit": "m3"
+      },
+      "neck_column_concrete": {
+        "qty": 5.0,
+        "unit": "m3"
+      },
+      "tie_beam_concrete": {
+        "qty": 19.0,
+        "unit": "m3"
+      },
+      "strap_beam": {
+        "qty": 2.0,
+        "unit": "m3"
+      },
+      "wall_footing": {
+        "qty": 3.0,
+        "unit": "m3"
+      },
+      "slab_on_grade": {
+        "qty": 22.0,
+        "unit": "m3"
+      },
+      "column_concrete": {
+        "qty": 31.0,
+        "unit": "m3"
+      },
+      "beam_concrete": {
+        "qty": 15.0,
+        "unit": "m3"
+      },
+      "slab_concrete": {
+        "qty": 80.0,
+        "unit": "m3"
+      },
+      "staircase_concrete": {
+        "qty": 7.0,
+        "unit": "m3"
+      },
+      "parapet": {
+        "qty": 35.0,
+        "unit": "m3"
+      },
+      "internal_block": {
+        "qty": 280.0,
+        "unit": "m2"
+      },
+      "internal_plaster": {
+        "qty": 1200.0,
+        "unit": "m2"
+      },
+      "external_plaster": {
+        "qty": 950.0,
+        "unit": "m2"
+      },
+      "ceiling_plaster": {
+        "qty": 260.0,
+        "unit": "m2"
+      },
+      "internal_paint": {
+        "qty": 900.0,
+        "unit": "m2"
+      },
+      "external_paint": {
+        "qty": 950.0,
+        "unit": "m2"
+      },
+      "foundation_bitumen": {
+        "qty": 620.0,
+        "unit": "m2"
+      },
+      "wet_waterproofing": {
+        "qty": 46.0,
+        "unit": "m2"
+      },
+      "roof_waterproofing": {
+        "qty": 190.0,
+        "unit": "m2"
+      },
+      "skirting": {
+        "qty": 252.0,
+        "unit": "rm"
+      },
+      "marble": {
+        "qty": 12.0,
+        "unit": "rm"
+      },
+      "interlock_paving": {
+        "qty": 330.0,
+        "unit": "m2"
+      },
+      "wall_tiles": {
+        "qty": 400.0,
+        "unit": "m2"
+      },
+      "compound_wall": {
+        "qty": 128.0,
+        "unit": "rm"
+      }
+    },
+    "TENDER FOLDER-M.ALFALASI": {
+      "road_base": {
+        "qty": 115.0,
+        "unit": "m3"
+      },
+      "backfill": {
+        "qty": 585.0,
+        "unit": "m3"
+      },
+      "foundation_pcc": {
+        "qty": 20.0,
+        "unit": "m3"
+      },
+      "foundation_concrete": {
+        "qty": 45.0,
+        "unit": "m3"
+      },
+      "neck_column_concrete": {
+        "qty": 4.0,
+        "unit": "m3"
+      },
+      "tie_beam_concrete": {
+        "qty": 18.0,
+        "unit": "m3"
+      },
+      "strap_beam": {
+        "qty": 8.0,
+        "unit": "m3"
+      },
+      "wall_footing": {
+        "qty": 1.0,
+        "unit": "m3"
+      },
+      "slab_on_grade": {
+        "qty": 27.0,
+        "unit": "m3"
+      },
+      "column_concrete": {
+        "qty": 23.0,
+        "unit": "m3"
+      },
+      "beam_concrete": {
+        "qty": 15.0,
+        "unit": "m3"
+      },
+      "slab_concrete": {
+        "qty": 125.0,
+        "unit": "m3"
+      },
+      "staircase_concrete": {
+        "qty": 14.0,
+        "unit": "m3"
+      },
+      "parapet": {
+        "qty": 34.0,
+        "unit": "m3"
+      },
+      "internal_block": {
+        "qty": 185.0,
+        "unit": "m2"
+      },
+      "internal_plaster": {
+        "qty": 1800.0,
+        "unit": "m2"
+      },
+      "external_plaster": {
+        "qty": 925.0,
+        "unit": "m2"
+      },
+      "ceiling_plaster": {
+        "qty": 450.0,
+        "unit": "m2"
+      },
+      "internal_paint": {
+        "qty": 1350.0,
+        "unit": "m2"
+      },
+      "external_paint": {
+        "qty": 925.0,
+        "unit": "m2"
+      },
+      "foundation_bitumen": {
+        "qty": 570.0,
+        "unit": "m2"
+      },
+      "wet_waterproofing": {
+        "qty": 38.0,
+        "unit": "m2"
+      },
+      "roof_waterproofing": {
+        "qty": 315.0,
+        "unit": "m2"
+      },
+      "granite": {
+        "qty": 10.0,
+        "unit": "m2"
+      },
+      "skirting": {
+        "qty": 12.0,
+        "unit": "rm"
+      },
+      "marble": {
+        "qty": 30.0,
+        "unit": "rm"
+      },
+      "interlock_paving": {
+        "qty": 538.0,
+        "unit": "m2"
+      },
+      "window_openings": {
+        "qty": 56.0,
+        "unit": "m2"
+      },
+      "compound_wall": {
+        "qty": 136.0,
+        "unit": "rm"
+      }
+    },
+    "Tender Docks (Mrs Farah Ali-9253318)": {
+      "excavation": {
+        "qty": 544.0,
+        "unit": "m3"
+      },
+      "backfill": {
+        "qty": 663.0,
+        "unit": "m3"
+      },
+      "polyethylene": {
+        "qty": 1.0,
+        "unit": "m2"
+      },
+      "foundation_pcc": {
+        "qty": 16.0,
+        "unit": "m3"
+      },
+      "foundation_concrete": {
+        "qty": 72.0,
+        "unit": "m3"
+      },
+      "tie_beam_concrete": {
+        "qty": 19.0,
+        "unit": "m3"
+      },
+      "neck_column_concrete": {
+        "qty": 3.0,
+        "unit": "m3"
+      },
+      "column_concrete": {
+        "qty": 14.0,
+        "unit": "m3"
+      },
+      "staircase_concrete": {
+        "qty": 10.0,
+        "unit": "m3"
+      },
+      "parapet": {
+        "qty": 4.0,
+        "unit": "m3"
+      },
+      "thermal_block": {
+        "qty": 480.0,
+        "unit": "m2"
+      },
+      "wet_waterproofing": {
+        "qty": 45.0,
+        "unit": "m2"
+      },
+      "granite": {
+        "qty": 23.0,
+        "unit": "m2"
+      },
+      "skirting": {
+        "qty": 448.0,
+        "unit": "rm"
+      },
+      "window_openings": {
+        "qty": 270.0,
+        "unit": "m2"
+      },
+      "marble": {
+        "qty": 1.0,
+        "unit": "rm"
+      }
+    },
+    "YUSSEF HIUISEEN": {
+      "road_base": {
+        "qty": 149.0,
+        "unit": "m3"
+      },
+      "backfill": {
+        "qty": 976.0,
+        "unit": "m3"
+      },
+      "foundation_pcc": {
+        "qty": 24.0,
+        "unit": "m3"
+      },
+      "foundation_concrete": {
+        "qty": 63.0,
+        "unit": "m3"
+      },
+      "neck_column_concrete": {
+        "qty": 4.0,
+        "unit": "m3"
+      },
+      "tie_beam_concrete": {
+        "qty": 20.0,
+        "unit": "m3"
+      },
+      "foundation_bitumen": {
+        "qty": 660.0,
+        "unit": "m2"
+      },
+      "slab_on_grade": {
+        "qty": 22.0,
+        "unit": "m3"
+      },
+      "column_concrete": {
+        "qty": 24.0,
+        "unit": "m3"
+      },
+      "beam_concrete": {
+        "qty": 15.0,
+        "unit": "m3"
+      },
+      "slab_concrete": {
+        "qty": 114.0,
+        "unit": "m3"
+      },
+      "staircase_concrete": {
+        "qty": 4.0,
+        "unit": "m3"
+      },
+      "parapet": {
+        "qty": 22.0,
+        "unit": "m3"
+      },
+      "internal_block": {
+        "qty": 520.0,
+        "unit": "m2"
+      },
+      "internal_plaster": {
+        "qty": 1320.0,
+        "unit": "m2"
+      },
+      "external_plaster": {
+        "qty": 790.0,
+        "unit": "m2"
+      },
+      "ceiling_plaster": {
+        "qty": 330.0,
+        "unit": "m2"
+      },
+      "internal_paint": {
+        "qty": 950.0,
+        "unit": "m2"
+      },
+      "external_paint": {
+        "qty": 790.0,
+        "unit": "m2"
+      },
+      "wet_waterproofing": {
+        "qty": 38.0,
+        "unit": "m2"
+      },
+      "roof_waterproofing": {
+        "qty": 234.0,
+        "unit": "m2"
+      },
+      "skirting": {
+        "qty": 294.0,
+        "unit": "rm"
+      },
+      "marble": {
+        "qty": 30.0,
+        "unit": "rm"
+      },
+      "interlock_paving": {
+        "qty": 405.0,
+        "unit": "m2"
+      },
+      "wall_tiles": {
+        "qty": 290.0,
+        "unit": "m2"
+      },
+      "window_openings": {
+        "qty": 147.0,
+        "unit": "m2"
+      },
+      "compound_wall": {
+        "qty": 143.0,
+        "unit": "rm"
+      }
+    },
+    "ali": {
+      "road_base": {
+        "qty": 4.0,
+        "unit": "m3"
+      },
+      "backfill": {
+        "qty": 745.0,
+        "unit": "m3"
+      },
+      "foundation_pcc": {
+        "qty": 22.0,
+        "unit": "m3"
+      },
+      "foundation_concrete": {
+        "qty": 55.0,
+        "unit": "m3"
+      },
+      "neck_column_concrete": {
+        "qty": 4.0,
+        "unit": "m3"
+      },
+      "tie_beam_concrete": {
+        "qty": 21.0,
+        "unit": "m3"
+      },
+      "strap_beam": {
+        "qty": 8.0,
+        "unit": "m3"
+      },
+      "wall_footing": {
+        "qty": 2.0,
+        "unit": "m3"
+      },
+      "slab_on_grade": {
+        "qty": 25.0,
+        "unit": "m3"
+      },
+      "column_concrete": {
+        "qty": 24.0,
+        "unit": "m3"
+      },
+      "beam_concrete": {
+        "qty": 18.0,
+        "unit": "m3"
+      },
+      "slab_concrete": {
+        "qty": 118.0,
+        "unit": "m3"
+      },
+      "staircase_concrete": {
+        "qty": 7.0,
+        "unit": "m3"
+      },
+      "parapet": {
+        "qty": 22.0,
+        "unit": "m3"
+      },
+      "internal_block": {
+        "qty": 285.0,
+        "unit": "m2"
+      },
+      "internal_plaster": {
+        "qty": 1350.0,
+        "unit": "m2"
+      },
+      "external_plaster": {
+        "qty": 825.0,
+        "unit": "m2"
+      },
+      "ceiling_plaster": {
+        "qty": 330.0,
+        "unit": "m2"
+      },
+      "internal_paint": {
+        "qty": 910.0,
+        "unit": "m2"
+      },
+      "external_paint": {
+        "qty": 825.0,
+        "unit": "m2"
+      },
+      "foundation_bitumen": {
+        "qty": 610.0,
+        "unit": "m2"
+      },
+      "wet_waterproofing": {
+        "qty": 42.0,
+        "unit": "m2"
+      },
+      "roof_waterproofing": {
+        "qty": 258.0,
+        "unit": "m2"
+      },
+      "skirting": {
+        "qty": 310.0,
+        "unit": "rm"
+      },
+      "marble": {
+        "qty": 25.0,
+        "unit": "rm"
+      },
+      "interlock_paving": {
+        "qty": 406.0,
+        "unit": "m2"
+      },
+      "wall_tiles": {
+        "qty": 350.0,
+        "unit": "m2"
+      },
+      "window_openings": {
+        "qty": 150.0,
+        "unit": "m2"
+      },
+      "compound_wall": {
+        "qty": 108.0,
+        "unit": "rm"
+      }
+    },
+    "june 2024": {
+      "road_base": {
+        "qty": 60.0,
+        "unit": "m3"
+      },
+      "backfill": {
+        "qty": 645.0,
+        "unit": "m3"
+      },
+      "foundation_pcc": {
+        "qty": 25.0,
+        "unit": "m3"
+      },
+      "foundation_concrete": {
+        "qty": 62.0,
+        "unit": "m3"
+      },
+      "neck_column_concrete": {
+        "qty": 5.0,
+        "unit": "m3"
+      },
+      "tie_beam_concrete": {
+        "qty": 19.0,
+        "unit": "m3"
+      },
+      "strap_beam": {
+        "qty": 2.0,
+        "unit": "m3"
+      },
+      "wall_footing": {
+        "qty": 3.0,
+        "unit": "m3"
+      },
+      "slab_on_grade": {
+        "qty": 22.0,
+        "unit": "m3"
+      },
+      "column_concrete": {
+        "qty": 31.0,
+        "unit": "m3"
+      },
+      "beam_concrete": {
+        "qty": 15.0,
+        "unit": "m3"
+      },
+      "slab_concrete": {
+        "qty": 80.0,
+        "unit": "m3"
+      },
+      "staircase_concrete": {
+        "qty": 7.0,
+        "unit": "m3"
+      },
+      "parapet": {
+        "qty": 34.0,
+        "unit": "m3"
+      },
+      "internal_block": {
+        "qty": 280.0,
+        "unit": "m2"
+      },
+      "internal_plaster": {
+        "qty": 1200.0,
+        "unit": "m2"
+      },
+      "external_plaster": {
+        "qty": 925.0,
+        "unit": "m2"
+      },
+      "ceiling_plaster": {
+        "qty": 260.0,
+        "unit": "m2"
+      },
+      "internal_paint": {
+        "qty": 850.0,
+        "unit": "m2"
+      },
+      "external_paint": {
+        "qty": 925.0,
+        "unit": "m2"
+      },
+      "foundation_bitumen": {
+        "qty": 620.0,
+        "unit": "m2"
+      },
+      "wet_waterproofing": {
+        "qty": 46.0,
+        "unit": "m2"
+      },
+      "roof_waterproofing": {
+        "qty": 190.0,
+        "unit": "m2"
+      },
+      "skirting": {
+        "qty": 252.0,
+        "unit": "rm"
+      },
+      "marble": {
+        "qty": 12.0,
+        "unit": "rm"
+      },
+      "interlock_paving": {
+        "qty": 330.0,
+        "unit": "m2"
+      },
+      "wall_tiles": {
+        "qty": 400.0,
+        "unit": "m2"
+      },
+      "compound_wall": {
+        "qty": 128.0,
+        "unit": "rm"
+      }
+    },
+    "downloads/ali": {
+      "backfill": {
+        "qty": 1080.0,
+        "unit": "m3"
+      },
+      "foundation_pcc": {
+        "qty": 24.0,
+        "unit": "m3"
+      },
+      "foundation_concrete": {
+        "qty": 48.0,
+        "unit": "m3"
+      },
+      "neck_column_concrete": {
+        "qty": 5.0,
+        "unit": "m3"
+      },
+      "tie_beam_concrete": {
+        "qty": 24.0,
+        "unit": "m3"
+      },
+      "wall_footing": {
+        "qty": 5.0,
+        "unit": "m3"
+      },
+      "slab_on_grade": {
+        "qty": 27.0,
+        "unit": "m3"
+      },
+      "column_concrete": {
+        "qty": 30.0,
+        "unit": "m3"
+      },
+      "beam_concrete": {
+        "qty": 22.0,
+        "unit": "m3"
+      },
+      "slab_concrete": {
+        "qty": 155.0,
+        "unit": "m3"
+      },
+      "staircase_concrete": {
+        "qty": 5.0,
+        "unit": "m3"
+      },
+      "parapet": {
+        "qty": 6.0,
+        "unit": "m3"
+      },
+      "thermal_block": {
+        "qty": 600.0,
+        "unit": "m2"
+      },
+      "internal_block": {
+        "qty": 310.0,
+        "unit": "m2"
+      },
+      "internal_plaster": {
+        "qty": 1450.0,
+        "unit": "m2"
+      },
+      "external_plaster": {
+        "qty": 900.0,
+        "unit": "m2"
+      },
+      "ceiling_plaster": {
+        "qty": 385.0,
+        "unit": "m2"
+      },
+      "internal_paint": {
+        "qty": 880.0,
+        "unit": "m2"
+      },
+      "external_paint": {
+        "qty": 900.0,
+        "unit": "m2"
+      },
+      "roof_waterproofing": {
+        "qty": 315.0,
+        "unit": "m2"
+      },
+      "wet_waterproofing": {
+        "qty": 42.0,
+        "unit": "m2"
+      },
+      "skirting": {
+        "qty": 298.0,
+        "unit": "rm"
+      },
+      "marble": {
+        "qty": 22.0,
+        "unit": "rm"
+      },
+      "interlock_paving": {
+        "qty": 80.0,
+        "unit": "m2"
+      },
+      "wall_tiles": {
+        "qty": 360.0,
+        "unit": "m2"
+      },
+      "compound_wall": {
+        "qty": 132.0,
+        "unit": "rm"
+      }
+    },
+    "downloads/new villa": {
+      "road_base": {
+        "qty": 195.0,
+        "unit": "m3"
+      },
+      "backfill": {
+        "qty": 1500.0,
+        "unit": "m3"
+      },
+      "foundation_pcc": {
+        "qty": 32.0,
+        "unit": "m3"
+      },
+      "foundation_concrete": {
+        "qty": 88.0,
+        "unit": "m3"
+      },
+      "neck_column_concrete": {
+        "qty": 9.0,
+        "unit": "m3"
+      },
+      "tie_beam_concrete": {
+        "qty": 44.0,
+        "unit": "m3"
+      },
+      "foundation_bitumen": {
+        "qty": 1600.0,
+        "unit": "m2"
+      },
+      "wall_footing": {
+        "qty": 3.0,
+        "unit": "m3"
+      },
+      "slab_on_grade": {
+        "qty": 60.0,
+        "unit": "m3"
+      },
+      "column_concrete": {
+        "qty": 40.0,
+        "unit": "m3"
+      },
+      "beam_concrete": {
+        "qty": 34.0,
+        "unit": "m3"
+      },
+      "slab_concrete": {
+        "qty": 170.0,
+        "unit": "m3"
+      },
+      "staircase_concrete": {
+        "qty": 6.0,
+        "unit": "m3"
+      },
+      "parapet": {
+        "qty": 7.0,
+        "unit": "m3"
+      },
+      "internal_block": {
+        "qty": 695.0,
+        "unit": "m2"
+      },
+      "internal_plaster": {
+        "qty": 2000.0,
+        "unit": "m2"
+      },
+      "external_plaster": {
+        "qty": 1300.0,
+        "unit": "m2"
+      },
+      "internal_paint": {
+        "qty": 1400.0,
+        "unit": "m2"
+      },
+      "external_paint": {
+        "qty": 1300.0,
+        "unit": "m2"
+      },
+      "wet_waterproofing": {
+        "qty": 55.0,
+        "unit": "m2"
+      },
+      "roof_waterproofing": {
+        "qty": 250.0,
+        "unit": "m2"
+      },
+      "granite": {
+        "qty": 165.0,
+        "unit": "m2"
+      },
+      "skirting": {
+        "qty": 438.0,
+        "unit": "rm"
+      },
+      "marble": {
+        "qty": 40.0,
+        "unit": "rm"
+      },
+      "interlock_paving": {
+        "qty": 115.0,
+        "unit": "m2"
+      },
+      "wall_tiles": {
+        "qty": 525.0,
+        "unit": "m2"
+      },
+      "window_openings": {
+        "qty": 290.0,
+        "unit": "m2"
+      },
+      "compound_wall": {
+        "qty": 190.0,
+        "unit": "rm"
+      }
+    },
+    "downloads/new villa mode": {
+      "backfill": {
+        "qty": 1245.0,
+        "unit": "m3"
+      },
+      "foundation_pcc": {
+        "qty": 45.0,
+        "unit": "m3"
+      },
+      "foundation_concrete": {
+        "qty": 140.0,
+        "unit": "m3"
+      },
+      "neck_column_concrete": {
+        "qty": 8.0,
+        "unit": "m3"
+      },
+      "tie_beam_concrete": {
+        "qty": 31.0,
+        "unit": "m3"
+      },
+      "slab_on_grade": {
+        "qty": 45.0,
+        "unit": "m3"
+      },
+      "column_concrete": {
+        "qty": 35.0,
+        "unit": "m3"
+      },
+      "beam_concrete": {
+        "qty": 25.0,
+        "unit": "m3"
+      },
+      "slab_concrete": {
+        "qty": 165.0,
+        "unit": "m3"
+      },
+      "staircase_concrete": {
+        "qty": 6.0,
+        "unit": "m3"
+      },
+      "parapet": {
+        "qty": 6.0,
+        "unit": "m3"
+      },
+      "thermal_block": {
+        "qty": 450.0,
+        "unit": "m2"
+      },
+      "internal_block": {
+        "qty": 100.0,
+        "unit": "m2"
+      },
+      "internal_plaster": {
+        "qty": 1650.0,
+        "unit": "m2"
+      },
+      "external_plaster": {
+        "qty": 1000.0,
+        "unit": "m2"
+      },
+      "ceiling_plaster": {
+        "qty": 30.0,
+        "unit": "m2"
+      },
+      "internal_paint": {
+        "qty": 900.0,
+        "unit": "m2"
+      },
+      "external_paint": {
+        "qty": 1000.0,
+        "unit": "m2"
+      },
+      "roof_waterproofing": {
+        "qty": 360.0,
+        "unit": "m2"
+      },
+      "wet_waterproofing": {
+        "qty": 57.0,
+        "unit": "m2"
+      },
+      "skirting": {
+        "qty": 329.0,
+        "unit": "rm"
+      },
+      "marble": {
+        "qty": 25.0,
+        "unit": "rm"
+      },
+      "interlock_paving": {
+        "qty": 105.0,
+        "unit": "m2"
+      },
+      "wall_tiles": {
+        "qty": 480.0,
+        "unit": "m2"
+      },
+      "compound_wall": {
+        "qty": 122.0,
+        "unit": "rm"
+      }
+    },
+    "downloads/new client": {
+      "excavation": {
+        "qty": 55193.0,
+        "unit": "m3"
+      },
+      "door_openings": {
+        "qty": 21440.0,
+        "unit": "no"
+      },
+      "wall_footing": {
+        "qty": 4.0,
+        "unit": "m3"
+      },
+      "parapet": {
+        "qty": 32.0,
+        "unit": "m3"
+      },
+      "polyethylene": {
+        "qty": 1470.0,
+        "unit": "m2"
+      },
+      "staircase_concrete": {
+        "qty": 10.0,
+        "unit": "m3"
+      },
+      "slab_on_grade": {
+        "qty": 55.0,
+        "unit": "m3"
+      },
+      "internal_block": {
+        "qty": 1680.0,
+        "unit": "m2"
+      },
+      "thermal_block": {
+        "qty": 1100.0,
+        "unit": "m2"
+      },
+      "interlock_paving": {
+        "qty": 1390.4,
+        "unit": "m2"
+      },
+      "skirting": {
+        "qty": 24.0,
+        "unit": "rm"
+      },
+      "marble": {
+        "qty": 7.0,
+        "unit": "rm"
+      },
+      "foundation_bitumen": {
+        "qty": 650.0,
+        "unit": "m2"
+      }
+    }
+  },
+  "summary": {
+    "backfill": {
+      "count": 12,
+      "min": 470.0,
+      "max": 1500.0,
+      "median": 740.0,
+      "mean": 836.2,
+      "stdev": 290.7,
+      "values": [
+        470.0,
+        585.0,
+        645.0,
+        645.0,
+        663.0,
+        740.0,
+        740.0,
+        745.0,
+        976.0,
+        1080.0,
+        1245.0,
+        1500.0
+      ]
+    },
+    "foundation_pcc": {
+      "count": 12,
+      "min": 15.0,
+      "max": 45.0,
+      "median": 24.0,
+      "mean": 24.8,
+      "stdev": 7.5,
+      "values": [
+        15.0,
+        16.0,
+        20.0,
+        22.0,
+        24.0,
+        24.0,
+        24.0,
+        25.0,
+        25.0,
+        25.0,
+        32.0,
+        45.0
+      ]
+    },
+    "foundation_concrete": {
+      "count": 12,
+      "min": 40.0,
+      "max": 140.0,
+      "median": 62.5,
+      "mean": 68.2,
+      "stdev": 25.2,
+      "values": [
+        40.0,
+        45.0,
+        48.0,
+        55.0,
+        62.0,
+        62.0,
+        63.0,
+        72.0,
+        72.0,
+        72.0,
+        88.0,
+        140.0
+      ]
+    },
+    "neck_column_concrete": {
+      "count": 12,
+      "min": 3.0,
+      "max": 9.0,
+      "median": 4.0,
+      "mean": 4.9,
+      "stdev": 1.7,
+      "values": [
+        3.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        4.0,
+        5.0,
+        5.0,
+        5.0,
+        8.0,
+        9.0
+      ]
+    },
+    "tie_beam_concrete": {
+      "count": 12,
+      "min": 17.0,
+      "max": 44.0,
+      "median": 19.0,
+      "mean": 22.3,
+      "stdev": 7.5,
+      "values": [
+        17.0,
+        18.0,
+        18.0,
+        18.0,
+        19.0,
+        19.0,
+        19.0,
+        20.0,
+        21.0,
+        24.0,
+        31.0,
+        44.0
+      ]
+    },
+    "foundation_bitumen": {
+      "count": 10,
+      "min": 570.0,
+      "max": 1600.0,
+      "median": 650.0,
+      "mean": 732.0,
+      "stdev": 290.9,
+      "values": [
+        570.0,
+        610.0,
+        620.0,
+        620.0,
+        650.0,
+        650.0,
+        660.0,
+        665.0,
+        675.0,
+        1600.0
+      ]
+    },
+    "strap_beam": {
+      "count": 7,
+      "min": 2.0,
+      "max": 1250.0,
+      "median": 2.0,
+      "mean": 182.0,
+      "stdev": 436.0,
+      "values": [
+        2.0,
+        2.0,
+        2.0,
+        2.0,
+        8.0,
+        8.0,
+        1250.0
+      ]
+    },
+    "slab_on_grade": {
+      "count": 12,
+      "min": 20.0,
+      "max": 60.0,
+      "median": 27.0,
+      "mean": 32.9,
+      "stdev": 13.0,
+      "values": [
+        20.0,
+        22.0,
+        22.0,
+        22.0,
+        25.0,
+        27.0,
+        27.0,
+        35.0,
+        35.0,
+        45.0,
+        55.0,
+        60.0
+      ]
+    },
+    "column_concrete": {
+      "count": 12,
+      "min": 14.0,
+      "max": 40.0,
+      "median": 29.0,
+      "mean": 27.3,
+      "stdev": 6.9,
+      "values": [
+        14.0,
+        18.0,
+        23.0,
+        24.0,
+        24.0,
+        28.0,
+        30.0,
+        30.0,
+        31.0,
+        31.0,
+        35.0,
+        40.0
+      ]
+    },
+    "beam_concrete": {
+      "count": 11,
+      "min": 15.0,
+      "max": 34.0,
+      "median": 18.0,
+      "mean": 20.1,
+      "stdev": 5.9,
+      "values": [
+        15.0,
+        15.0,
+        15.0,
+        15.0,
+        15.0,
+        18.0,
+        22.0,
+        23.0,
+        24.0,
+        25.0,
+        34.0
+      ]
+    },
+    "slab_concrete": {
+      "count": 11,
+      "min": 80.0,
+      "max": 170.0,
+      "median": 125.0,
+      "mean": 129.3,
+      "stdev": 33.8,
+      "values": [
+        80.0,
+        80.0,
+        90.0,
+        114.0,
+        118.0,
+        125.0,
+        155.0,
+        160.0,
+        165.0,
+        165.0,
+        170.0
+      ]
+    },
+    "staircase_concrete": {
+      "count": 13,
+      "min": 4.0,
+      "max": 14.0,
+      "median": 7.0,
+      "mean": 7.9,
+      "stdev": 2.7,
+      "values": [
+        4.0,
+        5.0,
+        6.0,
+        6.0,
+        6.0,
+        7.0,
+        7.0,
+        7.0,
+        10.0,
+        10.0,
+        10.0,
+        11.0,
+        14.0
+      ]
+    },
+    "parapet": {
+      "count": 13,
+      "min": 3.0,
+      "max": 35.0,
+      "median": 22.0,
+      "mean": 19.7,
+      "stdev": 12.2,
+      "values": [
+        3.0,
+        4.0,
+        6.0,
+        6.0,
+        7.0,
+        22.0,
+        22.0,
+        25.0,
+        26.0,
+        32.0,
+        34.0,
+        34.0,
+        35.0
+      ]
+    },
+    "internal_block": {
+      "count": 12,
+      "min": 10.0,
+      "max": 1680.0,
+      "median": 297.5,
+      "mean": 477.9,
+      "stdev": 426.3,
+      "values": [
+        10.0,
+        100.0,
+        185.0,
+        280.0,
+        280.0,
+        285.0,
+        310.0,
+        520.0,
+        675.0,
+        695.0,
+        715.0,
+        1680.0
+      ]
+    },
+    "internal_plaster": {
+      "count": 11,
+      "min": 1050.0,
+      "max": 2000.0,
+      "median": 1450.0,
+      "mean": 1513.2,
+      "stdev": 300.9,
+      "values": [
+        1050.0,
+        1200.0,
+        1200.0,
+        1320.0,
+        1350.0,
+        1450.0,
+        1650.0,
+        1800.0,
+        1800.0,
+        1825.0,
+        2000.0
+      ]
+    },
+    "external_plaster": {
+      "count": 11,
+      "min": 480.0,
+      "max": 1300.0,
+      "median": 925.0,
+      "mean": 950.5,
+      "stdev": 212.7,
+      "values": [
+        480.0,
+        790.0,
+        825.0,
+        900.0,
+        925.0,
+        925.0,
+        950.0,
+        1000.0,
+        1160.0,
+        1200.0,
+        1300.0
+      ]
+    },
+    "internal_paint": {
+      "count": 11,
+      "min": 720.0,
+      "max": 1400.0,
+      "median": 910.0,
+      "mean": 1007.3,
+      "stdev": 202.7,
+      "values": [
+        720.0,
+        850.0,
+        880.0,
+        900.0,
+        900.0,
+        910.0,
+        950.0,
+        1110.0,
+        1110.0,
+        1350.0,
+        1400.0
+      ]
+    },
+    "external_paint": {
+      "count": 11,
+      "min": 480.0,
+      "max": 1300.0,
+      "median": 925.0,
+      "mean": 950.5,
+      "stdev": 212.7,
+      "values": [
+        480.0,
+        790.0,
+        825.0,
+        900.0,
+        925.0,
+        925.0,
+        950.0,
+        1000.0,
+        1160.0,
+        1200.0,
+        1300.0
+      ]
+    },
+    "wet_waterproofing": {
+      "count": 12,
+      "min": 38.0,
+      "max": 78.0,
+      "median": 45.5,
+      "mean": 50.4,
+      "stdev": 13.6,
+      "values": [
+        38.0,
+        38.0,
+        40.0,
+        42.0,
+        42.0,
+        45.0,
+        46.0,
+        46.0,
+        55.0,
+        57.0,
+        78.0,
+        78.0
+      ]
+    },
+    "roof_waterproofing": {
+      "count": 11,
+      "min": 190.0,
+      "max": 360.0,
+      "median": 258.0,
+      "mean": 258.4,
+      "stdev": 53.7,
+      "values": [
+        190.0,
+        190.0,
+        190.0,
+        234.0,
+        250.0,
+        258.0,
+        270.0,
+        270.0,
+        315.0,
+        315.0,
+        360.0
+      ]
+    },
+    "marble": {
+      "count": 13,
+      "min": 1.0,
+      "max": 45.0,
+      "median": 25.0,
+      "mean": 23.6,
+      "stdev": 13.4,
+      "values": [
+        1.0,
+        7.0,
+        12.0,
+        12.0,
+        15.0,
+        22.0,
+        25.0,
+        25.0,
+        30.0,
+        30.0,
+        40.0,
+        43.0,
+        45.0
+      ]
+    },
+    "interlock_paving": {
+      "count": 12,
+      "min": 80.0,
+      "max": 1390.4,
+      "median": 387.5,
+      "mean": 433.7,
+      "stdev": 332.2,
+      "values": [
+        80.0,
+        105.0,
+        115.0,
+        330.0,
+        330.0,
+        370.0,
+        405.0,
+        406.0,
+        538.0,
+        560.0,
+        575.0,
+        1390.4
+      ]
+    },
+    "wall_tiles": {
+      "count": 10,
+      "min": 270.0,
+      "max": 565.0,
+      "median": 400.0,
+      "mean": 420.0,
+      "stdev": 102.0,
+      "values": [
+        270.0,
+        290.0,
+        350.0,
+        360.0,
+        400.0,
+        400.0,
+        480.0,
+        525.0,
+        560.0,
+        565.0
+      ]
+    },
+    "skirting": {
+      "count": 13,
+      "min": 12.0,
+      "max": 448.0,
+      "median": 298.0,
+      "mean": 281.5,
+      "stdev": 129.3,
+      "values": [
+        12.0,
+        24.0,
+        242.0,
+        252.0,
+        252.0,
+        294.0,
+        298.0,
+        310.0,
+        329.0,
+        375.0,
+        385.0,
+        438.0,
+        448.0
+      ]
+    },
+    "compound_wall": {
+      "count": 11,
+      "min": 93.0,
+      "max": 190.0,
+      "median": 128.0,
+      "mean": 125.9,
+      "stdev": 25.5,
+      "values": [
+        93.0,
+        95.0,
+        108.0,
+        110.0,
+        122.0,
+        128.0,
+        128.0,
+        132.0,
+        136.0,
+        143.0,
+        190.0
+      ]
+    },
+    "road_base": {
+      "count": 8,
+      "min": 4.0,
+      "max": 195.0,
+      "median": 60.0,
+      "mean": 78.4,
+      "stdev": 64.4,
+      "values": [
+        4.0,
+        4.0,
+        40.0,
+        60.0,
+        60.0,
+        115.0,
+        149.0,
+        195.0
+      ]
+    },
+    "ceiling_plaster": {
+      "count": 9,
+      "min": 3.0,
+      "max": 450.0,
+      "median": 290.0,
+      "mean": 259.8,
+      "stdev": 142.0,
+      "values": [
+        3.0,
+        30.0,
+        260.0,
+        260.0,
+        290.0,
+        330.0,
+        330.0,
+        385.0,
+        450.0
+      ]
+    },
+    "wall_footing": {
+      "count": 8,
+      "min": 1.0,
+      "max": 5.0,
+      "median": 3.0,
+      "mean": 2.9,
+      "stdev": 1.2,
+      "values": [
+        1.0,
+        2.0,
+        2.0,
+        3.0,
+        3.0,
+        3.0,
+        4.0,
+        5.0
+      ]
+    },
+    "granite": {
+      "count": 3,
+      "min": 10.0,
+      "max": 165.0,
+      "median": 23.0,
+      "mean": 66.0,
+      "stdev": 70.2,
+      "values": [
+        10.0,
+        23.0,
+        165.0
+      ]
+    },
+    "window_openings": {
+      "count": 5,
+      "min": 56.0,
+      "max": 290.0,
+      "median": 150.0,
+      "mean": 182.6,
+      "stdev": 86.6,
+      "values": [
+        56.0,
+        147.0,
+        150.0,
+        270.0,
+        290.0
+      ]
+    },
+    "excavation": {
+      "count": 2,
+      "min": 544.0,
+      "max": 55193.0,
+      "median": 27868.5,
+      "mean": 27868.5,
+      "stdev": 27324.5,
+      "values": [
+        544.0,
+        55193.0
+      ]
+    },
+    "polyethylene": {
+      "count": 2,
+      "min": 1.0,
+      "max": 1470.0,
+      "median": 735.5,
+      "mean": 735.5,
+      "stdev": 734.5,
+      "values": [
+        1.0,
+        1470.0
+      ]
+    },
+    "thermal_block": {
+      "count": 4,
+      "min": 450.0,
+      "max": 1100.0,
+      "median": 540.0,
+      "mean": 657.5,
+      "stdev": 261.6,
+      "values": [
+        450.0,
+        480.0,
+        600.0,
+        1100.0
+      ]
+    },
+    "door_openings": {
+      "count": 1,
+      "values": [
+        21440.0
+      ],
+      "note": "too few"
+    }
+  }
+}
