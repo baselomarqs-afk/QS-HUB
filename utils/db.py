@@ -344,6 +344,25 @@ def initialize_sqlite_db(conn):
             print(f"Could not seed market prices: {ex}")
 
 
+_POOL = None
+
+def get_pool():
+    global _POOL
+    if _POOL is None:
+        import pymysql
+        from dbutils.pooled_db import PooledDB
+        kwargs = DbSettings.from_env().pymysql_kwargs()
+        _POOL = PooledDB(
+            creator=pymysql,
+            maxconnections=15,
+            mincached=2,
+            maxcached=5,
+            blocking=True,
+            ping=1,
+            **kwargs
+        )
+    return _POOL
+
 @contextmanager
 def get_connection():
     """
@@ -376,18 +395,15 @@ def get_connection():
             except Exception:
                 pass
     else:
-        conn = None
+        pool = get_pool()
+        conn = pool.connection()
         try:
-            import pymysql
-
-            conn = pymysql.connect(**DbSettings.from_env().pymysql_kwargs())
             yield conn
         finally:
-            if conn:
-                try:
-                    conn.close()
-                except Exception:
-                    pass
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 
 def safe_query(sql: str, params=None) -> pd.DataFrame:
