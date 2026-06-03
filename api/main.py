@@ -144,6 +144,7 @@ if is_render:
         <html>
         <head>
             <title>THE QS HUB</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
                 body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0f172a; }
                 iframe { width: 100%; height: 100%; border: none; }
