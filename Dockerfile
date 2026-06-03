@@ -32,11 +32,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-COPY . .
+# Create a non-root user for HuggingFace Spaces compatibility
+RUN useradd -m -u 1000 user
+USER user
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH
+
+WORKDIR $HOME/app
+
+COPY --chown=user . $HOME/app/
 
 # Copy built React into frontend/dist so FastAPI serves it
-COPY --from=frontend-builder /build/dist /app/frontend/dist
+COPY --from=frontend-builder --chown=user /build/dist $HOME/app/frontend/dist
 
-EXPOSE 8000
+# Ensure writable directories exist
+RUN mkdir -p $HOME/app/.qto_cache $HOME/app/.qto_storage && chmod -R 777 $HOME/app/.qto_cache $HOME/app/.qto_storage
 
-CMD uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}
+EXPOSE 7860
+
+CMD uvicorn api.main:app --host 0.0.0.0 --port 7860
