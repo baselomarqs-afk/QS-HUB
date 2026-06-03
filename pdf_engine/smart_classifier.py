@@ -123,7 +123,7 @@ PAGE_ITEMS_MAP = {
         "ai_prompt_focus": "Extract total villa height and external wall areas for each face.",
     },
     "schedules": {
-        "drawing_keywords": ["schedule", "جدول", "DOOR SCHEDULE", "WINDOW SCHEDULE", "OPENING", "doors details", "windows details", "doors & windows", "d & w", "doors/windows", "finish schedule"],
+        "drawing_keywords": ["schedule", "جدول", "DOOR SCHEDULE", "WINDOW SCHEDULE", "OPENING", "doors details", "windows details", "doors & windows", "d & w", "doors/windows", "finish schedule", "door type", "window type", "qty", "quantity", "schedule of doors"],
         "pdf_type": "architectural",
         "extract_items": ["openings_doors", "openings_windows"],
         "ai_prompt_focus": "Extract complete door schedule (type, width, height, count) and window schedule (type, width, height, count).",
@@ -139,6 +139,8 @@ def classify_all_pages(pdf_texts: List[str], pdf_name: str = "") -> List[Dict]:
         scores = {}
         for page_type, config in PAGE_ITEMS_MAP.items():
             score = sum(1 for kw in config["drawing_keywords"] if kw.lower() in text_lower)
+            if page_type == "schedules" and score > 0:
+                score += 5
             scores[page_type] = score
 
         best_type  = max(scores, key=scores.get)

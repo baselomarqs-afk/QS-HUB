@@ -233,6 +233,17 @@ export default function VerifyStep({
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                  {isArabic ? 'ارتفاع الفيلا الكلي (متر)' : 'Total Villa Height (m)'}
+                  {renderSourceBadge('total_villa_height')}
+                </label>
+                <input
+                  type="number" step="0.01" className="form-input" required
+                  value={confirmedData.total_villa_height ?? ''}
+                  onChange={(e) => updateConfirmedField('total_villa_height', parseFloat(e.target.value) || 0)}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
                   {isArabic ? 'ارتفاع رقاب الأعمدة (متر)' : 'Neck Column Height (m)'}
                   {renderSourceBadge('neck_column_height')}
                 </label>

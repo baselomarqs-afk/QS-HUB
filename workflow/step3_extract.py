@@ -60,6 +60,7 @@ FOUNDATION_TYPES = {"foundations"}
 TIE_BEAM_TYPES   = {"tie_beam"}
 SLAB_TYPES       = {"slab_1st", "slab_2nd", "slab_roof", "roof_slab"}
 SCHEDULE_TYPES   = {"schedules", "door_schedule", "window_schedule"}
+SETTING_OUT_TYPES= {"setting_out"}
 
 FOUNDATION_PROMPT = """You are reading a FOUNDATION / FOOTING plan + SCHEDULE OF FOOTINGS of a UAE villa.
 The "footings" list is MANDATORY — there is always a footing schedule table; read every
@@ -129,6 +130,19 @@ Return ONLY this JSON (no markdown, no explanation):
 {"doors":[{"mark":"D1","width_mm":900,"height_mm":2100,"count":5}],
  "windows":[{"mark":"W1","width_mm":1500,"height_mm":1500,"count":6}],
  "confidence":"high|medium|low","notes":""}"""
+
+SETTING_OUT_PROMPT = """You are reading a SETTING OUT (site layout / master plan) of a UAE villa.
+
+Extract (ALL in METRES):
+- "plot_area": The total area of the plot/site boundary (m²)
+- "compound_length": The total perimeter/length of the compound wall (m)
+
+To find plot_area, look for explicit notes like "Plot Area: X sq.m" or multiply the overall boundary dimensions. 
+For compound_length, sum all boundary line lengths, or look for a stated perimeter.
+
+Return ONLY this JSON (no extra text):
+{"plot_area":null, "compound_length":null,
+ "confidence":"high|medium|low", "notes":""}"""
 
 FLOORPLAN_TYPES = {"ground_floor_plan", "first_floor_plan", "second_floor_plan"}
 FLOOR_PLAN_PROMPT = """You are reading an ARCHITECTURAL FLOOR PLAN of a UAE villa floor.
@@ -237,7 +251,9 @@ def _finishes_from_rooms(data: dict) -> dict:
     dry_per    = sum(per(r)  for r in rooms if not is_wet(r))
     sum_per    = sum(per(r)  for r in rooms)
 
-    L, W = dim(data.get("overall_length_m")), dim(data.get("overall_width_m"))
+    L = data.get("overall_length_m") if data.get("overall_length_m") is not None else data.get("longest_length")
+    W = data.get("overall_width_m") if data.get("overall_width_m") is not None else data.get("longest_width")
+    L, W = dim(L), dim(W)
     ext_per = 2 * (L + W) if (L and W) else 0.0
     if not total_area and L and W:
         total_area = L * W
@@ -345,6 +361,8 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
         full_prompt = SLAB_PROMPT
     elif drawing_type in SCHEDULE_TYPES:
         full_prompt = SCHEDULE_PROMPT
+    elif drawing_type in SETTING_OUT_TYPES:
+        full_prompt = SETTING_OUT_PROMPT
     elif drawing_type in FLOORPLAN_TYPES:
         full_prompt = FLOOR_PLAN_PROMPT
     else:

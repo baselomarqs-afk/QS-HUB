@@ -233,33 +233,19 @@ def _calc_tb_bitumen(i):
 
 def _calc_sog(i):
     """
-    Spec: gf_area * 0.10   (ground-floor plan area × 100 mm thickness)
-    100 mm slab-on-grade with 1.1 layout factor.
+    Spec: gf_area * 1.1 * 0.10 (thickness)
+    Standard 10cm slab-on-grade concrete with a 1.1 layout factor.
     """
-    return round(_g(i, "gf_area") * 0.10, 2)
+    return round(_g(i, "gf_area") * 1.1 * 0.10, 2)
 
 
 def _calc_solid_bw(i):
     """
-    Spec: external_perimeter * 0.9 * height (defaults to 1.0 m average) * block_thickness
+    Spec: external_perimeter * 0.9 * height (defaults to 1.0 m average)
     Solid block under tie beams along external perimeter.
     """
     height = _g(i, "solid_block_height", 1.0)
-    thickness_val = i.get("block_thickness")
-    thickness = 0.20  # default to 200mm (0.20m)
-    if thickness_val is not None:
-        try:
-            if isinstance(thickness_val, (int, float)):
-                thickness = float(thickness_val)
-            else:
-                s = str(thickness_val).strip().lower()
-                if "mm" in s:
-                    thickness = float(s.replace("mm", "").strip()) / 1000.0
-                else:
-                    thickness = float(s)
-        except ValueError:
-            pass
-    return round(_g(i, "external_perimeter") * 0.9 * height * thickness, 2)
+    return round(_g(i, "external_perimeter") * 0.9 * height, 2)
 
 
 def _calc_bw_bitumen(i):
@@ -322,24 +308,10 @@ def _calc_roof_wp(i):
 
 def _calc_ext_plaster(i):
     """
-    Spec: ext_perimeter * (total_villa_height + 1.2) - (doors_area + windows_area)
-    Full-height plaster including 1.2 m ground clearance; 100% of openings are deducted.
+    Spec: (ext_perimeter * (height for the full villa height + 1.2 m))
+    Full-height plaster including 1.2 m ground clearance; no openings deductions permitted.
     """
-    gross_plaster = _g(i, "ext_perimeter") * (_g(i, "total_villa_height") + 1.2)
-    
-    # Calculate door area
-    doors_area = 0.0
-    for d in _lst(i, "doors_schedule"):
-        w = float(d.get("width_m") or d.get("width_mm", 0) / 1000 or d.get("width") or 1.0)
-        h = float(d.get("height_m") or d.get("height_mm", 0) / 1000 or d.get("height") or d.get("length") or 2.2)
-        c = float(d.get("count") or 0)
-        doors_area += w * h * c
-        
-    # Calculate window area
-    windows_area = _calc_windows(i)
-    
-    net_plaster = max(gross_plaster - (doors_area + windows_area), 0.0)
-    return round(net_plaster, 2)
+    return round(_g(i, "ext_perimeter") * (_g(i, "total_villa_height") + 1.2), 2)
 
 
 def _calc_ext_finishes(i):

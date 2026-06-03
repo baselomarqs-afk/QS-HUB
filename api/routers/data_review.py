@@ -40,6 +40,27 @@ def reconstruct_project_inputs(state_data: dict):
             existing = (schedules.get("column_schedule") or {}).get("columns") or []
             if (new_cols and len(new_cols) >= len(existing)) or "column_schedule" not in schedules:
                 schedules["column_schedule"] = {"columns": new_cols}
+        elif dtype == "tie_beam":
+            # Tie beam extraction → pick up tb dimensions into schedule
+            tb_entry = schedules.get("tie_beam", {})
+            if not tb_entry.get("tie_beams"):
+                # Build a single tie-beam entry from the flat extraction values
+                tb_w = page.get("tb_width")
+                tb_d = page.get("tb_depth")
+                tb_len = page.get("tb_total_length")
+                if tb_w or tb_d:
+                    tb_entry["tie_beams"] = [{
+                        "type": "TB1",
+                        "width_mm": round(float(tb_w or 0.30) * 1000),
+                        "depth_mm": round(float(tb_d or 0.60) * 1000),
+                        "length_m": float(tb_len or 0),
+                        "count_segments": 1,
+                    }]
+                # Also store flat values for direct access by the bridge
+                if tb_w: tb_entry["tb_width"] = float(tb_w)
+                if tb_d: tb_entry["tb_depth"] = float(tb_d)
+                if tb_len: tb_entry["tb_total_length"] = float(tb_len)
+                schedules["tie_beam"] = tb_entry
         elif dtype in ["slab_1st", "slab_2nd", "roof_slab"]:
             new_beams = page.get("beams") or []
             existing = (schedules.get(dtype) or {}).get("beams") or []
@@ -166,22 +187,62 @@ def reconstruct_project_inputs(state_data: dict):
             elif "compound_length" not in sources:
                 sources["compound_length"] = "AI OCR"
 
-    # Heal the building footprint dimensions from any page that carries them —
-    # the foundation / setting-out pages usually report longest_length/width.
-    # (Without this, excavation/backfill/road-base/anti-termite collapse to ~0.)
+    # Heal building dimensions from ANY page that carries them —
+    # the foundation page reports longest_length/width, the tie_beam page
+    # reports gf_area and ext_perimeter, etc.  Pick up real AI-extracted
+    # values from wherever they exist instead of leaving them as 0.
+    _ANY_PAGE_FIELDS = (
+        "longest_length", "longest_width", "total_villa_height",
+        "gf_area", "ext_perimeter",
+    )
+    # Map: some pages use different key names for the same concept
+    _FIELD_ALIASES = {
+        "gf_area": ("gf_area", "total_floor_area", "floor_area"),
+        "ext_perimeter": ("ext_perimeter", "external_perimeter"),
+    }
     for page_key, page in ext_res.items():
         if not isinstance(page, dict) or not page.get("_ok"):
             continue
-        for field in ("longest_length", "longest_width", "total_villa_height"):
-            if (not confirmed.get(field)) and page.get(field):
-                confirmed[field] = page.get(field)
+        for field in _ANY_PAGE_FIELDS:
+            if confirmed.get(field) and float(confirmed.get(field) or 0) > 0:
+                continue  # already have a real value
+            # Try field name and aliases
+            aliases = _FIELD_ALIASES.get(field, (field,))
+            for alias in aliases:
+                val = page.get(alias)
+                if val and float(val) > 0:
+                    confirmed[field] = float(val)
+                    break
 
-    for field in ["longest_length", "longest_width", "total_villa_height"]:
+    for field in _ANY_PAGE_FIELDS:
         if confirmed.get(field) and field not in sources:
             sources[field] = "AI OCR"
-                
-    # Advanced CV Extractor & QS Heuristics Fallbacks
+
+    # ── CROSS-FIELD: ext_perimeter = 2(L+W) — this IS correct rectangle geometry ─
     import math
+
+    _ll = float(confirmed.get("longest_length") or 0)
+    _lw = float(confirmed.get("longest_width") or 0)
+    if (not confirmed.get("ext_perimeter") or float(confirmed.get("ext_perimeter") or 0) < 10) and _ll and _lw:
+        confirmed["ext_perimeter"] = round(2 * (_ll + _lw), 2)
+        if "ext_perimeter" not in sources or sources["ext_perimeter"] == "AI OCR":
+            sources["ext_perimeter"] = "Geometry 2(L+W)"
+
+    # ── HEAL MISSING FLOOR MAPPING ──
+    # If ground_floor_plan extraction completely failed, floors["gf"] will be missing,
+    # causing all ground floor items to be skipped. If the user manually provided gf_area,
+    # we MUST initialize floors["gf"] to ensure execution.
+    if confirmed.get("gf_area") and float(confirmed.get("gf_area")) > 0:
+        if "gf" not in confirmed["floors"]:
+            confirmed["floors"]["gf"] = {}
+        if not confirmed["floors"]["gf"].get("area"):
+            confirmed["floors"]["gf"]["area"] = float(confirmed["gf_area"])
+    
+    if confirmed.get("ext_perimeter") and float(confirmed.get("ext_perimeter")) > 0:
+        if "gf" in confirmed["floors"] and not confirmed["floors"]["gf"].get("ext_perimeter"):
+            confirmed["floors"]["gf"]["ext_perimeter"] = float(confirmed["ext_perimeter"])
+
+    # Advanced CV Extractor & QS Heuristics Fallbacks
     
     # 1. Try to heal compound_length using CV first, then Math
     if not confirmed.get("compound_length") or confirmed.get("compound_length") == 0.0:
@@ -208,6 +269,19 @@ def reconstruct_project_inputs(state_data: dict):
                 confirmed["compound_length"] = round(4 * math.sqrt(confirmed["gf_area"] * 2), 2)
                 confirmed["compound_length_is_estimated"] = True
                 sources["compound_length"] = "Math Fallback (4√(GF*2))"
+
+    # Ensure gf_area syncs back to floors["gf"]
+    if confirmed.get("gf_area") and float(confirmed.get("gf_area")) > 0:
+        if "gf" not in confirmed["floors"]:
+            confirmed["floors"]["gf"] = {}
+        if not confirmed["floors"]["gf"].get("area") or confirmed["floors"]["gf"].get("area") < 30.0:
+            confirmed["floors"]["gf"]["area"] = confirmed["gf_area"]
+            
+    if confirmed.get("ext_perimeter") and float(confirmed.get("ext_perimeter")) > 0:
+        if "gf" not in confirmed["floors"]:
+            confirmed["floors"]["gf"] = {}
+        if not confirmed["floors"]["gf"].get("ext_perimeter") or confirmed["floors"]["gf"].get("ext_perimeter") < 15.0:
+            confirmed["floors"]["gf"]["ext_perimeter"] = confirmed["ext_perimeter"]
 
     if not confirmed.get("openings"):
         confirmed["openings"] = {"totals": {"door_count": 0, "window_area": 0.0}}
@@ -291,7 +365,7 @@ async def confirm_data(req: ConfirmDataReq, current_user: dict = Depends(get_cur
         
     # Mark edited fields as User Verified
     sources = confirmed.get("sources") or {}
-    for k in ["longest_length", "longest_width", "plot_area", "gf_area", "ext_perimeter", "roof_perimeter", "roof_slab_area", "compound_length", "excavation_depth", "neck_column_height", "solid_block_height", "staircase_volume_per_level"]:
+    for k in ["longest_length", "longest_width", "plot_area", "gf_area", "ext_perimeter", "total_villa_height", "roof_perimeter", "roof_slab_area", "compound_length", "excavation_depth", "neck_column_height", "solid_block_height", "staircase_volume_per_level"]:
         if k in confirmed:
             sources[k] = "User Verified"
     if "openings" in confirmed and "totals" in confirmed["openings"]:

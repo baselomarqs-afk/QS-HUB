@@ -50,6 +50,8 @@ def classify_page_by_text(page_text: str, page_image: np.ndarray = None) -> str:
     scores     = {}
     for page_type, config in PAGE_ITEMS_MAP.items():
         score = sum(1 for kw in config["drawing_keywords"] if kw.lower() in text_lower)
+        if page_type == "schedules" and score > 0:
+            score += 5
         scores[page_type] = score
 
     best = max(scores, key=scores.get)

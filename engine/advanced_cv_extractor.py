@@ -84,20 +84,19 @@ def process_floor_plan_image(img_path):
                         door_count += 1
                         # Auto-Coloring: Highlight Doors (Yellow)
                         box = cv2.boxPoints(rect)
-                        box = np.int0(box)
+                        box = np.int32(box)
                         cv2.drawContours(img_color, [box], 0, (0, 255, 255), 2)
                     elif aspect_ratio >= 3.0 and 0.15 <= solidity <= 0.85:
                         window_count += 1
                         # Auto-Coloring: Highlight Windows (Orange)
                         box = cv2.boxPoints(rect)
-                        box = np.int0(box)
+                        box = np.int32(box)
                         cv2.drawContours(img_color, [box], 0, (0, 165, 255), 2)
 
         # Save the Auto-Colored Takeoff Markup
         markup_path = img_path.replace(".png", "_markup.png")
         cv2.imwrite(markup_path, img_color)
         
-        import os
         markup_filename = os.path.basename(markup_path)
         
         return {
