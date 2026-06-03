@@ -139,20 +139,36 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
         
         # Prevent Out-Of-Memory (OOM) crashes by limiting concurrent image processing
         with ThreadPoolExecutor(max_workers=2) as executor:
+            import concurrent.futures
             future_to_args = {executor.submit(extract_single_page, arg): arg for arg in initial_args}
-            for future in as_completed(future_to_args):
-                completed_count += 1
-                try:
-                    item = future.result()
-                    if item:
-                        key, val = item
-                        results[key] = val
-                except Exception as exc:
-                    print(f"Extraction generated an exception: {exc}")
+            
+            while future_to_args:
+                done, not_done = concurrent.futures.wait(
+                    future_to_args.keys(), 
+                    timeout=15.0, 
+                    return_when=concurrent.futures.FIRST_COMPLETED
+                )
                 
-                # Report progress up to 75% for Phase 1
-                progress = 5 + int(70 * (completed_count / total_pages))
-                yield f'data: {json.dumps({"progress": progress, "status": f"Extracting AI Data ({completed_count}/{total_pages})..."})}\n\n'
+                if not done:
+                    # Timeout reached without any task finishing -> send keep-alive to prevent Render 100s timeout
+                    progress = 5 + int(70 * (completed_count / total_pages))
+                    yield f'data: {json.dumps({"progress": progress, "status": f"Extracting AI Data ({completed_count}/{total_pages}) - Please wait..."})}\n\n'
+                    continue
+                    
+                for future in done:
+                    arg = future_to_args.pop(future)
+                    completed_count += 1
+                    try:
+                        item = future.result()
+                        if item:
+                            key, val = item
+                            results[key] = val
+                    except Exception as exc:
+                        print(f"Extraction generated an exception: {exc}")
+                    
+                    # Report progress up to 75% for Phase 1
+                    progress = 5 + int(70 * (completed_count / total_pages))
+                    yield f'data: {json.dumps({"progress": progress, "status": f"Extracting AI Data ({completed_count}/{total_pages})..."})}\n\n'
                 
         yield f'data: {json.dumps({"progress": 80, "status": "Cross-checking doors and windows..."})}\n\n'
         
@@ -203,18 +219,33 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
                 retry_count = 0
                 total_retries = len(retry_args)
                 with ThreadPoolExecutor(max_workers=1) as executor:
+                    import concurrent.futures
                     future_to_args = {executor.submit(extract_single_page, arg): arg for arg in retry_args}
-                    for future in as_completed(future_to_args):
-                        retry_count += 1
-                        try:
-                            item = future.result()
-                            if item:
-                                key, val = item
-                                results[key] = val
-                        except Exception:
-                            pass
-                        prog = 90 + int(8 * (retry_count / total_retries))
-                        yield f'data: {json.dumps({"progress": prog, "status": f"Re-analyzing {retry_count}/{total_retries} pages..."})}\n\n'
+                    
+                    while future_to_args:
+                        done, not_done = concurrent.futures.wait(
+                            future_to_args.keys(), 
+                            timeout=15.0, 
+                            return_when=concurrent.futures.FIRST_COMPLETED
+                        )
+                        
+                        if not done:
+                            prog = 90 + int(8 * (retry_count / total_retries))
+                            yield f'data: {json.dumps({"progress": prog, "status": f"Re-analyzing {retry_count}/{total_retries} pages - Please wait..."})}\n\n'
+                            continue
+                            
+                        for future in done:
+                            arg = future_to_args.pop(future)
+                            retry_count += 1
+                            try:
+                                item = future.result()
+                                if item:
+                                    key, val = item
+                                    results[key] = val
+                            except Exception:
+                                pass
+                            prog = 90 + int(8 * (retry_count / total_retries))
+                            yield f'data: {json.dumps({"progress": prog, "status": f"Re-analyzing {retry_count}/{total_retries} pages..."})}\n\n'
                         
                 state_data["extraction_results"] = results
                 reconstruct_project_inputs(state_data)
