@@ -139,6 +139,7 @@ export default function VerifyStep({
                 onChange={(e) => updateConfirmedField('gf_height', parseFloat(e.target.value) || 0)}
               />
             </div>
+            {calcParams.num_floors >= 2 && (
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
                 {isArabic ? 'ارتفاع الدور الأول (متر)' : '1F Height (m)'}
@@ -150,6 +151,8 @@ export default function VerifyStep({
                 onChange={(e) => updateConfirmedField('f1_height', parseFloat(e.target.value) || 0)}
               />
             </div>
+            )}
+            {calcParams.num_floors >= 3 && (
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
                 {isArabic ? 'ارتفاع الدور الثاني (متر)' : '2F Height (m)'}
@@ -161,6 +164,7 @@ export default function VerifyStep({
                 onChange={(e) => updateConfirmedField('f2_height', parseFloat(e.target.value) || 0)}
               />
             </div>
+            )}
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
                 {isArabic ? 'المحيط الخارجي للمبنى (متر)' : 'External Perimeter (m)'}
