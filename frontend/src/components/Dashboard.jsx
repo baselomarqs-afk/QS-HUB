@@ -255,6 +255,27 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
         </div>
       </div>
 
+      {/* Create New Project Section */}
+      <div className="glass-panel" style={{ padding: '25px', marginBottom: '35px' }}>
+        <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '15px' }}>
+          {isArabic ? 'بدء مشروع جديد' : 'Start a New Project'}
+        </h3>
+        <form onSubmit={handleCreateProject} style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+          <input
+            type="text"
+            className="input-field"
+            style={{ flex: 1, minWidth: '250px' }}
+            placeholder={isArabic ? 'اسم المشروع (مثال: فيلا رقم 12)' : 'Project Name (e.g. Villa 12)'}
+            value={newProjName}
+            onChange={e => setNewProjName(e.target.value)}
+            disabled={creating}
+          />
+          <button type="submit" className="btn btn-primary" disabled={creating || !newProjName.trim()}>
+            {creating ? (isArabic ? 'جاري الإنشاء...' : 'Creating...') : (isArabic ? 'بدء المشروع 🚀' : 'Start Project 🚀')}
+          </button>
+        </form>
+      </div>
+
       {/* Active Project State Recovery Banner */}
       {activeProject && (
         <div className="glass-panel" style={{
