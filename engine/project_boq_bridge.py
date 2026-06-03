@@ -770,16 +770,8 @@ def build_boq_dataframe_from_project(project: dict) -> tuple[pd.DataFrame, dict]
             
             en_name = item["name_en"]
             ar_name = item["name_ar"]
-            concrete_grade = project.get("concrete_grade", "C30/37")
-            
-            if "concrete" in item["key"] or "slab_concrete" in item["key"] or "beam_concrete" in item["key"] or "col_" in item["key"] or "staircase" in item["key"]:
-                if "pcc" not in item["key"]:
-                    en_name += f" (Grade {concrete_grade})"
-                    ar_name += f" (درجة {concrete_grade})"
-                else:
-                    en_name += " (Grade C20/25 Blinding)"
-                    ar_name += " (درجة C20/25 بيتون عادي)"
-            elif "block" in item["key"]:
+            # Removed dynamic concrete grade appending as per user request
+            if "block" in item["key"]:
                 t = "200mm"
                 if "solid" in item["key"]:
                     t = project.get("solid_block_thickness", "200mm")
