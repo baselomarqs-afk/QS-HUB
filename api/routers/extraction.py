@@ -138,7 +138,8 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
         initial_args = [(p, None) for p in ready]
         completed_count = 0
         
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        # Prevent Out-Of-Memory (OOM) crashes by limiting concurrent image processing
+        with ThreadPoolExecutor(max_workers=2) as executor:
             future_to_args = {executor.submit(extract_single_page, arg): arg for arg in initial_args}
             for future in as_completed(future_to_args):
                 completed_count += 1
@@ -202,7 +203,7 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
             if retry_args:
                 retry_count = 0
                 total_retries = len(retry_args)
-                with ThreadPoolExecutor(max_workers=3) as executor:
+                with ThreadPoolExecutor(max_workers=1) as executor:
                     future_to_args = {executor.submit(extract_single_page, arg): arg for arg in retry_args}
                     for future in as_completed(future_to_args):
                         retry_count += 1
