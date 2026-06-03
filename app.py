@@ -1,4 +1,20 @@
+import os
 import streamlit as st
+
+# ── RENDER PROXY MODE ──
+# If running on Render, serve the high-speed HuggingFace Space via an iframe.
+# This allows keeping the custom domain (qshub.online) while using 16GB RAM for processing!
+if os.environ.get("RENDER") == "true" or os.environ.get("RENDER") == "1" or "RENDER" in os.environ:
+    st.set_page_config(page_title="THE QS HUB", page_icon="ui/logo.png", layout="wide")
+    st.markdown("""
+        <style>
+            [data-testid="stAppViewContainer"], .stApp { margin: 0 !important; padding: 0 !important; }
+            iframe { width: 100vw; height: 100vh; border: none; position: fixed; top: 0; left: 0; z-index: 999999; }
+            [data-testid="stHeader"], footer, [data-testid="stSidebar"] { display: none !important; }
+        </style>
+        <iframe src="https://basel0-qshub.hf.space/?embed=true"></iframe>
+    """, unsafe_allow_html=True)
+    st.stop()
 
 st.set_page_config(
     page_title="THE QS HUB",
