@@ -83,7 +83,7 @@ export default function VerifyStep({
 
         <form onSubmit={handleConfirmDataSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Form Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+          <div className="grid-cols-3" style={{ gap: '15px' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
                 {isArabic ? 'أطول طول للمبنى (متر)' : 'Longest Footprint Length (m)'}
@@ -266,7 +266,7 @@ export default function VerifyStep({
             <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               ⚙️ {isArabic ? 'الافتراضات الهندسية (أبعاد ونسب تقديرية قابلة للتعديل)' : 'Engineering Assumptions & Estimators (Editable)'}
             </h4>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+            <div className="grid-cols-2" style={{ gap: '15px' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
                   {isArabic ? 'عمق الحفر الافتراضي (متر)' : 'Default Excavation Depth (m)'}
@@ -437,7 +437,7 @@ export default function VerifyStep({
         </p>
 
         <form onSubmit={handleRunCalculation} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <div className="grid-cols-2" style={{ gap: '20px' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>
                 {isArabic ? 'عدد الأدوار الإجمالي' : 'Number of Villa Floors'}
