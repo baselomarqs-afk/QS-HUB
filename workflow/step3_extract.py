@@ -429,7 +429,7 @@ Return ONLY this JSON structure (null for not found):
             break
             
         try:
-            client = genai.Client(api_key=current_key)
+            client = genai.Client(api_key=current_key, http_options={'timeout': 60})
             resp = client.models.generate_content(
                 model=current_model,
                 contents=[

@@ -29,31 +29,39 @@ def _ai_classify(page_arr, pdf_type: str):
     try:
         from google import genai
         from google.genai import types
-        pil = page_to_pil(page_arr)
-        w, h = pil.size
-        if max(w, h) > 1600:
-            s = 1600 / max(w, h); pil = pil.resize((int(w*s), int(h*s)))
-        buf = io.BytesIO(); pil.save(buf, format="PNG"); img = buf.getvalue()
-        prompt = (f"This is one page of a UAE villa {pdf_type} drawing set. "
-                  f"Classify it as EXACTLY one of these types:\n{', '.join(choices)}\n\n"
-                  "READ THE TITLE BLOCK / SHEET TITLE to decide. Guidance:\n"
-                  "- ground_floor_plan / first_floor_plan / second_floor_plan: architectural "
-                  "room plans — use the floor number written on the sheet (GROUND/G, FIRST/1ST, SECOND/2ND).\n"
-                  "- roof_floor_plan: roof architectural plan.\n"
-                  "- setting_out: site / plot / boundary / location plan.\n"
-                  "- schedules: door schedule and/or window schedule TABLES.\n"
-                  "- elevations: facade/elevation views.  - sections: cut-through views.\n"
-                  "- foundations / tie_beam / columns_* / slab_1f / slab_2f / roof_slab: "
-                  "structural framing plans + schedules — use the level named on the sheet "
-                  "(e.g. '2ND FLR SLAB'=slab_2f, '2ND FLR COL'=columns_2f).\n"
-                  'Return ONLY: {"type":"<one type>"}')
-        client = genai.Client(api_key=api_key)
-        resp = client.models.generate_content(
-            model=current_model,
-            contents=[types.Part.from_bytes(data=img, mime_type="image/png"), prompt])
-        raw = re.sub(r"```json|```", "", resp.text).strip()
-        t = json.loads(raw).get("type")
-        return t if t in PAGE_ITEMS_MAP else None
+        import time
+        import io as _io
+
+        pil_img = page_to_pil(page_arr)
+        buf = _io.BytesIO()
+        pil_img.save(buf, format="PNG")
+        img = buf.getvalue()
+        prompt = (
+            f"This is a construction drawing. Classify it as one of: {choices}. "
+            "Reply ONLY with valid JSON: {\"type\": \"<chosen_type>\"}"
+        )
+
+        for attempt in range(5):
+            api_key, current_model = mgr.get_key_and_model()
+            if not api_key or api_key == "NO_API_KEY_FOUND":
+                return None
+
+            try:
+                client = genai.Client(api_key=api_key, http_options={'timeout': 60})
+                resp = client.models.generate_content(
+                    model=current_model,
+                    contents=[types.Part.from_bytes(data=img, mime_type="image/png"), prompt])
+                raw = re.sub(r"```json|```", "", resp.text).strip()
+                result = json.loads(raw).get("type")
+                return result if result in PAGE_ITEMS_MAP else None
+            except Exception as e:
+                last_err = str(e)
+                if any(code in last_err for code in ("429", "RESOURCE_EXHAUSTED", "quota")):
+                    mgr.mark_rate_limited(api_key, current_model)
+                    continue
+                time.sleep(2)
+
+        return None
     except Exception:
         return None
 
