@@ -86,7 +86,7 @@ async def upload_drawings(
             # Save using the agnostic storage module (handles both S3 and local)
             save_image_to_cache(project_id, f"{prefix}_page_{global_idx}.png", pil_img)
             
-        with ThreadPoolExecutor(max_workers=6) as executor:
+        with ThreadPoolExecutor(max_workers=3) as executor:
             executor.map(save_page, enumerate(pages))
             
         return len(pages), texts
