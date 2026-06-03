@@ -338,7 +338,7 @@ def _png_bytes(arr: np.ndarray) -> bytes:
     return buf.getvalue()
 
 
-def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_id: int = None, previous_warnings: list = None) -> dict:
+def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_id: int = None, previous_warnings: list = None, image_path: str = None) -> dict:
     """
     Extract the values a drawing's formulas need — via AI Vision.
     (System uses AI everywhere; no Claude/Anthropic key required.)
@@ -395,7 +395,12 @@ Return ONLY this JSON structure (null for not found):
     import hashlib
     from utils.key_manager import get_key_manager
     mgr = get_key_manager()
-    img_bytes = _png_bytes(page_arr)
+    
+    if image_path and os.path.exists(image_path):
+        with open(image_path, "rb") as f:
+            img_bytes = f.read()
+    else:
+        img_bytes = _png_bytes(page_arr)
     
     # MD5-based Caching Mechanism
     cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "_qto_cache")

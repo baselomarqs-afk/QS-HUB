@@ -95,10 +95,8 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
         page_text = texts_src[page_idx] if page_idx < len(texts_src) else ""
         
         try:
-            pil_img = Image.open(img_path)
-            page_arr = np.array(pil_img)[:, :, ::-1].copy()
-            
-            extracted = extract_page(page_arr, dtype, page_text, current_user["id"], previous_warnings)
+            # Bypassing Numpy/PIL to prevent RAM exhaustion and thrashing
+            extracted = extract_page(None, dtype, page_text, current_user["id"], previous_warnings, image_path=img_path)
             
             if dtype in ["ground_floor_plan", "first_floor_plan", "second_floor_plan", "roof_floor_plan", "setting_out"]:
                 cv_data = process_floor_plan_image(img_path)
