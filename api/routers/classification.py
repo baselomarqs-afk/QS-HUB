@@ -62,10 +62,10 @@ async def auto_classify(req: RunExtractionReq, current_user: dict = Depends(get_
     from concurrent.futures import ThreadPoolExecutor
 
     def process_page(p):
-        # Verify EVERY page by AI vision (matches the proven Streamlit flow).
-        # Keyword "high" matches are unreliable on unseen drawings — e.g. a north
-        # arrow (NORTH/SOUTH) scoring 'elevations' — so AI vision always gets a
-        # vote and wins whenever it returns a valid type.
+        # Skip AI vision if keywords give high confidence to drastically speed up processing
+        if p.get("confidence") == "high":
+            return p
+            
         prefix = "str" if p["pdf"] == "structural" else "arch"
         img_path = os.path.join(project_cache, f"{prefix}_page_{p['page_index']}.png")
         if os.path.exists(img_path):
