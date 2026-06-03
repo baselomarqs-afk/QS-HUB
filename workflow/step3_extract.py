@@ -298,6 +298,22 @@ def _finishes_from_rooms(data: dict) -> dict:
     return data
 
 
+def _safe_parse_json(raw_str: str) -> dict:
+    import json, re
+    if not raw_str or raw_str.startswith('{"_error"'):
+        return {}
+    raw_str = re.sub(r"```json|```", "", raw_str).strip()
+    try:
+        return json.loads(raw_str)
+    except Exception:
+        match = re.search(r'(\{.*\})', raw_str, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(1))
+            except:
+                return {}
+    return {}
+
 def _normalize_units(data: dict) -> dict:
     """Safety net: coerce any millimetre values the model slipped through to metres."""
     for k, thr in (("tb_width", 5), ("tb_depth", 5), ("slab_thickness", 5),
@@ -451,19 +467,32 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             from workflow.structural_extractors import FOUNDATION_DIMS_PROMPT, FOOTING_SCHEDULE_PROMPT
             p1 = FOUNDATION_DIMS_PROMPT + METRES_NOTE
             p2 = FOOTING_SCHEDULE_PROMPT + METRES_NOTE
+            
+            if previous_warnings and len(previous_warnings) > 0:
+                warning_text = "\n- ".join(previous_warnings)
+                refl = f"\n\n[CRITICAL SELF-REFLECTION REQUIRED]\nYour previous extraction failed these checks:\n- {warning_text}\nOutput a FIXED JSON."
+                p1 += refl; p2 += refl
+                
             if page_texts and page_texts.strip():
                 txt = f"\n\n--- RAW TEXT ---\n{page_texts}\n-----------------"
                 p1 += txt; p2 += txt
+                
             t1 = _ask_ai_with_retry(img_bytes, p1, mgr)
             t2 = _ask_ai_with_retry(img_bytes, p2, mgr)
             r1, r2 = await asyncio.gather(t1, t2)
-            d1 = json.loads(r1) if not r1.startswith('{"_error"') else {}
-            d2 = json.loads(r2) if not r2.startswith('{"_error"') else {}
+            
+            d1 = _safe_parse_json(r1)
+            d2 = _safe_parse_json(r2)
             merged = {**d1, **d2}
             return merged
             
         data = asyncio.run(run_foundations())
         data = _normalize_units(data)
+        
+        from workflow.sanity_checks import perform_structural_sanity_checks
+        warnings = perform_structural_sanity_checks(data, drawing_type)
+        if warnings: data["_sanity_warnings"] = warnings
+        
         data["_ok"] = True
         data["drawing_type"] = drawing_type
         return data
@@ -481,14 +510,20 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             from workflow.structural_extractors import TB_SCHEDULE_PROMPT, TB_AREA_PROMPT
             p1 = TB_SCHEDULE_PROMPT + METRES_NOTE
             p2 = TB_AREA_PROMPT + METRES_NOTE
+            if previous_warnings and len(previous_warnings) > 0:
+                warning_text = "\n- ".join(previous_warnings)
+                refl = f"\n\n[CRITICAL SELF-REFLECTION REQUIRED]\nYour previous extraction failed these checks:\n- {warning_text}\nOutput a FIXED JSON."
+                p1 += refl; p2 += refl
+                
             if page_texts and page_texts.strip():
                 txt = f"\n\n--- RAW TEXT ---\n{page_texts}\n-----------------"
                 p1 += txt; p2 += txt
             t1 = _ask_ai_with_retry(img_bytes, p1, mgr)
             t2 = _ask_ai_with_retry(img_bytes, p2, mgr)
             r1, r2 = await asyncio.gather(t1, t2)
-            d1 = json.loads(r1) if not r1.startswith('{"_error"') else {}
-            d2 = json.loads(r2) if not r2.startswith('{"_error"') else {}
+            
+            d1 = _safe_parse_json(r1)
+            d2 = _safe_parse_json(r2)
             merged = {**d1, **d2}
             
             # --- VECTOR MEASUREMENT OVERRIDES ---
@@ -509,6 +544,11 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             
         data = asyncio.run(run_tie_beams())
         data = _normalize_units(data)
+        
+        from workflow.sanity_checks import perform_structural_sanity_checks
+        warnings = perform_structural_sanity_checks(data, drawing_type)
+        if warnings: data["_sanity_warnings"] = warnings
+        
         data["_ok"] = True
         data["drawing_type"] = drawing_type
         return data
@@ -526,14 +566,20 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             from workflow.structural_extractors import SLAB_AREA_PROMPT, ROOF_SLAB_AREA_PROMPT, BEAM_SCHEDULE_PROMPT
             p1 = (ROOF_SLAB_AREA_PROMPT if drawing_type == "roof_slab" else SLAB_AREA_PROMPT) + METRES_NOTE
             p2 = BEAM_SCHEDULE_PROMPT + METRES_NOTE
+            if previous_warnings and len(previous_warnings) > 0:
+                warning_text = "\n- ".join(previous_warnings)
+                refl = f"\n\n[CRITICAL SELF-REFLECTION REQUIRED]\nYour previous extraction failed these checks:\n- {warning_text}\nOutput a FIXED JSON."
+                p1 += refl; p2 += refl
+                
             if page_texts and page_texts.strip():
                 txt = f"\n\n--- RAW TEXT ---\n{page_texts}\n-----------------"
                 p1 += txt; p2 += txt
             t1 = _ask_ai_with_retry(img_bytes, p1, mgr)
             t2 = _ask_ai_with_retry(img_bytes, p2, mgr)
             r1, r2 = await asyncio.gather(t1, t2)
-            d1 = json.loads(r1) if not r1.startswith('{"_error"') else {}
-            d2 = json.loads(r2) if not r2.startswith('{"_error"') else {}
+            
+            d1 = _safe_parse_json(r1)
+            d2 = _safe_parse_json(r2)
             merged = {**d1, **d2}
             
             # --- VECTOR MEASUREMENT OVERRIDES ---
@@ -559,6 +605,11 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             
         data = asyncio.run(run_slabs())
         data = _normalize_units(data)
+        
+        from workflow.sanity_checks import perform_structural_sanity_checks
+        warnings = perform_structural_sanity_checks(data, drawing_type)
+        if warnings: data["_sanity_warnings"] = warnings
+        
         data["_ok"] = True
         data["drawing_type"] = drawing_type
         return data
@@ -588,6 +639,11 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             wall_p = WALL_PROMPT + METRES_NOTE
             open_p = OPENINGS_PROMPT + METRES_NOTE
             
+            if previous_warnings and len(previous_warnings) > 0:
+                warning_text = "\n- ".join(previous_warnings)
+                refl = f"\n\n[CRITICAL SELF-REFLECTION REQUIRED]\nYour previous extraction failed these checks:\n- {warning_text}\nOutput a FIXED JSON."
+                arch_p += refl; wall_p += refl; open_p += refl
+                
             if page_texts and page_texts.strip():
                 txt = f"\n\n--- RAW TEXT ---\n{page_texts}\n-----------------"
                 arch_p += txt; wall_p += txt; open_p += txt
@@ -598,9 +654,9 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             
             arch_raw, wall_raw, open_raw = await asyncio.gather(arch_task, wall_task, open_task)
             
-            arch_data = json.loads(arch_raw) if not arch_raw.startswith('{"_error"') else {}
-            wall_data = json.loads(wall_raw) if not wall_raw.startswith('{"_error"') else {}
-            open_data = json.loads(open_raw) if not open_raw.startswith('{"_error"') else {}
+            arch_data = _safe_parse_json(arch_raw)
+            wall_data = _safe_parse_json(wall_raw)
+            open_data = _safe_parse_json(open_raw)
             
             # Merge them together into the schema expected by _finishes_from_rooms
             merged = {}
@@ -621,10 +677,16 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             merged["int_walls_10cm_m"] = wall_data.get("int_walls_10cm_m", 0.0)
             merged["int_walls_20cm_m"] = wall_data.get("int_walls_20cm_m", 0.0)
             return merged
+            return merged
             
         data = asyncio.run(run_dedicated_extractors())
         data = _finishes_from_rooms(data)
         data = _normalize_units(data)
+        
+        from workflow.sanity_checks import perform_floor_plan_sanity_checks
+        warnings = perform_floor_plan_sanity_checks(data)
+        if warnings: data["_sanity_warnings"] = warnings
+        
         data["_ok"] = True
         data["drawing_type"] = drawing_type
         return data
