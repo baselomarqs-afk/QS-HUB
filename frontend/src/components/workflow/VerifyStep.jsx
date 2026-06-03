@@ -130,6 +130,39 @@ export default function VerifyStep({
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                {isArabic ? 'ارتفاع الدور الأرضي (متر)' : 'GF Height (m)'}
+                {renderSourceBadge('gf_height')}
+              </label>
+              <input
+                type="number" step="0.01" className="form-input" required
+                value={confirmedData.gf_height ?? 4.2}
+                onChange={(e) => updateConfirmedField('gf_height', parseFloat(e.target.value) || 0)}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                {isArabic ? 'ارتفاع الدور الأول (متر)' : '1F Height (m)'}
+                {renderSourceBadge('f1_height')}
+              </label>
+              <input
+                type="number" step="0.01" className="form-input" required
+                value={confirmedData.f1_height ?? 3.7}
+                onChange={(e) => updateConfirmedField('f1_height', parseFloat(e.target.value) || 0)}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                {isArabic ? 'ارتفاع الدور الثاني (متر)' : '2F Height (m)'}
+                {renderSourceBadge('f2_height')}
+              </label>
+              <input
+                type="number" step="0.01" className="form-input" required
+                value={confirmedData.f2_height ?? 3.7}
+                onChange={(e) => updateConfirmedField('f2_height', parseFloat(e.target.value) || 0)}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
                 {isArabic ? 'المحيط الخارجي للمبنى (متر)' : 'External Perimeter (m)'}
                 {renderSourceBadge('ext_perimeter')}
               </label>
