@@ -346,7 +346,7 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
     from google import genai
     from google.genai import types
 
-    api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("AI_API_KEY")
+    # Removed static api_key fallback as the KeyManager handles all keys dynamically
     if drawing_type in COLUMN_TYPES:
         full_prompt = COLUMN_PROMPT
     elif drawing_type in PERFLOOR_COLUMN_TYPES:
@@ -422,11 +422,7 @@ Return ONLY this JSON structure (null for not found):
     last_err = ""
     
     for attempt in range(15):                 # retry through combinations
-        if api_key:
-            current_key = api_key
-            current_model = "gemini-3.1-flash-lite"
-        else:
-            current_key, current_model = mgr.get_key_and_model()
+        current_key, current_model = mgr.get_key_and_model()
             
         if not current_key or current_key == "NO_API_KEY_FOUND":
             last_err = "No valid API key found."
@@ -471,8 +467,7 @@ Return ONLY this JSON structure (null for not found):
         except Exception as e:
             last_err = str(e)
             if any(code in last_err for code in ("429", "RESOURCE_EXHAUSTED", "quota")):
-                if not api_key:
-                    mgr.mark_rate_limited(current_key, current_model)
+                mgr.mark_rate_limited(current_key, current_model)
                 continue
             time.sleep(2)
             time.sleep(2 * (attempt + 1))

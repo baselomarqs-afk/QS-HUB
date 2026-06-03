@@ -20,8 +20,10 @@ _ARCH_TYPES   = ["ground_floor_plan", "first_floor_plan", "second_floor_plan",
 def _ai_classify(page_arr, pdf_type: str):
     """Classify ONE page by vision when keyword matching is unsure. Returns a
     PAGE_ITEMS_MAP key or None."""
-    api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("AI_API_KEY")
-    if not api_key:
+    from utils.key_manager import get_key_manager
+    mgr = get_key_manager()
+    api_key, current_model = mgr.get_key_and_model()
+    if not api_key or api_key == "NO_API_KEY_FOUND":
         return None
     choices = _STRUCT_TYPES if pdf_type == "structural" else _ARCH_TYPES
     try:
@@ -47,7 +49,7 @@ def _ai_classify(page_arr, pdf_type: str):
                   'Return ONLY: {"type":"<one type>"}')
         client = genai.Client(api_key=api_key)
         resp = client.models.generate_content(
-            model="gemini-3.1-flash-lite",
+            model=current_model,
             contents=[types.Part.from_bytes(data=img, mime_type="image/png"), prompt])
         raw = re.sub(r"```json|```", "", resp.text).strip()
         t = json.loads(raw).get("type")
