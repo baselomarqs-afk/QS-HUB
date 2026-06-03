@@ -233,10 +233,11 @@ def _calc_tb_bitumen(i):
 
 def _calc_sog(i):
     """
-    Spec: gf_area * 1.1 * 0.10 (thickness)
-    Standard 10cm slab-on-grade concrete with a 1.1 layout factor.
+    Spec: gf_area * 1.1 * sog_thickness
+    Standard slab-on-grade concrete with a 1.1 layout factor.
     """
-    return round(_g(i, "gf_area") * 1.1 * 0.10, 2)
+    t = _g(i, "sog_thickness", 0.10)
+    return round(_g(i, "gf_area") * 1.1 * t, 2)
 
 
 def _calc_solid_bw(i):

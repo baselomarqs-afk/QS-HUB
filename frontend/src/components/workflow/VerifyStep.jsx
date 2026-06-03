@@ -276,6 +276,17 @@ export default function VerifyStep({
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                  {isArabic ? 'سماكة خرسانة الأرضية (متر)' : 'Slab on Grade Thickness (m)'}
+                  {renderSourceBadge('sog_thickness')}
+                </label>
+                <input
+                  type="number" step="0.01" className="form-input" required
+                  value={confirmedData.sog_thickness ?? 0.10}
+                  onChange={(e) => updateConfirmedField('sog_thickness', parseFloat(e.target.value) || 0)}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
                   {isArabic ? 'ارتفاع الفيلا الكلي (متر)' : 'Total Villa Height (m)'}
                   {renderSourceBadge('total_villa_height')}
                 </label>
