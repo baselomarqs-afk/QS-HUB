@@ -138,7 +138,7 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
         completed_count = 0
         
         # Prevent Out-Of-Memory (OOM) crashes by limiting concurrent image processing
-        with ThreadPoolExecutor(max_workers=2) as executor:
+        with ThreadPoolExecutor(max_workers=6) as executor:
             import concurrent.futures
             future_to_args = {executor.submit(extract_single_page, arg): arg for arg in initial_args}
             
@@ -218,7 +218,7 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
             if retry_args:
                 retry_count = 0
                 total_retries = len(retry_args)
-                with ThreadPoolExecutor(max_workers=1) as executor:
+                with ThreadPoolExecutor(max_workers=3) as executor:
                     import concurrent.futures
                     future_to_args = {executor.submit(extract_single_page, arg): arg for arg in retry_args}
                     

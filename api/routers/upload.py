@@ -69,8 +69,11 @@ async def upload_drawings(
         pages = load_pdf_pages(content)
         texts = extract_page_text(content)
         
-        # Convert pages (numpy arrays) to PNG and save to cache
-        for idx, page_arr in enumerate(pages):
+        # Convert pages (numpy arrays) to PNG and save to cache in parallel
+        from concurrent.futures import ThreadPoolExecutor
+        
+        def save_page(args):
+            idx, page_arr = args
             global_idx = start_idx + idx
             pil_img = page_to_pil(page_arr)
             # Resize if too large to save space and load fast
@@ -82,6 +85,9 @@ async def upload_drawings(
             from utils.storage import save_image_to_cache
             # Save using the agnostic storage module (handles both S3 and local)
             save_image_to_cache(project_id, f"{prefix}_page_{global_idx}.png", pil_img)
+            
+        with ThreadPoolExecutor(max_workers=6) as executor:
+            executor.map(save_page, enumerate(pages))
             
         return len(pages), texts
 
