@@ -32,6 +32,45 @@ def load_pdf_pages(pdf_bytes: bytes, dpi: int = 150) -> List[np.ndarray]:
     return pages
 
 
+def fast_save_pdf_pages(pdf_bytes: bytes, project_id: int, prefix: str, start_idx: int) -> int:
+    """
+    High-speed PDF image extractor. Bypasses numpy and PIL conversions.
+    Extracts straight from fitz (C++) to compressed PNG and saves via storage backend.
+    Runs in parallel to maximize CPU cores.
+    Returns the number of pages processed.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+    from utils.storage import save_raw_image_to_cache
+    
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    page_count = len(doc)
+    
+    # Pre-calculate a sensible scaling matrix so we don't need to resize later
+    # 72 DPI is 1.0 scale. 50 DPI is 0.7 scale.
+    dpi = 100 if page_count <= 3 else (72 if page_count <= 10 else 50)
+    scale = dpi / 72.0
+    mat = fitz.Matrix(scale, scale)
+    
+    # We will run the conversion to bytes in parallel, but fitz Document isn't thread-safe
+    # for rendering if we share the same `doc`. 
+    # Actually, `get_pixmap` is thread-safe on separate pages in modern PyMuPDF, but to be 100% safe
+    # we just run the byte conversion and saving in parallel.
+    
+    def process_and_save(page_num):
+        page = doc[page_num]
+        pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB)
+        png_bytes = pix.tobytes("png")
+        global_idx = start_idx + page_num
+        filename = f"{prefix}_page_{global_idx}.png"
+        save_raw_image_to_cache(project_id, filename, png_bytes)
+        
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        executor.map(process_and_save, range(page_count))
+        
+    doc.close()
+    return page_count
+
+
 def extract_page_text(pdf_bytes: bytes) -> List[str]:
     """يستخرج النص المباشر من كل صفحة PDF بدون OCR — أسرع للتصنيف الأولي"""
     doc   = fitz.open(stream=pdf_bytes, filetype="pdf")

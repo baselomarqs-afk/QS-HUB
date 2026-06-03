@@ -66,6 +66,36 @@ def save_file(
     return StoredFile(provider, key, checksum, len(data))
 
 
+def save_raw_image_to_cache(project_id: int, filename: str, data: bytes, format: str = "PNG") -> str:
+    """
+    Saves raw image bytes directly to cache without PIL overhead.
+    """
+    provider = get_setting("STORAGE_PROVIDER", "local").lower()
+    key = f"cache/{project_id}/{filename}"
+    
+    if provider == "s3":
+        import boto3
+        bucket = get_setting("S3_BUCKET", required=True)
+        client_kwargs = {}
+        endpoint = get_setting("S3_ENDPOINT_URL")
+        if endpoint:
+            client_kwargs["endpoint_url"] = endpoint
+        region = get_setting("S3_REGION")
+        if region:
+            client_kwargs["region_name"] = region
+            
+        s3 = boto3.client("s3", **client_kwargs)
+        content_type = "image/png" if format.upper() == "PNG" else "image/jpeg"
+        s3.put_object(Bucket=bucket, Key=key, Body=data, ContentType=content_type)
+        return f"s3://{bucket}/{key}"
+    else:
+        root = pathlib.Path(get_setting("LOCAL_STORAGE_DIR", ".qto_storage")).parent / "_qto_cache"
+        path = root / str(project_id) / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        return f"/cache/{project_id}/{filename}"
+
+
 def save_image_to_cache(project_id: int, filename: str, pil_img, format: str = "PNG") -> str:
     """
     Saves an image either to the local ephemeral cache or directly to S3.

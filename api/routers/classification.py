@@ -81,7 +81,7 @@ async def auto_classify(req: RunExtractionReq, current_user: dict = Depends(get_
                 print(f"AI Classify err for page {p['page_num']}: {ex}")
         return p
 
-    with ThreadPoolExecutor(max_workers=2) as executor:
+    with ThreadPoolExecutor(max_workers=4) as executor:
         classified = list(executor.map(process_page, classified))
 
     state_data["classified_pages"] = classified
