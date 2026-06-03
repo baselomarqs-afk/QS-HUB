@@ -64,7 +64,7 @@ def fast_save_pdf_pages(pdf_bytes: bytes, project_id: int, prefix: str, start_id
         filename = f"{prefix}_page_{global_idx}.png"
         save_raw_image_to_cache(project_id, filename, png_bytes)
         
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    with ThreadPoolExecutor(max_workers=1) as executor:
         executor.map(process_and_save, range(page_count))
         
     doc.close()
