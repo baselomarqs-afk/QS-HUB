@@ -78,7 +78,10 @@ async def upload_drawings(
             if max(w, h) > 1600:
                 scale = 1600 / max(w, h)
                 pil_img = pil_img.resize((int(w * scale), int(h * scale)))
-            pil_img.save(os.path.join(project_cache, f"{prefix}_page_{global_idx}.png"), format="PNG")
+            
+            from utils.storage import save_image_to_cache
+            # Save using the agnostic storage module (handles both S3 and local)
+            save_image_to_cache(project_id, f"{prefix}_page_{global_idx}.png", pil_img)
             
         return len(pages), texts
 

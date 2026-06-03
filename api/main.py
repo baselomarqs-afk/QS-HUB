@@ -7,6 +7,9 @@ from fastapi.staticfiles import StaticFiles
 import os
 import json
 
+import asyncio
+from contextlib import asynccontextmanager
+
 from api.auth import router as auth_router
 from api.projects import router as projects_router
 from api.workflow import router as workflow_router
@@ -14,11 +17,21 @@ from api.market import router as market_router
 from api.agents import router as agents_router
 from api.billing import router as billing_router
 from api.admin import router as admin_router
+from utils.garbage_collection import cache_cleanup_task
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Start the garbage collection background task on startup
+    task = asyncio.create_task(cache_cleanup_task())
+    yield
+    # Cancel the task on shutdown
+    task.cancel()
 
 app = FastAPI(
     title="THE QS HUB API",
     description="SaaS Backend API for Quantity Takeoff (QTO) and BOQ Automation",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Enable CORS for the React frontend.
