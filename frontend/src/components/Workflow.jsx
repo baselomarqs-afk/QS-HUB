@@ -408,6 +408,9 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
                     if (dtype === "ground_floor_plan") {
                       if (page.total_floor_area) confirmedObj.gf_area = page.total_floor_area;
                       if (page.ext_perimeter) confirmedObj.ext_perimeter = page.ext_perimeter;
+                      if (page.int_walls_length) confirmedObj.int_walls_length = page.int_walls_length;
+                      if (page.total_doors_count !== undefined) confirmedObj.total_doors_count = page.total_doors_count;
+                      if (page.total_windows_area !== undefined) confirmedObj.total_windows_area = page.total_windows_area;
                     }
 
                     if (dtype === "roof_floor_plan" || dtype === "roof_slab") {
