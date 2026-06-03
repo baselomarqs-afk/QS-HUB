@@ -19,6 +19,11 @@ from api.billing import router as billing_router
 from api.admin import router as admin_router
 from utils.garbage_collection import cache_cleanup_task
 
+# ── RENDER PROXY MODE ──
+# If running on Render, serve the high-speed HuggingFace Space via an iframe for all GET requests.
+# This allows keeping the custom domain (qshub.online) while using 16GB RAM for processing!
+is_render = os.environ.get("RENDER") == "true" or os.environ.get("RENDER") == "1"
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Start the garbage collection background task on startup
@@ -129,7 +134,27 @@ async def health():
 _frontend_dist = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist"
 )
-if os.path.isdir(_frontend_dist):
+
+if is_render:
+    from fastapi.responses import HTMLResponse
+    @app.get("/{full_path:path}")
+    async def serve_iframe(full_path: str):
+        return HTMLResponse("""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>THE QS HUB</title>
+            <style>
+                body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0f172a; }
+                iframe { width: 100%; height: 100%; border: none; }
+            </style>
+        </head>
+        <body>
+            <iframe src="https://basel0-qshub.hf.space/?embed=true"></iframe>
+        </body>
+        </html>
+        """)
+elif os.path.isdir(_frontend_dist):
     app.mount("/", StaticFiles(directory=_frontend_dist, html=True), name="frontend")
 
 if __name__ == "__main__":

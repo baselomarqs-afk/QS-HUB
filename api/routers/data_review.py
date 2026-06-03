@@ -100,10 +100,15 @@ def reconstruct_project_inputs(state_data: dict):
         
         # Aggregate direct visual counts from floor plans if they exist
         if dtype in ["ground_floor_plan", "first_floor_plan", "second_floor_plan", "roof_floor_plan"]:
-            if page.get("total_doors_count"):
-                openings["totals"]["door_count"] += int(page["total_doors_count"])
-            if page.get("total_windows_area"):
-                openings["totals"]["window_area"] += float(page["total_windows_area"])
+            doors = page.get("total_doors_count")
+            if doors is not None:
+                try: openings["totals"]["door_count"] += int(doors)
+                except: pass
+            
+            windows = page.get("total_windows_area")
+            if windows is not None:
+                try: openings["totals"]["window_area"] += float(windows)
+                except: pass
                 
     confirmed["openings"] = openings
 
@@ -186,6 +191,13 @@ def reconstruct_project_inputs(state_data: dict):
                 sources["compound_length"] = "AI OCR"
             elif "compound_length" not in sources:
                 sources["compound_length"] = "AI OCR"
+                
+        # Copy internal walls to flat keys so VerifyStep.jsx can read them
+        if dtype in ["ground_floor_plan", "first_floor_plan", "second_floor_plan", "roof_floor_plan"]:
+            if not confirmed.get("int_walls_10cm_m") or confirmed.get("int_walls_10cm_m") == 0.0:
+                confirmed["int_walls_10cm_m"] = page.get("int_walls_10cm_m") or 0.0
+            if not confirmed.get("int_walls_20cm_m") or confirmed.get("int_walls_20cm_m") == 0.0:
+                confirmed["int_walls_20cm_m"] = page.get("int_walls_20cm_m") or 0.0
 
     # Heal building dimensions from ANY page that carries them —
     # the foundation page reports longest_length/width, the tie_beam page
