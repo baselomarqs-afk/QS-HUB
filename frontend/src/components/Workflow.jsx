@@ -412,6 +412,8 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
                       if (page.total_floor_area) confirmedObj.gf_area = page.total_floor_area;
                       if (page.ext_perimeter) confirmedObj.ext_perimeter = page.ext_perimeter;
                       if (page.int_walls_length) confirmedObj.int_walls_length = page.int_walls_length;
+                      if (page.int_walls_10cm_m !== undefined) confirmedObj.int_walls_10cm_m = page.int_walls_10cm_m;
+                      if (page.int_walls_20cm_m !== undefined) confirmedObj.int_walls_20cm_m = page.int_walls_20cm_m;
                     }
 
                     if (["ground_floor_plan", "first_floor_plan", "second_floor_plan", "roof_floor_plan"].includes(dtype)) {
@@ -441,7 +443,9 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
                       };
                       
                       confirmedObj.walls[fk] = {
-                        internal_total_m: page.int_walls_length || 0.0
+                        internal_total_m: page.int_walls_length || 0.0,
+                        internal_10cm_m: page.int_walls_10cm_m || 0.0,
+                        internal_20cm_m: page.int_walls_20cm_m || 0.0
                       };
                     }
 

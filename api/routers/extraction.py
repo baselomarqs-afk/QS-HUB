@@ -111,9 +111,8 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
                 cv_perim_px = cv_data.get("cv_perimeter_px", 0)
                 if perim_m and cv_perim_px > 0:
                     scale = perim_m / cv_perim_px
-                    int_walls_m = cv_data.get("wall_internal_px", 0) * scale
-                    if int_walls_m > 0:
-                        cv_data["int_walls_length"] = round(int_walls_m, 2)
+                    # Do not overwrite int_walls_length with the highly inflated cv_data value.
+                    # The AI mathematically calculates it much more accurately from room dimensions.
                         
                 extracted.update(cv_data)
 

@@ -141,14 +141,24 @@ export default function VerifyStep({
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
-                {isArabic ? 'الجدران الداخلية (متر)' : 'Internal Walls Length (m)'}
-                {renderSourceBadge('int_walls_length')}
-                {/* Find markup url if available from state.extraction_results in parent? We don't have full state here, so let's just trigger a generic fetch or rely on parent */}
+                {isArabic ? 'الجدران الداخلية 20 سم (متر)' : 'Internal Walls 20cm Length (m)'}
+                {renderSourceBadge('int_walls_20cm_m')}
               </label>
               <input
                 type="number" step="0.01" className="form-input" required
-                value={confirmedData.int_walls_length ?? ''}
-                onChange={(e) => updateConfirmedField('int_walls_length', parseFloat(e.target.value) || 0)}
+                value={confirmedData.int_walls_20cm_m ?? ''}
+                onChange={(e) => updateConfirmedField('int_walls_20cm_m', parseFloat(e.target.value) || 0)}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                {isArabic ? 'الجدران الداخلية 10 سم (متر)' : 'Internal Walls 10cm Length (m)'}
+                {renderSourceBadge('int_walls_10cm_m')}
+              </label>
+              <input
+                type="number" step="0.01" className="form-input" required
+                value={confirmedData.int_walls_10cm_m ?? ''}
+                onChange={(e) => updateConfirmedField('int_walls_10cm_m', parseFloat(e.target.value) || 0)}
               />
             </div>
             <div>
