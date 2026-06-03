@@ -71,35 +71,48 @@ async def upload_drawings(
         # 1. Fast Native Image Extraction to Disk (Bypasses slow Numpy/PIL pipeline entirely)
         from pdf_engine.pdf_loader import fast_save_pdf_pages
         page_count = fast_save_pdf_pages(content, project_id, prefix, start_idx)
+        
+        # Save the original PDF locally in cache for vector measurement
+        pdf_cache_path = os.path.join(project_cache, f"{prefix}_{start_idx}.pdf")
+        with open(pdf_cache_path, "wb") as f:
+            f.write(content)
             
         return page_count, texts
 
     str_count = 0
     str_texts = []
     str_fnames = []
+    str_boundaries = []
     for sf in str_files:
         if not sf.filename: continue
+        start = str_count
         c, t = process_file(sf, "str", str_count)
         str_count += c
         str_texts.extend(t)
         str_fnames.append(sf.filename)
+        str_boundaries.append({"start": start, "end": str_count - 1, "pdf_path": f"str_{start}.pdf"})
         
     arch_count = 0
     arch_texts = []
     arch_fnames = []
+    arch_boundaries = []
     for af in arch_files:
         if not af.filename: continue
+        start = arch_count
         c, t = process_file(af, "arch", arch_count)
         arch_count += c
         arch_texts.extend(t)
         arch_fnames.append(af.filename)
+        arch_boundaries.append({"start": start, "end": arch_count - 1, "pdf_path": f"arch_{start}.pdf"})
         
     state_data["str_fnames"] = str_fnames
     state_data["str_page_count"] = str_count
     state_data["str_texts"] = str_texts
+    state_data["str_boundaries"] = str_boundaries
     state_data["arch_fnames"] = arch_fnames
     state_data["arch_page_count"] = arch_count
     state_data["arch_texts"] = arch_texts
+    state_data["arch_boundaries"] = arch_boundaries
 
     # Save initial state back to database
     state_json = json.dumps(state_data, ensure_ascii=False, default=str)

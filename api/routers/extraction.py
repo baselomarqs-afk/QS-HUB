@@ -94,9 +94,26 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
         texts_src = str_texts if pdf_type == "structural" else arch_texts
         page_text = texts_src[page_idx] if page_idx < len(texts_src) else ""
         
+        # Resolve original pdf path for vector measurement
+        boundaries = state_data.get(f"{prefix}_boundaries", [])
+        original_pdf_path = None
+        for b in boundaries:
+            if b["start"] <= page_idx <= b["end"]:
+                # The pdf in the cache:
+                original_pdf_path = os.path.join(project_cache, b["pdf_path"])
+                break
+                
+        # Calculate the internal page index within the specific PDF (PyMuPDF needs 0-based index of the specific document)
+        internal_page_idx = page_idx
+        if original_pdf_path:
+            for b in boundaries:
+                if b["start"] <= page_idx <= b["end"]:
+                    internal_page_idx = page_idx - b["start"]
+                    break
+        
         try:
             # Bypassing Numpy/PIL to prevent RAM exhaustion and thrashing
-            extracted = extract_page(None, dtype, page_text, current_user["id"], previous_warnings, image_path=img_path)
+            extracted = extract_page(None, dtype, page_text, current_user["id"], previous_warnings, image_path=img_path, pdf_path=original_pdf_path, internal_page_idx=internal_page_idx)
             
             if dtype in ["ground_floor_plan", "first_floor_plan", "second_floor_plan", "roof_floor_plan", "setting_out"]:
                 cv_data = process_floor_plan_image(img_path)

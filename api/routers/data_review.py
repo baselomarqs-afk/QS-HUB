@@ -202,10 +202,14 @@ def reconstruct_project_inputs(state_data: dict):
             if val_10 == 0 and val_20 == 0:
                 val_20 = float(page.get("int_walls_length") or 0.0)
                 
-            if val_10 > 0:
-                confirmed["int_walls_10cm_m"] = confirmed.get("int_walls_10cm_m", 0.0) + val_10
-            if val_20 > 0:
-                confirmed["int_walls_20cm_m"] = confirmed.get("int_walls_20cm_m", 0.0) + val_20
+            if "int_walls_10cm_m" not in sources or sources["int_walls_10cm_m"] == "AI OCR":
+                if val_10 > 0:
+                    confirmed["int_walls_10cm_m"] = confirmed.get("int_walls_10cm_m", 0.0) + val_10
+                    sources["int_walls_10cm_m"] = "AI OCR"
+            if "int_walls_20cm_m" not in sources or sources["int_walls_20cm_m"] == "AI OCR":
+                if val_20 > 0:
+                    confirmed["int_walls_20cm_m"] = confirmed.get("int_walls_20cm_m", 0.0) + val_20
+                    sources["int_walls_20cm_m"] = "AI OCR"
 
 
     # Heal building dimensions from ANY page that carries them —
@@ -386,7 +390,7 @@ async def confirm_data(req: ConfirmDataReq, current_user: dict = Depends(get_cur
         
     # Mark edited fields as User Verified
     sources = confirmed.get("sources") or {}
-    for k in ["longest_length", "longest_width", "plot_area", "gf_area", "ext_perimeter", "total_villa_height", "roof_perimeter", "roof_slab_area", "compound_length", "excavation_depth", "neck_column_height", "solid_block_height", "staircase_volume_per_level"]:
+    for k in ["longest_length", "longest_width", "plot_area", "gf_area", "ext_perimeter", "total_villa_height", "roof_perimeter", "roof_slab_area", "compound_length", "excavation_depth", "neck_column_height", "solid_block_height", "staircase_volume_per_level", "int_walls_10cm_m", "int_walls_20cm_m"]:
         if k in confirmed:
             sources[k] = "User Verified"
     if "openings" in confirmed and "totals" in confirmed["openings"]:

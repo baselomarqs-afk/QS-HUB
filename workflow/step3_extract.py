@@ -421,27 +421,148 @@ async def _ask_ai_with_retry(img_bytes: bytes, full_prompt: str, mgr) -> str:
     return json.dumps({"_error": last_err})
 
 
-def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_id: int = None, previous_warnings: list = None, image_path: str = None) -> dict:
+def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_id: int = None, previous_warnings: list = None, image_path: str = None, pdf_path: str = None, internal_page_idx: int = None) -> dict:
     """
-    Extract the values a drawing's formulas need — via AI Vision.
-    (System uses AI everywhere; no Claude/Anthropic key required.)
+    Extract the values a drawing's formulas need.
+    Uses AI Vision for complex readings, and strict Vector Math (PyMuPDF) for beam lengths.
     """
     from google import genai
     from google.genai import types
+    import json
+    import os
+    import re
 
     # Removed static api_key fallback as the KeyManager handles all keys dynamically
     if drawing_type in COLUMN_TYPES:
         full_prompt = COLUMN_PROMPT
     elif drawing_type in PERFLOOR_COLUMN_TYPES:
         full_prompt = PERFLOOR_COLUMN_PROMPT
+        
     elif drawing_type in FOUNDATION_TYPES:
-        full_prompt = FOUNDATION_PROMPT
+        import asyncio
+        from utils.key_manager import get_key_manager
+        mgr = get_key_manager()
+        if image_path and os.path.exists(image_path):
+            with open(image_path, "rb") as f: img_bytes = f.read()
+        else:
+            img_bytes = _png_bytes(page_arr)
+            
+        async def run_foundations():
+            from workflow.structural_extractors import FOUNDATION_DIMS_PROMPT, FOOTING_SCHEDULE_PROMPT
+            p1 = FOUNDATION_DIMS_PROMPT + METRES_NOTE
+            p2 = FOOTING_SCHEDULE_PROMPT + METRES_NOTE
+            if page_texts and page_texts.strip():
+                txt = f"\n\n--- RAW TEXT ---\n{page_texts}\n-----------------"
+                p1 += txt; p2 += txt
+            t1 = _ask_ai_with_retry(img_bytes, p1, mgr)
+            t2 = _ask_ai_with_retry(img_bytes, p2, mgr)
+            r1, r2 = await asyncio.gather(t1, t2)
+            d1 = json.loads(r1) if not r1.startswith('{"_error"') else {}
+            d2 = json.loads(r2) if not r2.startswith('{"_error"') else {}
+            merged = {**d1, **d2}
+            return merged
+            
+        data = asyncio.run(run_foundations())
+        data = _normalize_units(data)
+        data["_ok"] = True
+        data["drawing_type"] = drawing_type
+        return data
+
     elif drawing_type in TIE_BEAM_TYPES:
-        full_prompt = TIE_BEAM_PROMPT
-    elif drawing_type == "roof_slab":
-        full_prompt = ROOF_SLAB_PROMPT
-    elif drawing_type in SLAB_TYPES:
-        full_prompt = SLAB_PROMPT
+        import asyncio
+        from utils.key_manager import get_key_manager
+        mgr = get_key_manager()
+        if image_path and os.path.exists(image_path):
+            with open(image_path, "rb") as f: img_bytes = f.read()
+        else:
+            img_bytes = _png_bytes(page_arr)
+            
+        async def run_tie_beams():
+            from workflow.structural_extractors import TB_SCHEDULE_PROMPT, TB_AREA_PROMPT
+            p1 = TB_SCHEDULE_PROMPT + METRES_NOTE
+            p2 = TB_AREA_PROMPT + METRES_NOTE
+            if page_texts and page_texts.strip():
+                txt = f"\n\n--- RAW TEXT ---\n{page_texts}\n-----------------"
+                p1 += txt; p2 += txt
+            t1 = _ask_ai_with_retry(img_bytes, p1, mgr)
+            t2 = _ask_ai_with_retry(img_bytes, p2, mgr)
+            r1, r2 = await asyncio.gather(t1, t2)
+            d1 = json.loads(r1) if not r1.startswith('{"_error"') else {}
+            d2 = json.loads(r2) if not r2.startswith('{"_error"') else {}
+            merged = {**d1, **d2}
+            
+            # --- VECTOR MEASUREMENT OVERRIDES ---
+            if pdf_path and internal_page_idx is not None:
+                try:
+                    from workflow.vector_measure import measure_tie_beams
+                    print(f"  [Vector Engine] Computing Tie Beams geometrically for page {internal_page_idx}...")
+                    v_res = measure_tie_beams(pdf_path, internal_page_idx)
+                    total_tb_m = sum(m.get("measured_m", 0) for m in v_res.values())
+                    if total_tb_m > 0:
+                        merged["tb_total_length"] = total_tb_m
+                        merged["_tb_vector_data"] = v_res
+                        merged["notes"] = (merged.get("notes", "") + f" [100% Precision: Tie Beam lengths computed geometrically from CAD vectors ({total_tb_m}m)]").strip()
+                except Exception as ve:
+                    print(f"  [Vector Engine Error] {ve}")
+                    
+            return merged
+            
+        data = asyncio.run(run_tie_beams())
+        data = _normalize_units(data)
+        data["_ok"] = True
+        data["drawing_type"] = drawing_type
+        return data
+
+    elif drawing_type in SLAB_TYPES or drawing_type == "roof_slab":
+        import asyncio
+        from utils.key_manager import get_key_manager
+        mgr = get_key_manager()
+        if image_path and os.path.exists(image_path):
+            with open(image_path, "rb") as f: img_bytes = f.read()
+        else:
+            img_bytes = _png_bytes(page_arr)
+            
+        async def run_slabs():
+            from workflow.structural_extractors import SLAB_AREA_PROMPT, ROOF_SLAB_AREA_PROMPT, BEAM_SCHEDULE_PROMPT
+            p1 = (ROOF_SLAB_AREA_PROMPT if drawing_type == "roof_slab" else SLAB_AREA_PROMPT) + METRES_NOTE
+            p2 = BEAM_SCHEDULE_PROMPT + METRES_NOTE
+            if page_texts and page_texts.strip():
+                txt = f"\n\n--- RAW TEXT ---\n{page_texts}\n-----------------"
+                p1 += txt; p2 += txt
+            t1 = _ask_ai_with_retry(img_bytes, p1, mgr)
+            t2 = _ask_ai_with_retry(img_bytes, p2, mgr)
+            r1, r2 = await asyncio.gather(t1, t2)
+            d1 = json.loads(r1) if not r1.startswith('{"_error"') else {}
+            d2 = json.loads(r2) if not r2.startswith('{"_error"') else {}
+            merged = {**d1, **d2}
+            
+            # --- VECTOR MEASUREMENT OVERRIDES ---
+            if pdf_path and internal_page_idx is not None:
+                try:
+                    from workflow.vector_measure import measure_page
+                    print(f"  [Vector Engine] Computing Structural Beams geometrically for page {internal_page_idx}...")
+                    v_res = measure_page(pdf_path, internal_page_idx)
+                    if v_res and merged.get("beams"):
+                        replaced_count = 0
+                        for b in merged["beams"]:
+                            mk = str(b.get("mark", "")).upper().strip()
+                            if mk in v_res and v_res[mk].get("measured_m", 0) > 0:
+                                b["length"] = v_res[mk]["measured_m"]
+                                b["_vector_measured"] = True
+                                replaced_count += 1
+                        if replaced_count > 0:
+                            merged["notes"] = (merged.get("notes", "") + f" [100% Precision: {replaced_count} beam lengths computed geometrically from CAD vectors]").strip()
+                except Exception as ve:
+                    print(f"  [Vector Engine Error] {ve}")
+                    
+            return merged
+            
+        data = asyncio.run(run_slabs())
+        data = _normalize_units(data)
+        data["_ok"] = True
+        data["drawing_type"] = drawing_type
+        return data
+
     elif drawing_type in SCHEDULE_TYPES:
         full_prompt = SCHEDULE_PROMPT
     elif drawing_type in SETTING_OUT_TYPES:
@@ -587,9 +708,56 @@ Return ONLY this JSON structure (null for not found):
             )
             raw  = re.sub(r"```json|```", "", resp.text).strip()
             data = json.loads(raw)
+            
+            # --- VECTOR MEASUREMENT OVERRIDES ---
+            if pdf_path and internal_page_idx is not None:
+                try:
+                    from workflow.vector_measure import measure_tie_beams, measure_page
+                    
+                    if drawing_type in TIE_BEAM_TYPES:
+                        print(f"  [Vector Engine] Computing Tie Beams geometrically for page {internal_page_idx}...")
+                        v_res = measure_tie_beams(pdf_path, internal_page_idx)
+                        total_tb_m = sum(m.get("measured_m", 0) for m in v_res.values())
+                        if total_tb_m > 0:
+                            data["tb_total_length"] = total_tb_m
+                            data["_tb_vector_data"] = v_res
+                            data["notes"] = (data.get("notes", "") + f" [100% Precision: Tie Beam lengths computed geometrically from CAD vectors ({total_tb_m}m)]").strip()
+                            
+                    elif drawing_type in SLAB_TYPES or drawing_type == "roof_slab":
+                        print(f"  [Vector Engine] Computing Structural Beams geometrically for page {internal_page_idx}...")
+                        v_res = measure_page(pdf_path, internal_page_idx)
+                        if v_res and data.get("beams"):
+                            replaced_count = 0
+                            for b in data["beams"]:
+                                mk = str(b.get("mark", "")).upper().strip()
+                                if mk in v_res and v_res[mk].get("measured_m", 0) > 0:
+                                    b["length"] = v_res[mk]["measured_m"]
+                                    b["_vector_measured"] = True
+                                    replaced_count += 1
+                            if replaced_count > 0:
+                                data["notes"] = (data.get("notes", "") + f" [100% Precision: {replaced_count} beam lengths computed geometrically from CAD vectors]").strip()
+                except Exception as ve:
+                    print(f"  [Vector Engine Error] {ve}")
+            # ------------------------------------
+
             if drawing_type in FLOORPLAN_TYPES:
                 data = _finishes_from_rooms(data)   # rooms → finishes inputs
+                
             data = _normalize_units(data)        # mm → m safety net
+            
+            # --- SANITY CHECKS ---
+            from workflow.sanity_checks import perform_floor_plan_sanity_checks, perform_structural_sanity_checks
+            warnings = []
+            if drawing_type in FLOORPLAN_TYPES:
+                warnings.extend(perform_floor_plan_sanity_checks(data))
+            else:
+                warnings.extend(perform_structural_sanity_checks(data, drawing_type))
+            
+            if warnings:
+                data["_sanity_warnings"] = warnings
+                print(f"  [Sanity Checks] {len(warnings)} warnings found for {drawing_type}")
+            # ---------------------
+            
             data["_ok"]          = True
             data["drawing_type"] = drawing_type
             
