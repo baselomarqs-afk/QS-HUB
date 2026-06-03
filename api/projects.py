@@ -55,16 +55,18 @@ async def save_project_route(req: SaveProjectReq, current_user: dict = Depends(g
     # Load existing state to merge
     existing_state = {}
     project_id = req.project_id
+    is_new_project = False
+    
     if project_id:
         df_state = safe_query("SELECT state_data FROM qto_active_projects WHERE user_id=%s AND project_id=%s", (current_user["id"], project_id))
+        if not df_state.empty and df_state.iloc[0]["state_data"]:
+            try:
+                import json as json_lib
+                existing_state = json_lib.loads(df_state.iloc[0]["state_data"])
+            except Exception as ex:
+                print(f"Error parsing existing state: {ex}")
     else:
-        df_state = safe_query("SELECT state_data FROM qto_active_projects WHERE user_id=%s ORDER BY updated_at DESC LIMIT 1", (current_user["id"],))
-    if not df_state.empty and df_state.iloc[0]["state_data"]:
-        try:
-            import json as json_lib
-            existing_state = json_lib.loads(df_state.iloc[0]["state_data"])
-        except Exception as ex:
-            print(f"Error parsing existing state: {ex}")
+        is_new_project = True
             
     # Merge states
     def merge_states(existing: dict, incoming: dict) -> dict:
@@ -124,6 +126,10 @@ async def save_project_route(req: SaveProjectReq, current_user: dict = Depends(g
             """,
             (current_user["id"], pid, req.current_step, state_json, req.current_step, state_json)
         )
+        
+    if is_new_project:
+        from utils.usage import EVENT_PROJECT, log_usage
+        log_usage(current_user["id"], EVENT_PROJECT, metadata={"project_id": pid, "project_name": req.project_name})
     
     return {"message": "Project saved successfully.", "project_id": pid}
 
