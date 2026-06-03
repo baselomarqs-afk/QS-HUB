@@ -128,7 +128,7 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
                 **page_info
             }
 
-    async def event_generator():
+    def event_generator():
         results = {}
         total_pages = len(ready)
         
