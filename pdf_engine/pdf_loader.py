@@ -45,9 +45,11 @@ def fast_save_pdf_pages(pdf_bytes: bytes, project_id: int, prefix: str, start_id
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     page_count = len(doc)
     
-    # Pre-calculate a sensible scaling matrix so we don't need to resize later
-    # 72 DPI is 1.0 scale. 50 DPI is 0.7 scale.
-    dpi = 100 if page_count <= 3 else (72 if page_count <= 10 else 50)
+    # Pre-calculate a sensible scaling matrix
+    # Hardcoded to max 50 DPI for all pages. This guarantees images stay around 1-2 MB,
+    # completely eliminating network timeouts when uploading to the AI, while retaining
+    # enough resolution for Gemini to read clearly.
+    dpi = 50
     scale = dpi / 72.0
     mat = fitz.Matrix(scale, scale)
     

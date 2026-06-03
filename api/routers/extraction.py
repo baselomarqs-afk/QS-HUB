@@ -135,9 +135,9 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
         initial_args = [(p, None) for p in ready]
         completed_count = 0
         
-        # Prevent Out-Of-Memory (OOM) crashes by limiting concurrent image processing
-        # CRITICAL: Do NOT increase max_workers > 2 on Render Free Tier (512MB RAM). It causes silent OS thread kills.
-        with ThreadPoolExecutor(max_workers=2) as executor:
+        # Since memory-heavy Numpy processing is bypassed, we can safely increase concurrency
+        # to dramatically speed up AI extraction.
+        with ThreadPoolExecutor(max_workers=8) as executor:
             import concurrent.futures
             future_to_args = {executor.submit(extract_single_page, arg): arg for arg in initial_args}
             

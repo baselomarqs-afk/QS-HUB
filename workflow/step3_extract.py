@@ -426,7 +426,7 @@ Return ONLY this JSON structure (null for not found):
             
     last_err = ""
     
-    for attempt in range(15):                 # retry through combinations
+    for attempt in range(3):                 # retry up to 3 times
         current_key, current_model = mgr.get_key_and_model()
             
         if not current_key or current_key == "NO_API_KEY_FOUND":
@@ -434,7 +434,8 @@ Return ONLY this JSON structure (null for not found):
             break
             
         try:
-            client = genai.Client(api_key=current_key, http_options={'timeout': 60})
+            # Added a shorter timeout to fail fast on stuck networks
+            client = genai.Client(api_key=current_key, http_options={'timeout': 30})
             resp = client.models.generate_content(
                 model=current_model,
                 contents=[
