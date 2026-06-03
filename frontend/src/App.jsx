@@ -12,7 +12,7 @@ import Admin from './components/Admin';
 import QsAssistant from './components/QsAssistant';
 import Projects from './components/Projects';
 import { 
-  LayoutDashboard, Folder, Play, BarChart2, Eye, LogOut, Globe, Moon, Sun, CreditCard, Shield, Bot
+  LayoutDashboard, Folder, Play, BarChart2, Eye, LogOut, Globe, Moon, Sun, CreditCard, Shield, Bot, Menu, X
 } from 'lucide-react';
 
 export default function App() {
@@ -23,6 +23,7 @@ export default function App() {
   const [isArabic, setIsArabic] = useState(false); // Default to English as requested
   const [isDark, setIsDark] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -92,8 +93,25 @@ export default function App() {
   return (
     <div className="dashboard-grid" style={{ direction: isArabic ? 'rtl' : 'ltr' }}>
       
+      {/* Mobile Hamburger Button */}
+      <button 
+        className="mobile-menu-btn"
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        aria-label="Toggle menu"
+      >
+        {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+      </button>
+
+      {/* Mobile Overlay */}
+      {mobileMenuOpen && (
+        <div 
+          className="mobile-overlay"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar Navigation */}
-      <aside style={{
+      <aside className={`sidebar ${mobileMenuOpen ? 'sidebar-open' : ''}`} style={{
         background: 'var(--bg-secondary)',
         borderRight: isArabic ? 'none' : '1px solid var(--border-color)',
         borderLeft: isArabic ? '1px solid var(--border-color)' : 'none',
@@ -140,7 +158,7 @@ export default function App() {
 
             {/* Dashboard Link */}
             <button 
-              onClick={() => setPage('dashboard')}
+              onClick={() => { setPage('dashboard'); setMobileMenuOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -164,7 +182,7 @@ export default function App() {
 
             {/* Projects Link */}
             <button 
-              onClick={() => setPage('projects')}
+              onClick={() => { setPage('projects'); setMobileMenuOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -188,7 +206,7 @@ export default function App() {
 
             {/* Workflow Link (Disabled if no project selected) */}
             <button 
-              onClick={() => selectedProject && setPage('workflow')}
+              onClick={() => { if(selectedProject) { setPage('workflow'); setMobileMenuOpen(false); } }}
               disabled={!selectedProject}
               style={{
                 display: 'flex',
@@ -214,7 +232,7 @@ export default function App() {
 
             {/* Market Prices Link */}
             <button 
-              onClick={() => setPage('market')}
+              onClick={() => { setPage('market'); setMobileMenuOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -238,7 +256,7 @@ export default function App() {
 
             {/* Drawing Compare Link */}
             <button 
-              onClick={() => setPage('compare')}
+              onClick={() => { setPage('compare'); setMobileMenuOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -262,7 +280,7 @@ export default function App() {
 
             {/* Billing Link */}
             <button 
-              onClick={() => setPage('billing')}
+              onClick={() => { setPage('billing'); setMobileMenuOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -286,7 +304,7 @@ export default function App() {
 
             {/* QS Assistant Link */}
             <button 
-              onClick={() => setPage('qs_assistant')}
+              onClick={() => { setPage('qs_assistant'); setMobileMenuOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -311,7 +329,7 @@ export default function App() {
             {/* Admin Dashboard Link */}
             {user && user.role === 'admin' && (
               <button 
-                onClick={() => setPage('admin')}
+                onClick={() => { setPage('admin'); setMobileMenuOpen(false); }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',

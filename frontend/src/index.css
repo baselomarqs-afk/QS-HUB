@@ -236,8 +236,221 @@ body.dark-mode .btn-secondary:hover {
   min-height: 100vh;
 }
 
+/* ========================= */
+/* Mobile Hamburger Button   */
+/* ========================= */
+.mobile-menu-btn {
+  display: none;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 1100;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  transition: all 0.2s ease;
+}
+
+.mobile-menu-btn:active {
+  transform: scale(0.92);
+}
+
+/* Mobile Overlay */
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* ========================= */
+/* Sidebar base (for mobile) */
+/* ========================= */
+.sidebar {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ========================= */
+/* Mobile (768px and below)  */
+/* ========================= */
 @media (max-width: 768px) {
+
+  /* Dashboard layout: single column */
   .dashboard-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* Show hamburger */
+  .mobile-menu-btn {
+    display: flex;
+  }
+
+  /* Show overlay when menu open */
+  .mobile-overlay {
+    display: block;
+  }
+
+  /* Sidebar: fixed, slide out left by default */
+  .sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0;
+    width: 280px;
+    height: 100vh !important;
+    z-index: 1050;
+    transform: translateX(-100%);
+    overflow-y: auto;
+    box-shadow: var(--shadow-premium);
+  }
+
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
+  /* RTL sidebar: slide from right */
+  [dir="rtl"] .sidebar {
+    left: auto;
+    right: 0;
+    transform: translateX(100%);
+  }
+
+  [dir="rtl"] .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
+  [dir="rtl"] .mobile-menu-btn {
+    left: auto;
+    right: 12px;
+  }
+
+  /* Main content: full width, add top padding for hamburger */
+  .dashboard-grid > main {
+    padding-top: 60px;
+  }
+
+  /* Auth panel responsive */
+  .auth-panel {
+    padding: 28px 18px !important;
+    margin: 0 4px;
+    border-radius: 14px !important;
+  }
+
+  .auth-panel h2 {
+    font-size: 1.3rem !important;
+  }
+
+  .auth-panel h3 {
+    font-size: 1.1rem !important;
+  }
+
+  /* Landing page hero responsive */
+  .landing-hero h1 {
+    font-size: 2rem !important;
+  }
+
+  .landing-hero p {
+    font-size: 1rem !important;
+  }
+
+  .landing-hero img {
+    width: 100px !important;
+    height: 100px !important;
+  }
+
+  /* Fix feature grid to single column */
+  .features-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Pricing grid to 2 cols on small */
+  .pricing-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Glass panel spacing */
+  .glass-panel {
+    padding: 16px;
+  }
+
+  /* Glass card spacing */
+  .glass-card {
+    padding: 14px;
+  }
+
+  /* Buttons touch-friendly size */
+  .btn {
+    min-height: 44px;
+    font-size: 0.88rem;
+  }
+
+  /* Form inputs touch-friendly */
+  .form-input {
+    min-height: 44px;
+    font-size: 1rem;
+  }
+
+  /* Dashboard content padding */
+  .dashboard-content {
+    padding: 16px !important;
+  }
+
+  .dashboard-content h2 {
+    font-size: 1.5rem !important;
+  }
+
+  /* Landing page footer links wrap */
+  footer > div {
+    flex-wrap: wrap;
+    gap: 10px !important;
+  }
+}
+
+/* ========================= */
+/* Small phones (480px)      */
+/* ========================= */
+@media (max-width: 480px) {
+
+  .pricing-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .auth-panel {
+    padding: 22px 14px !important;
+  }
+
+  .landing-hero h1 {
+    font-size: 1.6rem !important;
+  }
+
+  /* Premium table mobile scroll hint */
+  .premium-table-container {
+    position: relative;
+  }
+
+  .premium-table {
+    font-size: 0.82rem;
+  }
+
+  .premium-table th,
+  .premium-table td {
+    padding: 8px 10px;
+  }
+
+  .dashboard-content {
+    padding: 12px !important;
+  }
+
+  .dashboard-content h2 {
+    font-size: 1.25rem !important;
   }
 }

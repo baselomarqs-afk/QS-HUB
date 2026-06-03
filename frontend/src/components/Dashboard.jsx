@@ -160,7 +160,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
   };
 
   return (
-    <div style={{ padding: '30px', textAlign: isArabic ? 'right' : 'left', direction: isArabic ? 'rtl' : 'ltr' }}>
+    <div className="dashboard-content" style={{ padding: '30px', textAlign: isArabic ? 'right' : 'left', direction: isArabic ? 'rtl' : 'ltr' }}>
       {/* Welcome Banner */}
       <div style={{ marginBottom: '35px' }}>
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
@@ -292,38 +292,38 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
       )}
 
       <div style={{ display: 'flex', justifyContent: 'center', margin: '40px 0' }}>
-        {/* Create Project Panel */}
-        <div style={{ width: '100%', maxWidth: '600px' }}>
-
-      {/* Attention Banner */}
-      <div style={{
-        marginTop: '40px',
-        backgroundColor: 'rgba(15, 23, 42, 0.9)',
-        border: '1px solid rgba(59, 130, 246, 0.2)',
-        borderRadius: '8px',
-        padding: '20px 25px',
-        color: '#e2e8f0',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '15px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#3b82f6', fontWeight: 700 }}>
-          <span style={{ color: '#f59e0b', display: 'flex', alignItems: 'center' }}>⚠️</span>
-          {isArabic ? 'تنبيه:' : 'Attention:'}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.9rem', color: '#60a5fa', lineHeight: '1.6' }}>
-          <p>
-            1- {isArabic 
-              ? 'تم تصميم النظام لتوفير الوقت والجهد. لضمان النتائج، مراجعة المهندس ضرورية ولا غنى عنها.'
-              : "The system is designed to save time and effort. To guarantee the results, engineer's review is a must."}
-          </p>
-          <p>
-            2- {isArabic 
-              ? 'تعتمد جودة نتائج النظام بشكل أساسي على جودة المخططات ودقة تصنيفها.'
-              : 'Results quality of the system depends on the quality of the drawings and drawings classification accuracy.'}
-          </p>
+        {/* Attention Banner */}
+        <div style={{
+          width: '100%',
+          maxWidth: '600px',
+          backgroundColor: 'rgba(15, 23, 42, 0.9)',
+          border: '1px solid rgba(59, 130, 246, 0.2)',
+          borderRadius: '8px',
+          padding: '20px 25px',
+          color: '#e2e8f0',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '15px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#3b82f6', fontWeight: 700 }}>
+            <span style={{ color: '#f59e0b', display: 'flex', alignItems: 'center' }}>⚠️</span>
+            {isArabic ? 'تنبيه:' : 'Attention:'}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.9rem', color: '#60a5fa', lineHeight: '1.6' }}>
+            <p>
+              1- {isArabic 
+                ? 'تم تصميم النظام لتوفير الوقت والجهد. لضمان النتائج، مراجعة المهندس ضرورية ولا غنى عنها.'
+                : "The system is designed to save time and effort. To guarantee the results, engineer's review is a must."}
+            </p>
+            <p>
+              2- {isArabic 
+                ? 'تعتمد جودة نتائج النظام بشكل أساسي على جودة المخططات ودقة تصنيفها.'
+                : 'Results quality of the system depends on the quality of the drawings and drawings classification accuracy.'}
+            </p>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+

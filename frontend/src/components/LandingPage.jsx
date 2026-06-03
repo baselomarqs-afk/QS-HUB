@@ -27,7 +27,9 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: '50px'
+        marginBottom: '50px',
+        flexWrap: 'wrap',
+        gap: '12px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img 
@@ -60,10 +62,10 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
       </header>
 
       {/* Hero Banner Section */}
-      <section className="glass-panel" style={{
+      <section className="glass-panel landing-hero" style={{
         width: '100%',
         maxWidth: '1000px',
-        padding: '60px 40px',
+        padding: '50px 25px',
         textAlign: 'center',
         background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0.1) 100%)',
         marginBottom: '50px',
@@ -127,7 +129,7 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
           {isArabic ? 'المميزات الرئيسية للمنصة' : 'Core Platform Features'}
         </h3>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '25px' }}>
+        <div className="features-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px' }}>
           
           {/* Card 1: UR QS ASSISTANT */}
           <div className="glass-card" style={{ 
@@ -256,7 +258,7 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
           {isArabic ? 'خطط الاشتراك والأسعار' : 'Pricing & Subscription'}
         </h3>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+        <div className="pricing-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
           <div className="glass-card" style={{ textAlign: 'center', padding: '25px 15px' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>TIER 1</span>
             <h3 style={{ fontSize: '2rem', fontWeight: 800, margin: '10px 0 5px' }}>50 AED</h3>
