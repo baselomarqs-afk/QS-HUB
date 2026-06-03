@@ -194,10 +194,19 @@ def reconstruct_project_inputs(state_data: dict):
                 
         # Copy internal walls to flat keys so VerifyStep.jsx can read them
         if dtype in ["ground_floor_plan", "first_floor_plan", "second_floor_plan", "roof_floor_plan"]:
-            if not confirmed.get("int_walls_10cm_m") or confirmed.get("int_walls_10cm_m") == 0.0:
-                confirmed["int_walls_10cm_m"] = page.get("int_walls_10cm_m") or 0.0
-            if not confirmed.get("int_walls_20cm_m") or confirmed.get("int_walls_20cm_m") == 0.0:
-                confirmed["int_walls_20cm_m"] = page.get("int_walls_20cm_m") or 0.0
+            val_10 = float(page.get("int_walls_10cm_m") or 0.0)
+            val_20 = float(page.get("int_walls_20cm_m") or 0.0)
+            
+            # If the AI failed to explicitly find them, use the geometric mathematical total
+            # calculated by step3_extract.py (int_walls_length) as 20cm walls.
+            if val_10 == 0 and val_20 == 0:
+                val_20 = float(page.get("int_walls_length") or 0.0)
+                
+            if val_10 > 0:
+                confirmed["int_walls_10cm_m"] = confirmed.get("int_walls_10cm_m", 0.0) + val_10
+            if val_20 > 0:
+                confirmed["int_walls_20cm_m"] = confirmed.get("int_walls_20cm_m", 0.0) + val_20
+
 
     # Heal building dimensions from ANY page that carries them —
     # the foundation page reports longest_length/width, the tie_beam page
