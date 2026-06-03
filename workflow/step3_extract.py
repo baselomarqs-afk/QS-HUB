@@ -154,23 +154,13 @@ List EVERY room/space in the "rooms" array:
 - "name": room name (Living, Bedroom, Bathroom, Kitchen, Majlis, Terrace, WC, Laundry …)
 - "length_m","width_m": the room size from its dimension labels (METRES) — REQUIRED
 - "area_m2": only if an area is explicitly printed (else null)
+- "doors_count": count the doors (swing arcs/sliding symbols) for THIS specific room.
+- "windows_count": count the windows on the external walls of THIS specific room.
 
 Also read the overall dimension lines:
 - "overall_length_m","overall_width_m": building outer dimensions (METRES)
 - "balcony_terrace_area_m2": open balcony + terrace area if shown (else null)
 - "floor_height_m": floor-to-floor or floor-to-ceiling height if shown anywhere on the plan or in a note/section (e.g. 3.2, 4.0, 4.6) — in METRES. null if not found.
-
-CRITICAL — COUNT FROM THIS PLAN (do NOT rely on any schedule):
-- "total_doors_count": count EVERY door on this floor. A door is drawn as a swing arc
-  (a quarter-circle) or a sliding-door symbol at a wall opening. Count the door of
-  EVERY space — bedrooms, EVERY bathroom/WC, kitchen, majlis, living, dining, store,
-  laundry, maid's room, dressing/closets — PLUS every external/entrance/balcony door.
-  Do NOT miss small rooms; most rooms have at least one door. A typical villa floor
-  has about 8–15 doors.
-- "total_windows_area": count EVERY window on this floor (a window is a gap in an
-  external wall, usually drawn as 2–3 short parallel lines). For each window multiply
-  its width × height (read the size if labelled, else assume 1.5 m × 1.5 m), then sum
-  to a total area in m².
 
 - "int_walls_10cm_m" / "int_walls_20cm_m": total length (METRES) of the INTERNAL walls
   BY THICKNESS, read from the plan. 10 cm (100 mm) = thin partitions (around
@@ -180,10 +170,9 @@ CRITICAL — COUNT FROM THIS PLAN (do NOT rely on any schedule):
   as 20 cm).
 
 Return ONLY this JSON (no markdown):
-{"rooms":[{"name":"Living","length_m":5.0,"width_m":4.0,"area_m2":null}],
+{"rooms":[{"name":"Living","length_m":5.0,"width_m":4.0,"area_m2":null,"doors_count":2,"windows_count":1}],
  "overall_length_m":null,"overall_width_m":null,"balcony_terrace_area_m2":null,
  "floor_height_m":null,
- "total_doors_count":0,"total_windows_area":0.0,
  "int_walls_10cm_m":0.0,"int_walls_20cm_m":0.0,
  "confidence":"high|medium|low","notes":""}"""
 
@@ -250,6 +239,24 @@ def _finishes_from_rooms(data: dict) -> dict:
     wet_per    = sum(per(r)  for r in rooms if is_wet(r))
     dry_per    = sum(per(r)  for r in rooms if not is_wet(r))
     sum_per    = sum(per(r)  for r in rooms)
+
+    # Sum doors and windows from rooms
+    door_cnt = 0
+    win_cnt = 0
+    for r in rooms:
+        try: door_cnt += int(r.get("doors_count") or 0)
+        except: pass
+        try: win_cnt += int(r.get("windows_count") or 0)
+        except: pass
+
+    # Divide by 2 because interior doors are shared between two spaces (e.g. hallway and bedroom).
+    # We add 1 for the main entrance door as a safe baseline.
+    if door_cnt > 0:
+        data["total_doors_count"] = max(1, int(door_cnt / 2) + 1)
+    
+    # Assume an average window is 2.0 sqm
+    if win_cnt > 0:
+        data["total_windows_area"] = win_cnt * 2.0
 
     L = data.get("overall_length_m") if data.get("overall_length_m") is not None else data.get("longest_length")
     W = data.get("overall_width_m") if data.get("overall_width_m") is not None else data.get("longest_width")
