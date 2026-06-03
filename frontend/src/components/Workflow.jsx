@@ -18,8 +18,8 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
   const [message, setMessage] = useState('');
   
   // File Upload State
-  const [strFile, setStrFile] = useState(null);
-  const [archFile, setArchFile] = useState(null);
+  const [strFiles, setStrFiles] = useState([]);
+  const [archFiles, setArchFiles] = useState([]);
   const [uploadResult, setUploadResult] = useState(null);
   
   // Classification State
@@ -240,7 +240,7 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
   // Step 1: Upload Files
   const handleUpload = async (e) => {
     e.preventDefault();
-    if ((!strFile && !archFile) || loading) return;
+    if ((strFiles.length === 0 && archFiles.length === 0) || loading) return;
 
     setLoading(true);
     setLoadingText(isArabic ? 'جاري قراءة المخططات...' : 'Uploading & Processing Blueprints...');
@@ -249,8 +249,8 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
     
     const formData = new FormData();
     formData.append('project_id', project.id);
-    if (strFile) formData.append('str_file', strFile);
-    if (archFile) formData.append('arch_file', archFile);
+    strFiles.forEach(f => formData.append('str_files', f));
+    archFiles.forEach(f => formData.append('arch_files', f));
 
     try {
       const res = await fetch(`${API_URL}/upload`, {
@@ -646,14 +646,14 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
         </div>
       )}
 
-      {/* Steps Content Area */}
+        {/* Steps Content Area */}
       <div style={{ flex: 1, padding: '0 30px 30px' }}>
         {currentStep === 1 && (
           <UploadStep
-            strFile={strFile}
-            setStrFile={setStrFile}
-            archFile={archFile}
-            setArchFile={setArchFile}
+            strFiles={strFiles}
+            setStrFiles={setStrFiles}
+            archFiles={archFiles}
+            setArchFiles={setArchFiles}
             loading={loading}
             handleUpload={handleUpload}
             isArabic={isArabic}

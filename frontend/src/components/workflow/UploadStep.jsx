@@ -2,10 +2,10 @@ import React from 'react';
 import { Upload } from 'lucide-react';
 
 export default function UploadStep({
-  strFile,
-  setStrFile,
-  archFile,
-  setArchFile,
+  strFiles,
+  setStrFiles,
+  archFiles,
+  setArchFiles,
   loading,
   handleUpload,
   isArabic
@@ -29,8 +29,14 @@ export default function UploadStep({
             <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '8px' }}>
               {isArabic ? 'المخطط الإنشائي (Structural)' : 'Structural Drawings (PDF)'}
             </h4>
-            <input type="file" accept=".pdf" onChange={(e) => setStrFile(e.target.files[0])} />
-            {strFile && <p style={{ fontSize: '0.8rem', color: 'var(--success)', marginTop: '8px', fontWeight: 600 }}>✓ {strFile.name}</p>}
+            <input type="file" multiple accept=".pdf" onChange={(e) => setStrFiles(Array.from(e.target.files))} />
+            {strFiles && strFiles.length > 0 && (
+              <div style={{ marginTop: '12px', textAlign: 'left' }}>
+                {strFiles.map((f, i) => (
+                  <p key={i} style={{ fontSize: '0.8rem', color: 'var(--success)', marginBottom: '4px', fontWeight: 600 }}>✓ {f.name}</p>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Architectural Drawing */}
@@ -39,12 +45,18 @@ export default function UploadStep({
             <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '8px' }}>
               {isArabic ? 'المخطط المعماري (Architectural)' : 'Architectural Drawings (PDF)'}
             </h4>
-            <input type="file" accept=".pdf" onChange={(e) => setArchFile(e.target.files[0])} />
-            {archFile && <p style={{ fontSize: '0.8rem', color: 'var(--success)', marginTop: '8px', fontWeight: 600 }}>✓ {archFile.name}</p>}
+            <input type="file" multiple accept=".pdf" onChange={(e) => setArchFiles(Array.from(e.target.files))} />
+            {archFiles && archFiles.length > 0 && (
+              <div style={{ marginTop: '12px', textAlign: 'left' }}>
+                {archFiles.map((f, i) => (
+                  <p key={i} style={{ fontSize: '0.8rem', color: 'var(--success)', marginBottom: '4px', fontWeight: 600 }}>✓ {f.name}</p>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-        <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '12px' }} disabled={loading || (!strFile && !archFile)}>
+        <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '12px' }} disabled={loading || (strFiles.length === 0 && archFiles.length === 0)}>
           {loading ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
               <div className="spin-anim" style={{ width: '16px', height: '16px', border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%' }}></div>

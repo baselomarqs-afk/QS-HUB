@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
-from typing import Optional
+from typing import Optional, List
 import os
 import json
 
@@ -18,8 +18,8 @@ MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_MB", "50")) * 1024 * 1024
 @router.post("/upload")
 async def upload_drawings(
     project_id: int = Form(...),
-    str_file: Optional[UploadFile] = File(None),
-    arch_file: Optional[UploadFile] = File(None),
+    str_files: List[UploadFile] = File([]),
+    arch_files: List[UploadFile] = File([]),
     current_user: dict = Depends(get_current_user)
 ):
     # Verify project belongs to user
@@ -52,7 +52,7 @@ async def upload_drawings(
         except: pass
 
     # Helper function to process file and save page images
-    def process_file(file_obj, prefix):
+    def process_file(file_obj, prefix, start_idx):
         # Validate type & size before doing any work
         fname = (file_obj.filename or "").lower()
         ctype = (file_obj.content_type or "").lower()
@@ -71,28 +71,43 @@ async def upload_drawings(
         
         # Convert pages (numpy arrays) to PNG and save to cache
         for idx, page_arr in enumerate(pages):
+            global_idx = start_idx + idx
             pil_img = page_to_pil(page_arr)
             # Resize if too large to save space and load fast
             w, h = pil_img.size
             if max(w, h) > 1600:
                 scale = 1600 / max(w, h)
                 pil_img = pil_img.resize((int(w * scale), int(h * scale)))
-            pil_img.save(os.path.join(project_cache, f"{prefix}_page_{idx}.png"), format="PNG")
+            pil_img.save(os.path.join(project_cache, f"{prefix}_page_{global_idx}.png"), format="PNG")
             
         return len(pages), texts
 
-    str_count, arch_count = 0, 0
-    if str_file:
-        str_count, str_texts = process_file(str_file, "str")
-        state_data["str_fname"] = str_file.filename
-        state_data["str_page_count"] = str_count
-        state_data["str_texts"] = str_texts
+    str_count = 0
+    str_texts = []
+    str_fnames = []
+    for sf in str_files:
+        if not sf.filename: continue
+        c, t = process_file(sf, "str", str_count)
+        str_count += c
+        str_texts.extend(t)
+        str_fnames.append(sf.filename)
         
-    if arch_file:
-        arch_count, arch_texts = process_file(arch_file, "arch")
-        state_data["arch_fname"] = arch_file.filename
-        state_data["arch_page_count"] = arch_count
-        state_data["arch_texts"] = arch_texts
+    arch_count = 0
+    arch_texts = []
+    arch_fnames = []
+    for af in arch_files:
+        if not af.filename: continue
+        c, t = process_file(af, "arch", arch_count)
+        arch_count += c
+        arch_texts.extend(t)
+        arch_fnames.append(af.filename)
+        
+    state_data["str_fnames"] = str_fnames
+    state_data["str_page_count"] = str_count
+    state_data["str_texts"] = str_texts
+    state_data["arch_fnames"] = arch_fnames
+    state_data["arch_page_count"] = arch_count
+    state_data["arch_texts"] = arch_texts
 
     # Save initial state back to database
     state_json = json.dumps(state_data, ensure_ascii=False, default=str)
@@ -121,9 +136,9 @@ async def upload_drawings(
     
     return {
         "project_id": project_id,
-        "str_fname": state_data.get("str_fname"),
+        "str_fnames": str_fnames,
         "str_page_count": str_count,
-        "arch_fname": state_data.get("arch_fname"),
+        "arch_fnames": arch_fnames,
         "arch_page_count": arch_count,
         "next_step": 2
     }
