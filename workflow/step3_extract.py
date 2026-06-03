@@ -344,6 +344,82 @@ def _png_bytes(arr: np.ndarray) -> bytes:
     pil.save(buf, format="PNG", optimize=True)
     return buf.getvalue()
 
+async def _ask_ai_with_retry(img_bytes: bytes, full_prompt: str, mgr) -> str:
+    import time
+    import hashlib
+    import os
+    import json
+    import asyncio
+    import re
+    from google import genai
+    from google.genai import types
+    
+    # MD5-based Caching Mechanism
+    cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "_qto_cache")
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_file = os.path.join(cache_dir, "llm_cache.json")
+    
+    hasher = hashlib.md5()
+    hasher.update(img_bytes)
+    hasher.update(full_prompt.encode('utf-8'))
+    cache_key = hasher.hexdigest()
+    
+    if os.path.exists(cache_file):
+        try:
+            with _LLM_CACHE_LOCK:
+                with open(cache_file, "r", encoding="utf-8") as f:
+                    cache_data = json.load(f)
+            if cache_key in cache_data:
+                cached_res = cache_data[cache_key]
+                return json.dumps(cached_res)
+        except Exception as cache_ex:
+            print(f"Cache read error: {cache_ex}")
+            
+    last_err = ""
+    for attempt in range(3):
+        current_key, current_model = mgr.get_key_and_model()
+        if not current_key or current_key == "NO_API_KEY_FOUND":
+            last_err = "No valid API key found."
+            break
+            
+        try:
+            client = genai.Client(api_key=current_key, http_options={'timeout': 45})
+            resp = client.models.generate_content(
+                model=current_model,
+                contents=[
+                    types.Part.from_bytes(data=img_bytes, mime_type="image/png"),
+                    full_prompt,
+                ],
+            )
+            raw = re.sub(r"```json|```", "", resp.text).strip()
+            
+            # Save to Cache
+            try:
+                data_to_cache = json.loads(raw)
+                with _LLM_CACHE_LOCK:
+                    cache_data = {}
+                    if os.path.exists(cache_file):
+                        try:
+                            with open(cache_file, "r", encoding="utf-8") as f:
+                                cache_data = json.load(f)
+                        except Exception:
+                            cache_data = {}
+                    cache_data[cache_key] = data_to_cache
+                    tmp = f"{cache_file}.{os.getpid()}.tmp"
+                    with open(tmp, "w", encoding="utf-8") as f:
+                        json.dump(cache_data, f, ensure_ascii=False, indent=2)
+                    os.replace(tmp, cache_file)
+            except Exception as cache_ex:
+                pass # JSON parsing failed or cache write failed, handled gracefully
+                
+            return raw
+        except Exception as e:
+            last_err = str(e)
+            mgr.mark_rate_limited(current_key, current_model)
+            await asyncio.sleep(2)
+            
+    return json.dumps({"_error": last_err})
+
 
 def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_id: int = None, previous_warnings: list = None, image_path: str = None) -> dict:
     """
@@ -371,7 +447,66 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
     elif drawing_type in SETTING_OUT_TYPES:
         full_prompt = SETTING_OUT_PROMPT
     elif drawing_type in FLOORPLAN_TYPES:
-        full_prompt = FLOOR_PLAN_PROMPT
+        import asyncio
+        from utils.key_manager import get_key_manager
+        mgr = get_key_manager()
+        
+        if image_path and os.path.exists(image_path):
+            with open(image_path, "rb") as f:
+                img_bytes = f.read()
+        else:
+            img_bytes = _png_bytes(page_arr)
+            
+        async def run_dedicated_extractors():
+            from workflow.arch_extractor import ARCH_PROMPT
+            from workflow.wall_extractor import WALL_PROMPT
+            from workflow.openings_extractor import OPENINGS_PROMPT
+            
+            # Format prompts
+            arch_p = ARCH_PROMPT + METRES_NOTE
+            wall_p = WALL_PROMPT + METRES_NOTE
+            open_p = OPENINGS_PROMPT + METRES_NOTE
+            
+            if page_texts and page_texts.strip():
+                txt = f"\n\n--- RAW TEXT ---\n{page_texts}\n-----------------"
+                arch_p += txt; wall_p += txt; open_p += txt
+                
+            arch_task = _ask_ai_with_retry(img_bytes, arch_p, mgr)
+            wall_task = _ask_ai_with_retry(img_bytes, wall_p, mgr)
+            open_task = _ask_ai_with_retry(img_bytes, open_p, mgr)
+            
+            arch_raw, wall_raw, open_raw = await asyncio.gather(arch_task, wall_task, open_task)
+            
+            arch_data = json.loads(arch_raw) if not arch_raw.startswith('{"_error"') else {}
+            wall_data = json.loads(wall_raw) if not wall_raw.startswith('{"_error"') else {}
+            open_data = json.loads(open_raw) if not open_raw.startswith('{"_error"') else {}
+            
+            # Merge them together into the schema expected by _finishes_from_rooms
+            merged = {}
+            merged.update(arch_data)
+            
+            # Inject openings into the rooms array so _finishes_from_rooms can sum them up!
+            rooms_arch = merged.get("rooms", [])
+            rooms_open = open_data.get("rooms", [])
+            for r_arch in rooms_arch:
+                # Find matching room in openings
+                for r_op in rooms_open:
+                    if str(r_op.get("name", "")).lower() == str(r_arch.get("name", "")).lower():
+                        if "doors_count" in r_op: r_arch["doors_count"] = r_op["doors_count"]
+                        if "windows_count" in r_op: r_arch["windows_count"] = r_op["windows_count"]
+                        break
+            
+            # Inject walls
+            merged["int_walls_10cm_m"] = wall_data.get("int_walls_10cm_m", 0.0)
+            merged["int_walls_20cm_m"] = wall_data.get("int_walls_20cm_m", 0.0)
+            return merged
+            
+        data = asyncio.run(run_dedicated_extractors())
+        data = _finishes_from_rooms(data)
+        data = _normalize_units(data)
+        data["_ok"] = True
+        data["drawing_type"] = drawing_type
+        return data
     else:
         prompt  = get_ai_prompt_for_drawing(drawing_type)
         config  = DRAWING_REQUIRED_INPUTS.get(drawing_type, {})
