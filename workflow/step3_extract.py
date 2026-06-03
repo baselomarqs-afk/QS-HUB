@@ -360,7 +360,7 @@ def _png_bytes(arr: np.ndarray) -> bytes:
     pil.save(buf, format="PNG", optimize=True)
     return buf.getvalue()
 
-async def _ask_ai_with_retry(img_bytes: bytes, full_prompt: str, mgr) -> str:
+async def _ask_ai_with_retry(img_bytes: bytes, full_prompt: str, mgr, force_reextract: bool = False) -> str:
     import time
     import hashlib
     import os
@@ -380,7 +380,7 @@ async def _ask_ai_with_retry(img_bytes: bytes, full_prompt: str, mgr) -> str:
     hasher.update(full_prompt.encode('utf-8'))
     cache_key = hasher.hexdigest()
     
-    if os.path.exists(cache_file):
+    if not force_reextract and os.path.exists(cache_file):
         try:
             with _LLM_CACHE_LOCK:
                 with open(cache_file, "r", encoding="utf-8") as f:
@@ -437,7 +437,7 @@ async def _ask_ai_with_retry(img_bytes: bytes, full_prompt: str, mgr) -> str:
     return json.dumps({"_error": last_err})
 
 
-def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_id: int = None, previous_warnings: list = None, image_path: str = None, pdf_path: str = None, internal_page_idx: int = None) -> dict:
+def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_id: int = None, previous_warnings: list = None, image_path: str = None, pdf_path: str = None, internal_page_idx: int = None, force_reextract: bool = False) -> dict:
     """
     Extract the values a drawing's formulas need.
     Uses AI Vision for complex readings, and strict Vector Math (PyMuPDF) for beam lengths.
@@ -477,8 +477,8 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
                 txt = f"\n\n--- RAW TEXT ---\n{page_texts}\n-----------------"
                 p1 += txt; p2 += txt
                 
-            t1 = _ask_ai_with_retry(img_bytes, p1, mgr)
-            t2 = _ask_ai_with_retry(img_bytes, p2, mgr)
+            t1 = _ask_ai_with_retry(img_bytes, p1, mgr, force_reextract=force_reextract)
+            t2 = _ask_ai_with_retry(img_bytes, p2, mgr, force_reextract=force_reextract)
             r1, r2 = await asyncio.gather(t1, t2)
             
             d1 = _safe_parse_json(r1)
@@ -518,8 +518,8 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             if page_texts and page_texts.strip():
                 txt = f"\n\n--- RAW TEXT ---\n{page_texts}\n-----------------"
                 p1 += txt; p2 += txt
-            t1 = _ask_ai_with_retry(img_bytes, p1, mgr)
-            t2 = _ask_ai_with_retry(img_bytes, p2, mgr)
+            t1 = _ask_ai_with_retry(img_bytes, p1, mgr, force_reextract=force_reextract)
+            t2 = _ask_ai_with_retry(img_bytes, p2, mgr, force_reextract=force_reextract)
             r1, r2 = await asyncio.gather(t1, t2)
             
             d1 = _safe_parse_json(r1)
@@ -574,8 +574,8 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             if page_texts and page_texts.strip():
                 txt = f"\n\n--- RAW TEXT ---\n{page_texts}\n-----------------"
                 p1 += txt; p2 += txt
-            t1 = _ask_ai_with_retry(img_bytes, p1, mgr)
-            t2 = _ask_ai_with_retry(img_bytes, p2, mgr)
+            t1 = _ask_ai_with_retry(img_bytes, p1, mgr, force_reextract=force_reextract)
+            t2 = _ask_ai_with_retry(img_bytes, p2, mgr, force_reextract=force_reextract)
             r1, r2 = await asyncio.gather(t1, t2)
             
             d1 = _safe_parse_json(r1)
@@ -648,9 +648,9 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
                 txt = f"\n\n--- RAW TEXT ---\n{page_texts}\n-----------------"
                 arch_p += txt; wall_p += txt; open_p += txt
                 
-            arch_task = _ask_ai_with_retry(img_bytes, arch_p, mgr)
-            wall_task = _ask_ai_with_retry(img_bytes, wall_p, mgr)
-            open_task = _ask_ai_with_retry(img_bytes, open_p, mgr)
+            arch_task = _ask_ai_with_retry(img_bytes, arch_p, mgr, force_reextract=force_reextract)
+            wall_task = _ask_ai_with_retry(img_bytes, wall_p, mgr, force_reextract=force_reextract)
+            open_task = _ask_ai_with_retry(img_bytes, open_p, mgr, force_reextract=force_reextract)
             
             arch_raw, wall_raw, open_raw = await asyncio.gather(arch_task, wall_task, open_task)
             
@@ -1135,7 +1135,24 @@ def render_step3() -> bool:
             st.markdown(f"**{p['pdf']} P{p['page_num']}** → `{p['detected_type']}`")
             st.caption("Extracts: " + ", ".join(extract))
 
-    if st.button(t("extract_run_btn"), type="primary", use_container_width=True):
+    user_data = st.session_state.get("user", {})
+    role = user_data.get("role", "user")
+    
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        run_extract = st.button(t("extract_run_btn"), type="primary", use_container_width=True)
+    with col2:
+        force_count = st.session_state.get("force_extract_count", 0)
+        is_admin = (role == "admin")
+        
+        btn_label = f"Force Re-Extract ({force_count} used)" if is_admin else (f"Force Re-Extract" if force_count == 0 else "Limit Reached")
+        can_force = is_admin or (force_count < 1)
+        force_extract = st.button(btn_label, use_container_width=True, disabled=not can_force)
+
+    if run_extract or force_extract:
+        if force_extract:
+            st.session_state["force_extract_count"] = force_count + 1
+            
         results  = {}
         progress = st.progress(0)
         status   = st.empty()
@@ -1159,7 +1176,7 @@ def render_step3() -> bool:
                 page_text = texts_src[page_idx] if page_idx < len(texts_src) else ""
                 user_data = st.session_state.get("user")
                 user_id = user_data.get("id") if user_data else None
-                result    = extract_page(pages_src[page_idx], drawing_type, page_text, user_id)
+                result    = extract_page(pages_src[page_idx], drawing_type, page_text, user_id, force_reextract=force_extract)
                 key       = f"{pdf_type}_p{page_info['page_num']}_{drawing_type}"
                 results[key] = {**result, **page_info}
             else:
