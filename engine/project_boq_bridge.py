@@ -228,6 +228,18 @@ def _columns_for_floor(project: dict, floor_key: str) -> list[dict]:
         total_needed = max(1, int(gf_area / 16)) # 1 col per 16 sqm
         fallback_count_per_col = max(1, total_needed // len(cols))
         
+    default_len = safe_float(project.get("default_col_length", 0.60))
+    default_wid = safe_float(project.get("default_col_width", 0.20))
+    
+    if len(cols) == 0:
+        gf_area = safe_float(project.get("gf_area")) or 250.0
+        total_needed = max(1, int(gf_area / 16))
+        return [{
+            "length_m": default_len,
+            "width_m":  default_wid,
+            "count":    total_needed
+        }]
+
     out = []
     for c in cols:
         n = c.get(f"count_{floor_key}")
@@ -244,6 +256,9 @@ def _columns_for_floor(project: dict, floor_key: str) -> list[dict]:
         width_val = c.get("width_m") or c.get("width")
         if width_val is None:
             width_val = (c.get("width_mm") or c.get("short_mm") or 0) / 1000
+            
+        if safe_float(length_val) == 0: length_val = default_len
+        if safe_float(width_val) == 0: width_val = default_wid
             
         out.append({
             "length_m": safe_float(length_val),
@@ -740,6 +755,11 @@ def build_boq_dataframe_from_project(project: dict) -> tuple[pd.DataFrame, dict]
         })
 
     for page_type, page in DRAWING_ITEMS_MAP.items():
+        if page_type in ["slab_1st", "slab_2nd", "first_floor_plan", "second_floor_plan"]:
+            total_qty = sum(results.get(item["key"], 0.0) for item in page["items"])
+            if total_qty == 0:
+                continue
+
         section_title = f"{page['label_en']} | {page['label_ar']}"
         add_section(section_title)
         for item in page["items"]:

@@ -285,6 +285,28 @@ export default function VerifyStep({
                   onChange={(e) => updateConfirmedField('staircase_volume_per_level', parseFloat(e.target.value) || 0)}
                 />
               </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                  {isArabic ? 'متوسط طول العمود الافتراضي (متر)' : 'Default Column Length (m)'}
+                  {renderSourceBadge('default_col_length')}
+                </label>
+                <input
+                  type="number" step="0.01" className="form-input" required
+                  value={confirmedData.default_col_length ?? 0.60}
+                  onChange={(e) => updateConfirmedField('default_col_length', parseFloat(e.target.value) || 0)}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                  {isArabic ? 'متوسط عرض العمود الافتراضي (متر)' : 'Default Column Width (m)'}
+                  {renderSourceBadge('default_col_width')}
+                </label>
+                <input
+                  type="number" step="0.01" className="form-input" required
+                  value={confirmedData.default_col_width ?? 0.20}
+                  onChange={(e) => updateConfirmedField('default_col_width', parseFloat(e.target.value) || 0)}
+                />
+              </div>
             </div>
           </div>
 
