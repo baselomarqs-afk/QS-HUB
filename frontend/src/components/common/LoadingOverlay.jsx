@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 
-export default function LoadingOverlay({ isLoading, text, subtext, isArabic }) {
+export default function LoadingOverlay({ isLoading, text, subtext, progress, isArabic }) {
   if (!isLoading) return null;
 
   return ReactDOM.createPortal(
@@ -62,7 +62,8 @@ export default function LoadingOverlay({ isLoading, text, subtext, isArabic }) {
           color: '#94a3b8',
           margin: 0,
           maxWidth: '400px',
-          textAlign: 'center'
+          textAlign: 'center',
+          minHeight: '44px' // prevent jittering if text wraps
         }}>
           {subtext}
         </p>
@@ -81,13 +82,20 @@ export default function LoadingOverlay({ isLoading, text, subtext, isArabic }) {
         <div style={{
           position: 'absolute',
           top: 0, left: 0, bottom: 0,
-          width: '40%',
+          width: progress !== null && progress !== undefined ? `${progress}%` : '40%',
           backgroundColor: '#3b82f6',
           borderRadius: '10px',
-          animation: 'progress-indeterminate-loading 1.5s ease-in-out infinite',
-          boxShadow: '0 0 10px #3b82f6'
+          animation: progress !== null && progress !== undefined ? 'none' : 'progress-indeterminate-loading 1.5s ease-in-out infinite',
+          boxShadow: '0 0 10px #3b82f6',
+          transition: 'width 0.3s ease-out'
         }} />
       </div>
+      
+      {progress !== null && progress !== undefined && (
+        <div style={{ marginTop: '10px', fontSize: '0.9rem', fontWeight: 600, color: '#3b82f6' }}>
+          {progress}%
+        </div>
+      )}
     </div>,
     document.body
   );

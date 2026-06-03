@@ -31,6 +31,10 @@ os.makedirs(CACHE_ROOT, exist_ok=True)
 class RunExtractionReq(BaseModel):
     project_id: int
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from fastapi.responses import StreamingResponse
+import asyncio
+
 @router.post("/extract")
 async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get_current_user)):
     df_state = safe_query("SELECT state_data FROM qto_active_projects WHERE user_id=%s AND project_id=%s", (current_user["id"], req.project_id))
@@ -46,40 +50,28 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
         
     project_cache = os.path.join(CACHE_ROOT, str(req.project_id))
     
-    # Start extraction
-    results = {}
-    
-    # Map texts lists for counts cross check
     str_texts = state_data.get("str_texts") or []
     arch_texts = state_data.get("arch_texts") or []
-    
-    from concurrent.futures import ThreadPoolExecutor
+    custom_settings = get_user_settings()
+
     from engine.advanced_cv_extractor import process_floor_plan_image
 
     def get_pages_to_retry_from_warnings(warns: List[str]) -> Dict[str, List[str]]:
         retry_map = {}
         for w in warns:
             lw = w.lower()
-            if "plot_area" in lw:
-                retry_map.setdefault("setting_out", []).append(w)
-            if "gf_area" in lw or "external_perimeter" in lw:
+            if "plot_area" in lw: retry_map.setdefault("setting_out", []).append(w)
+            if "gf_area" in lw or "external_perimeter" in lw or "total_villa_height" in lw:
                 retry_map.setdefault("ground_floor_plan", []).append(w)
-            if "total_villa_height" in lw:
-                retry_map.setdefault("ground_floor_plan", []).append(w)
-            if "footing" in lw or "foundation" in lw:
-                retry_map.setdefault("foundations", []).append(w)
-            if "tb " in lw or "tie beam" in lw or "tie_beam" in lw:
-                retry_map.setdefault("tie_beam", []).append(w)
+            if "footing" in lw or "foundation" in lw: retry_map.setdefault("foundations", []).append(w)
+            if "tb " in lw or "tie beam" in lw or "tie_beam" in lw: retry_map.setdefault("tie_beam", []).append(w)
             if "column" in lw:
                 retry_map.setdefault("column_schedule", []).append(w)
                 retry_map.setdefault("upper_columns", []).append(w)
                 retry_map.setdefault("ground_columns", []).append(w)
-            if "slab_1st" in lw:
-                retry_map.setdefault("slab_1st", []).append(w)
-            if "slab_2nd" in lw:
-                retry_map.setdefault("slab_2nd", []).append(w)
-            if "roof_slab" in lw:
-                retry_map.setdefault("roof_slab", []).append(w)
+            if "slab_1st" in lw: retry_map.setdefault("slab_1st", []).append(w)
+            if "slab_2nd" in lw: retry_map.setdefault("slab_2nd", []).append(w)
+            if "roof_slab" in lw: retry_map.setdefault("roof_slab", []).append(w)
             if "door" in lw or "window" in lw:
                 retry_map.setdefault("door_schedule", []).append(w)
                 retry_map.setdefault("window_schedule", []).append(w)
@@ -108,11 +100,8 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
             
             extracted = extract_page(page_arr, dtype, page_text, current_user["id"], previous_warnings)
             
-            # Apply Advanced CV Extraction for Floor Plans and Setting Out
             if dtype in ["ground_floor_plan", "first_floor_plan", "second_floor_plan", "roof_floor_plan", "setting_out"]:
                 cv_data = process_floor_plan_image(img_path)
-                
-                # Convert Pixels to Meters mathematically
                 perim_m = extracted.get("ext_perimeter")
                 if not perim_m:
                     l = extracted.get("overall_length_m", 0) or 0
@@ -123,7 +112,6 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
                 if perim_m and cv_perim_px > 0:
                     scale = perim_m / cv_perim_px
                     int_walls_m = cv_data.get("wall_internal_px", 0) * scale
-                    # Overwrite AI fallback with precise CV math
                     if int_walls_m > 0:
                         cv_data["int_walls_length"] = round(int_walls_m, 2)
                         
@@ -140,87 +128,114 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
                 **page_info
             }
 
-    # Pass 1: Extract all ready pages
-    initial_args = [(p, None) for p in ready]
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        extraction_items = list(executor.map(extract_single_page, initial_args))
+    async def event_generator():
+        results = {}
+        total_pages = len(ready)
         
-    for item in extraction_items:
-        if item:
-            key, val = item
-            results[key] = val
-            
-    # Cross check counts doors/windows marks in floor plans
-    plan_texts = []
-    for p in ready:
-        if p["pdf"] == "architectural" and p["detected_type"] in {"ground_floor_plan", "first_floor_plan", "second_floor_plan", "roof_floor_plan"}:
-            idx = p["page_index"]
-            if idx < len(arch_texts):
-                plan_texts.append(arch_texts[idx].upper())
+        yield f'data: {json.dumps({"progress": 5, "status": f"Starting extraction for {total_pages} pages..."})}\n\n'
+        
+        # Pass 1: Extract all ready pages
+        initial_args = [(p, None) for p in ready]
+        completed_count = 0
+        
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            future_to_args = {executor.submit(extract_single_page, arg): arg for arg in initial_args}
+            for future in as_completed(future_to_args):
+                completed_count += 1
+                try:
+                    item = future.result()
+                    if item:
+                        key, val = item
+                        results[key] = val
+                except Exception as exc:
+                    print(f"Extraction generated an exception: {exc}")
                 
-    if plan_texts:
-        full_text = " \n ".join(plan_texts)
-        for k, data in results.items():
-            if data.get("drawing_type") in {"schedules", "door_schedule", "window_schedule"}:
-                for lst_type in ["doors", "windows"]:
-                    for item in data.get(lst_type, []):
-                        mark = str(item.get("mark", "")).strip().upper()
-                        if mark and len(mark) > 1:
-                            from _pdf_utils import normalize_mark
-                            m_clean = normalize_mark(mark)
-                            match_pattern = "".join(c + r"[\s\-_./]*" if c.isalpha() else c for c in m_clean).rstrip(r"[\s\-_./]*")
-                            n = len(re.findall(rf"\b{match_pattern}\b", full_text))
-                            if n > 0:
-                                item["count_in_plans"] = n
-                                item["count_source"] = "floor_plans_fitz"
-                                
-    # Merge schedules locally (DISABLED: Do not overwrite live AI extraction with local test JSON files)
-    # merge_schedule_json_to_results(results)
-    
-    state_data["extraction_results"] = results
-    state_data["current_step"] = 4
-    
-    # Run Pass 1 sanity checks
-    reconstruct_project_inputs(state_data)
-    confirmed = state_data.get("confirmed_auto_data") or {}
-    custom_settings = get_user_settings()
-    warnings = sanity_check(confirmed, custom_settings)
-    
-    # ── SELF-REFLECTION (AUTO-RECTIFY) LOOP ──
-    if warnings:
-        retry_map = get_pages_to_retry_from_warnings(warnings)
-        retry_args = []
+                # Report progress up to 75% for Phase 1
+                progress = 5 + int(70 * (completed_count / total_pages))
+                yield f'data: {json.dumps({"progress": progress, "status": f"Extracting AI Data ({completed_count}/{total_pages})..."})}\n\n'
+                
+        yield f'data: {json.dumps({"progress": 80, "status": "Cross-checking doors and windows..."})}\n\n'
+        
+        # Cross check counts
+        plan_texts = []
         for p in ready:
-            dtype = p["detected_type"]
-            if dtype in retry_map:
-                retry_args.append((p, retry_map[dtype]))
-        
-        if retry_args:
-            # Re-extract only the failed pages
-            with ThreadPoolExecutor(max_workers=3) as executor:
-                retry_items = list(executor.map(extract_single_page, retry_args))
-                
-            for item in retry_items:
-                if item:
-                    key, val = item
-                    results[key] = val # overwrite previous
+            if p["pdf"] == "architectural" and p["detected_type"] in {"ground_floor_plan", "first_floor_plan", "second_floor_plan", "roof_floor_plan"}:
+                idx = p["page_index"]
+                if idx < len(arch_texts):
+                    plan_texts.append(arch_texts[idx].upper())
                     
-            state_data["extraction_results"] = results
-            # Run final sanity check
-            reconstruct_project_inputs(state_data)
-            confirmed = state_data.get("confirmed_auto_data") or {}
-            warnings = sanity_check(confirmed, custom_settings)
+        if plan_texts:
+            full_text = " \n ".join(plan_texts)
+            for k, data in results.items():
+                if data.get("drawing_type") in {"schedules", "door_schedule", "window_schedule"}:
+                    for lst_type in ["doors", "windows"]:
+                        for item in data.get(lst_type, []):
+                            mark = str(item.get("mark", "")).strip().upper()
+                            if mark and len(mark) > 1:
+                                from _pdf_utils import normalize_mark
+                                m_clean = normalize_mark(mark)
+                                match_pattern = "".join(c + r"[\s\-_./]*" if c.isalpha() else c for c in m_clean).rstrip(r"[\s\-_./]*")
+                                n = len(re.findall(rf"\b{match_pattern}\b", full_text))
+                                if n > 0:
+                                    item["count_in_plans"] = n
+                                    item["count_source"] = "floor_plans_fitz"
+                                    
+        state_data["extraction_results"] = results
+        state_data["current_step"] = 4
+        
+        yield f'data: {json.dumps({"progress": 85, "status": "Running sanity checks..."})}\n\n'
+        
+        reconstruct_project_inputs(state_data)
+        confirmed = state_data.get("confirmed_auto_data") or {}
+        warnings = sanity_check(confirmed, custom_settings)
+        
+        # Auto-rectify loop
+        if warnings:
+            yield f'data: {json.dumps({"progress": 90, "status": "Auto-rectifying errors found in checks..."})}\n\n'
+            retry_map = get_pages_to_retry_from_warnings(warnings)
+            retry_args = []
+            for p in ready:
+                dtype = p["detected_type"]
+                if dtype in retry_map:
+                    retry_args.append((p, retry_map[dtype]))
+            
+            if retry_args:
+                retry_count = 0
+                total_retries = len(retry_args)
+                with ThreadPoolExecutor(max_workers=3) as executor:
+                    future_to_args = {executor.submit(extract_single_page, arg): arg for arg in retry_args}
+                    for future in as_completed(future_to_args):
+                        retry_count += 1
+                        try:
+                            item = future.result()
+                            if item:
+                                key, val = item
+                                results[key] = val
+                        except Exception:
+                            pass
+                        prog = 90 + int(8 * (retry_count / total_retries))
+                        yield f'data: {json.dumps({"progress": prog, "status": f"Re-analyzing {retry_count}/{total_retries} pages..."})}\n\n'
+                        
+                state_data["extraction_results"] = results
+                reconstruct_project_inputs(state_data)
+                confirmed = state_data.get("confirmed_auto_data") or {}
+                warnings = sanity_check(confirmed, custom_settings)
 
-    state_data["sanity_warnings"] = warnings
+        yield f'data: {json.dumps({"progress": 99, "status": "Saving extraction results..."})}\n\n'
+        
+        state_data["sanity_warnings"] = warnings
+        state_json = json.dumps(state_data, ensure_ascii=False, default=str)
+        safe_execute(
+            "UPDATE qto_active_projects SET current_step=4, state_data=%s WHERE user_id=%s AND project_id=%s",
+            (state_json, current_user["id"], req.project_id)
+        )
+        
+        final_payload = {
+            "done": True,
+            "extraction_results": results,
+            "sanity_warnings": warnings,
+            "next_step": 4
+        }
+        yield f'data: {json.dumps(final_payload)}\n\n'
 
-    state_json = json.dumps(state_data, ensure_ascii=False, default=str)
-    safe_execute(
-        "UPDATE qto_active_projects SET current_step=4, state_data=%s WHERE user_id=%s AND project_id=%s",
-        (state_json, current_user["id"], req.project_id)
-    )
-    
-    return {
-        "extraction_results": results,
-        "sanity_warnings": warnings,
-        "next_step": 4
-    }
+    return StreamingResponse(event_generator(), media_type="text/event-stream")

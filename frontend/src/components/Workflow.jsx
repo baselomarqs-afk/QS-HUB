@@ -326,9 +326,12 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
     }
   };
 
+  const [extractionProgress, setExtractionProgress] = useState(null);
+
   // Step 3: Run AI Extraction
   const handleRunExtraction = async () => {
     setLoading(true);
+    setExtractionProgress(0);
     setLoadingText(isArabic ? 'جاري الاستخراج بالذكاء الاصطناعي...' : 'AI Extraction in Progress...');
     setLoadingSubtext(isArabic ? 'هذه العملية قد تستغرق دقيقة. جاري استخراج الجداول والأبعاد...' : 'This might take a minute. Extracting schedules and dimensions...');
     setMessage('');
@@ -341,92 +344,128 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
         },
         body: JSON.stringify({ project_id: project.id })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'AI extraction failed.');
       
-      setExtractionResults(data.extraction_results);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.detail || 'AI extraction failed.');
+      }
       
-      // Parse extraction results into default confirmed data model
-      const confirmedObj = { 
-        ...confirmedData,
-        floors: { ...(confirmedData.floors || {}) },
-        walls: { ...(confirmedData.walls || {}) },
-        schedules: { ...(confirmedData.schedules || {}) },
-        openings: { ...(confirmedData.openings || {}) }
-      };
-      
-      const floorMap = {
-        "ground_floor_plan": "gf",
-        "first_floor_plan": "1f",
-        "second_floor_plan": "2f",
-        "roof_floor_plan": "roof"
-      };
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let isStreamDone = false;
+      let buffer = '';
 
-      // Find settings and sizes
-      Object.values(data.extraction_results).forEach(page => {
-        if (!page._ok) return;
-        
-        const dtype = page.drawing_type || page.detected_type;
-
-        if (page.longest_length) confirmedObj.longest_length = page.longest_length;
-        if (page.longest_width) confirmedObj.longest_width = page.longest_width;
-        if (page.plot_area) confirmedObj.plot_area = page.plot_area;
-        if (page.compound_length) confirmedObj.compound_length = page.compound_length;
-        if (page.total_villa_height) confirmedObj.total_villa_height = page.total_villa_height;
-        
-        // Map ground floor flat properties only from ground floor plan
-        if (dtype === "ground_floor_plan") {
-          if (page.total_floor_area) confirmedObj.gf_area = page.total_floor_area;
-          if (page.ext_perimeter) confirmedObj.ext_perimeter = page.ext_perimeter;
-        }
-
-        // Map roof properties
-        if (dtype === "roof_floor_plan" || dtype === "roof_slab") {
-          if (page.roof_perimeter) confirmedObj.roof_perimeter = page.roof_perimeter;
-          if (page.slab_area) confirmedObj.roof_slab_area = page.slab_area;
-        }
-        
-        // Populate floor-by-floor parameters
-        if (floorMap[dtype]) {
-          const fk = floorMap[dtype];
-          confirmedObj.floors[fk] = {
-            area: page.total_floor_area || page.floor_area || 0.0,
-            ext_perimeter: page.ext_perimeter || 0.0,
-            wet_area: page.wet_area || 0.0,
-            wet_perimeter: page.wet_perimeter || 0.0,
-            dry_perimeter: page.dry_perimeter || 0.0,
-            balcony_area: page.balcony_area || page.balcony_terrace_area_m2 || 0.0,
-            height: page.floor_height || 4.0
-          };
+      while (!isStreamDone) {
+        const { value, done } = await reader.read();
+        isStreamDone = done;
+        if (value) {
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop(); // keep the last incomplete chunk in buffer
           
-          confirmedObj.walls[fk] = {
-            internal_total_m: page.int_walls_length || 0.0
-          };
-        }
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.substring(6));
+                
+                if (data.progress !== undefined) {
+                  setExtractionProgress(data.progress);
+                }
+                if (data.status) {
+                  setLoadingSubtext(data.status);
+                }
+                if (data.done) {
+                  setExtractionResults(data.extraction_results);
+                  
+                  // Parse extraction results into default confirmed data model
+                  const confirmedObj = { 
+                    ...confirmedData,
+                    floors: { ...(confirmedData.floors || {}) },
+                    walls: { ...(confirmedData.walls || {}) },
+                    schedules: { ...(confirmedData.schedules || {}) },
+                    openings: { ...(confirmedData.openings || {}) }
+                  };
+                  
+                  const floorMap = {
+                    "ground_floor_plan": "gf",
+                    "first_floor_plan": "1f",
+                    "second_floor_plan": "2f",
+                    "roof_floor_plan": "roof"
+                  };
 
-        // Merge list data
-        if (page.footings) {
-          confirmedObj.schedules.foundation = { footings: page.footings };
+                  Object.values(data.extraction_results).forEach(page => {
+                    if (!page._ok) return;
+                    
+                    const dtype = page.drawing_type || page.detected_type;
+
+                    if (page.longest_length) confirmedObj.longest_length = page.longest_length;
+                    if (page.longest_width) confirmedObj.longest_width = page.longest_width;
+                    if (page.plot_area) confirmedObj.plot_area = page.plot_area;
+                    if (page.compound_length) confirmedObj.compound_length = page.compound_length;
+                    if (page.total_villa_height) confirmedObj.total_villa_height = page.total_villa_height;
+                    
+                    if (dtype === "ground_floor_plan") {
+                      if (page.total_floor_area) confirmedObj.gf_area = page.total_floor_area;
+                      if (page.ext_perimeter) confirmedObj.ext_perimeter = page.ext_perimeter;
+                    }
+
+                    if (dtype === "roof_floor_plan" || dtype === "roof_slab") {
+                      if (page.roof_perimeter) confirmedObj.roof_perimeter = page.roof_perimeter;
+                      if (page.slab_area) confirmedObj.roof_slab_area = page.slab_area;
+                    }
+                    
+                    if (floorMap[dtype]) {
+                      const fk = floorMap[dtype];
+                      confirmedObj.floors[fk] = {
+                        area: page.total_floor_area || page.floor_area || 0.0,
+                        ext_perimeter: page.ext_perimeter || 0.0,
+                        wet_area: page.wet_area || 0.0,
+                        wet_perimeter: page.wet_perimeter || 0.0,
+                        dry_perimeter: page.dry_perimeter || 0.0,
+                        balcony_area: page.balcony_area || page.balcony_terrace_area_m2 || 0.0,
+                        height: page.floor_height || 4.0
+                      };
+                      
+                      confirmedObj.walls[fk] = {
+                        internal_total_m: page.int_walls_length || 0.0
+                      };
+                    }
+
+                    if (page.footings) {
+                      confirmedObj.schedules.foundation = { footings: page.footings };
+                    }
+                    if (page.beams) {
+                      confirmedObj.schedules[dtype] = { beams: page.beams };
+                    }
+                    if (page.columns) {
+                      confirmedObj.schedules.column_schedule = { columns: page.columns };
+                    }
+                    if (page.doors || page.windows) {
+                      if (page.doors) confirmedObj.openings.doors = page.doors;
+                      if (page.windows) confirmedObj.openings.windows = page.windows;
+                    }
+                  });
+                  
+                  setConfirmedData(confirmedObj);
+                  setCurrentStep(4);
+                  await saveActiveState(4, { extraction_results: data.extraction_results, confirmed_auto_data: confirmedObj });
+                  
+                  setLoading(false);
+                  setExtractionProgress(null);
+                  isStreamDone = true; // explicitly break
+                }
+              } catch (e) {
+                console.error("Error parsing SSE chunk:", e, line);
+              }
+            }
+          }
         }
-        if (page.beams) {
-          confirmedObj.schedules[dtype] = { beams: page.beams };
-        }
-        if (page.columns) {
-          confirmedObj.schedules.column_schedule = { columns: page.columns };
-        }
-        if (page.doors || page.windows) {
-          if (page.doors) confirmedObj.openings.doors = page.doors;
-          if (page.windows) confirmedObj.openings.windows = page.windows;
-        }
-      });
-      
-      setConfirmedData(confirmedObj);
-      setCurrentStep(4);
-      await saveActiveState(4, { extraction_results: data.extraction_results, confirmed_auto_data: confirmedObj });
+      }
     } catch (err) {
       setMessage(`Error: ${err.message}`);
-    } finally {
       setLoading(false);
+      setExtractionProgress(null);
     }
   };
 
@@ -595,7 +634,8 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
       <LoadingOverlay 
         isLoading={loading} 
         text={loadingText} 
-        subtext={loadingSubtext} 
+        subtext={loadingSubtext}
+        progress={extractionProgress}
         isArabic={isArabic} 
       />
       
