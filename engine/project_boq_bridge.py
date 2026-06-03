@@ -377,6 +377,9 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
     heights     = {"gf": "gf_height", "1f": "f1_height", "2f": "f2_height"}
     slab_keys   = {"gf": None, "1f": "slab_1f", "2f": "slab_2f", "roof": "slab_roof"}
 
+    total_area = sum((proj_floors.get(k, {}) or {}).get("area", 0.0) for k in ("gf", "1f", "2f"))
+    if total_area == 0: total_area = 1.0
+
     for fk in ("gf", "1f", "2f", "roof"):
         if fk not in proj_floors and fk != "roof":
             continue
@@ -410,6 +413,8 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
                 estimates.append(f"{slab_key} some beam lengths not measured — "
                                  f"fell back to count × typical bay (confirm in review)")
 
+        area_ratio = area / total_area if fk != "roof" else 0.0
+
         floors[fk] = {
             "floor_id":         fk,
             "is_ground_floor":  bool(f.get("is_ground_floor", fk == "gf")),
@@ -428,6 +433,8 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
             "balcony_area":     f.get("balcony_area") or 0.0,
             "beams_schedule":   beams,
             "columns_schedule": _columns_for_floor(project, fk),
+            "windows_deduction": project.get("total_windows_area", 0.0) * area_ratio,
+            "doors_deduction_count": project.get("total_doors_count", 0.0) * area_ratio,
         }
 
     meta = {"needs_input": needs_input, "estimates": estimates}

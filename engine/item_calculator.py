@@ -308,10 +308,10 @@ def _calc_roof_wp(i):
 
 def _calc_ext_plaster(i):
     """
-    Spec: (ext_perimeter * (height for the full villa height + 1.2 m))
-    Full-height plaster including 1.2 m ground clearance; no openings deductions permitted.
+    Spec: (ext_perimeter * (height for the full villa height + 1.2 m)) - total_windows_area
+    Full-height plaster including 1.2 m ground clearance; minus windows.
     """
-    return round(_g(i, "ext_perimeter") * (_g(i, "total_villa_height") + 1.2), 2)
+    return round(max(0.0, _g(i, "ext_perimeter") * (_g(i, "total_villa_height") + 1.2) - _g(i, "total_windows_area", 0.0)), 2)
 
 
 def _calc_ext_finishes(i):
@@ -386,19 +386,23 @@ def _calc_generic_floor_item(item_key: str, inputs: Dict) -> float:
     # Determine if this is the ground floor (wet_wp excluded per spec)
     is_gf = inputs.get("is_ground_floor", False)
 
+    wa_deduct = _g(inputs, "windows_deduction", 0.0)
+    da_count = _g(inputs, "doors_deduction_count", 0.0)
+    da_deduct = da_count * 2.0  # Assumed standard door area
+
     mapping = {
         # Finishes
-        "thermal_block_":  ep * fh,                          # ext_perimeter × floor_height
-        "internal_block_10_": iwl10 * fh,                    # 10 cm partition walls × height
-        "internal_block_": iwl20 * fh,                       # 20 cm internal walls × height
-        "dry_floor_":      dry,                              # total_area - wet_area
-        "wet_floor_":      wa,                               # wet rooms area
-        "wall_tiles_":     wp * max(fh - 0.50, 0),          # wet_perimeter × (height - 0.50)
-        "skirting_":       dp,                               # dry area perimeter
-        "int_paint_":      dp * fh,                          # skirting_length × floor_height
-        "int_plaster_":    (iwl * fh * 2.0) + (ep * fh),   # (int_walls×2) + ext_walls
-        "dry_ceiling_":    dry,                              # = dry_floor
-        "wet_ceiling_":    wa,                               # = wet_floor
+        "thermal_block_":  max(0.0, (ep * fh) - wa_deduct),                  # ext_perimeter × floor_height - windows
+        "internal_block_10_": iwl10 * fh,                                    # 10 cm partition walls × height
+        "internal_block_": max(0.0, (iwl20 * fh) - da_deduct),               # 20 cm internal walls × height - doors
+        "dry_floor_":      dry,                                              # total_area - wet_area
+        "wet_floor_":      wa,                                               # wet rooms area
+        "wall_tiles_":     wp * max(fh - 0.50, 0),                           # wet_perimeter × (height - 0.50)
+        "skirting_":       max(0.0, dp - da_count),                          # deduct 1m of skirting per door
+        "int_paint_":      max(0.0, (dp * fh) - da_deduct - wa_deduct),      # skirting_length × floor_height - openings
+        "int_plaster_":    max(0.0, (iwl * fh * 2.0) + (ep * fh) - (da_deduct * 2.0) - wa_deduct), # (int_walls×2) + ext_walls - openings
+        "dry_ceiling_":    dry,                                              # = dry_floor
+        "wet_ceiling_":    wa,                                               # = wet_floor
         "balcony_wp_":     ba,                               # balcony area
         # Wet WP: spec says "upper floors only (not GF) + balcony"
         "wet_wp_":         (0.0 if is_gf else wa) + ba,
