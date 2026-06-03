@@ -428,9 +428,9 @@ def _calc_generic_floor_item(item_key: str, inputs: Dict) -> float:
         ), 2)
 
     # Columns: length × width × height × count
-    # Spec: GF→1st = 4.0m, 1st→2nd = 4.0m, Roof = 3.5m
     if "col_" in item_key:
-        h = 3.5 if "roof" in item_key else 4.0
+        # Use the dynamic floor height instead of hardcoded values
+        h = fh if not "roof" in item_key else max(fh - 0.5, 3.0) # Roof is usually slightly shorter, but we base it on fh
         return round(sum(
             float(c.get("length_m") or 0)
             * float(c.get("width_m")  or 0)
