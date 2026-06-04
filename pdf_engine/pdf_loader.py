@@ -62,8 +62,13 @@ def fast_save_pdf_pages(pdf_bytes: bytes, project_id: int, prefix: str, start_id
     
     def process_and_save(page_num):
         page = doc[page_num]
-        pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB)
-        png_bytes = pix.tobytes("png")
+        pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB, alpha=True)
+        img = Image.open(io.BytesIO(pix.tobytes("png"))).convert("RGBA")
+        bg = Image.new("RGBA", img.size, (255, 255, 255, 255))
+        bg.paste(img, (0, 0), img)
+        out_bytes = io.BytesIO()
+        bg.convert("RGB").save(out_bytes, format="PNG", optimize=False)
+        png_bytes = out_bytes.getvalue()
         global_idx = start_idx + page_num
         filename = f"{prefix}_page_{global_idx}.png"
         save_raw_image_to_cache(project_id, filename, png_bytes)
