@@ -201,6 +201,14 @@ def reconstruct_project_inputs(state_data: dict):
             # calculated by step3_extract.py (int_walls_length) as 20cm walls.
             if val_10 == 0 and val_20 == 0:
                 val_20 = float(page.get("int_walls_length") or 0.0)
+                
+            # GEOMETRIC FALLBACK: If internal walls failed completely, estimate from floor area
+            if val_10 == 0 and val_20 == 0:
+                area = float(page.get("total_floor_area") or page.get("floor_area") or confirmed.get("gf_area") or 0.0)
+                if area > 0:
+                    val_20 = round(area * 1.5, 2)
+                    sources["int_walls_20cm_m"] = "Geometric Fallback"
+                
             if "int_walls_10cm_m" not in sources or sources["int_walls_10cm_m"] == "AI OCR":
                 if val_10 > 0:
                     confirmed["int_walls_10cm_m"] = confirmed.get("int_walls_10cm_m", 0.0) + val_10
@@ -268,35 +276,8 @@ def reconstruct_project_inputs(state_data: dict):
             confirmed["floors"]["gf"]["area"] = float(confirmed["gf_area"])
     
     if confirmed.get("ext_perimeter") and float(confirmed.get("ext_perimeter")) > 0:
+        if "gf" in confirmed["floors"] and not confirmed["floors"]["gf"].get("ext_perimeter"):
             confirmed["floors"]["gf"]["ext_perimeter"] = float(confirmed["ext_perimeter"])
-
-    # ── FALLBACKS FOR ROOF, PLOT, AND INTERNAL WALLS ──
-    if not confirmed.get("roof_perimeter") or confirmed.get("roof_perimeter") == 0.0:
-        confirmed["roof_perimeter"] = confirmed.get("ext_perimeter", 0.0)
-        if "roof_perimeter" not in sources:
-            sources["roof_perimeter"] = "Geometry Fallback (ext_perimeter)"
-
-    if not confirmed.get("roof_slab_area") or confirmed.get("roof_slab_area") == 0.0:
-        confirmed["roof_slab_area"] = confirmed.get("gf_area", 0.0)
-        if "roof_slab_area" not in sources:
-            sources["roof_slab_area"] = "Geometry Fallback (gf_area)"
-            
-    if not confirmed.get("plot_area") or confirmed.get("plot_area") == 0.0:
-        if confirmed.get("gf_area") and confirmed["gf_area"] > 0:
-            confirmed["plot_area"] = round(confirmed["gf_area"] * 2.5, 2)
-            sources["plot_area"] = "Geometry Fallback (GF×2.5)"
-
-    # GEOMETRIC FALLBACK FOR INTERNAL WALLS:
-    val_10 = float(confirmed.get("int_walls_10cm_m") or 0.0)
-    val_20 = float(confirmed.get("int_walls_20cm_m") or 0.0)
-    if val_10 == 0 and val_20 == 0:
-        total_bua = sum(float(f.get("area", 0)) for f in confirmed.get("floors", {}).values())
-        if total_bua == 0 and confirmed.get("gf_area"):
-            total_bua = float(confirmed["gf_area"])
-        if total_bua > 0:
-            confirmed["int_walls_20cm_m"] = round(total_bua * 1.5, 2)
-            sources["int_walls_20cm_m"] = "Geometric Fallback (BUA×1.5)"
-
 
     # Advanced CV Extractor & QS Heuristics Fallbacks
     

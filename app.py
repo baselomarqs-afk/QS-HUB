@@ -164,8 +164,8 @@ from workflow.workflow_state import STEPS, get_current_step, set_step, step_done
 from workflow.step1_upload    import render_step1
 from workflow.step2_classify  import render_step2
 from workflow.step3_extract   import render_step3
-from workflow.step4_confirm   import render_step4
-from workflow.step5_calculate import render_step5
+render_step4 = lambda: None  # removed
+render_step5 = lambda: None  # removed
 from workflow.step6_review    import render_step6
 from workflow.step7_arrange   import render_step7
 from workflow.step8_download  import render_step8
