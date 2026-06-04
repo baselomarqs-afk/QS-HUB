@@ -265,23 +265,6 @@ def reconstruct_project_inputs(state_data: dict):
         if "ext_perimeter" not in sources or sources["ext_perimeter"] == "AI OCR":
             sources["ext_perimeter"] = "Geometry 2(L+W)"
 
-    # ── HARD DEFAULTS (Ultimate Fallback) ──
-    # If the PDF is completely unreadable or missing, inject realistic defaults
-    # to guarantee the system NEVER outputs zeroes.
-    if not confirmed.get("gf_area") or float(confirmed.get("gf_area") or 0) < 30.0:
-        confirmed["gf_area"] = 250.0
-        sources["gf_area"] = "Hard Default (250m²)"
-        
-    if not confirmed.get("ext_perimeter") or float(confirmed.get("ext_perimeter") or 0) < 15.0:
-        confirmed["ext_perimeter"] = 63.2
-        sources["ext_perimeter"] = "Hard Default"
-        
-    if not confirmed.get("longest_length") or float(confirmed.get("longest_length") or 0) < 5.0:
-        confirmed["longest_length"] = 18.0
-        
-    if not confirmed.get("longest_width") or float(confirmed.get("longest_width") or 0) < 5.0:
-        confirmed["longest_width"] = 15.0
-
     # ── HEAL MISSING FLOOR MAPPING ──
     # If ground_floor_plan extraction completely failed, floors["gf"] will be missing,
     # causing all ground floor items to be skipped. If the user manually provided gf_area,
@@ -412,15 +395,6 @@ def reconstruct_project_inputs(state_data: dict):
                 ]
             }
             sources["column_schedule"] = "Geometric Fallback"
-            
-    # Global Fallback for Internal Walls
-    if "int_walls_20cm_m" not in confirmed or float(confirmed["int_walls_20cm_m"]) == 0.0:
-        if confirmed.get("gf_area"):
-            confirmed["int_walls_20cm_m"] = round(float(confirmed["gf_area"]) * 1.5, 2)
-            sources["int_walls_20cm_m"] = "Hard Default (1.5 × GF Area)"
-            
-    if "int_walls_10cm_m" not in confirmed:
-        confirmed["int_walls_10cm_m"] = 0.0
             
     confirmed["sources"] = sources
     state_data["confirmed_auto_data"] = confirmed
