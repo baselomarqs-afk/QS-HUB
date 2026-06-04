@@ -29,11 +29,24 @@ async def get_active_project(project_id: Optional[int] = None, current_user: dic
     if df.empty:
         return {"has_active": False}
     row = df.iloc[0]
+
+    import json as _json
+    from api.routers.data_review import reconstruct_project_inputs
+    raw = row["state_data"]
+    state_data = _json.loads(raw) if isinstance(raw, str) else (raw or {})
+    if state_data.get("current_step", 0) >= 3:
+        reconstruct_project_inputs(state_data)
+        healed = _json.dumps(state_data, ensure_ascii=False, default=str)
+        safe_execute(
+            "UPDATE qto_active_projects SET state_data=%s WHERE user_id=%s AND project_id=%s",
+            (healed, current_user["id"], row.get("project_id") or project_id)
+        )
+
     res = {
         "has_active": True,
         "current_step": int(row["current_step"]),
         "updated_at": row["updated_at"],
-        "state_data": row["state_data"]
+        "state_data": state_data
     }
     if "project_id" in row:
         res["project_id"] = int(row["project_id"])
