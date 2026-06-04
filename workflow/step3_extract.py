@@ -648,11 +648,11 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
                 txt = f"\n\n--- RAW TEXT ---\n{page_texts}\n-----------------"
                 arch_p += txt; wall_p += txt; open_p += txt
                 
-            arch_task = _ask_ai_with_retry(img_bytes, arch_p, mgr, force_reextract=force_reextract)
-            wall_task = _ask_ai_with_retry(img_bytes, wall_p, mgr, force_reextract=force_reextract)
-            open_task = _ask_ai_with_retry(img_bytes, open_p, mgr, force_reextract=force_reextract)
-            
-            arch_raw, wall_raw, open_raw = await asyncio.gather(arch_task, wall_task, open_task)
+            # CRITICAL: Run sequentially to prevent exceeding Gemini Free Tier concurrency limits (2 max).
+            # Using asyncio.gather with 3 tasks was instantly crashing the free tier keys and returning zeros.
+            arch_raw = await _ask_ai_with_retry(img_bytes, arch_p, mgr, force_reextract=force_reextract)
+            wall_raw = await _ask_ai_with_retry(img_bytes, wall_p, mgr, force_reextract=force_reextract)
+            open_raw = await _ask_ai_with_retry(img_bytes, open_p, mgr, force_reextract=force_reextract)
             
             arch_data = _safe_parse_json(arch_raw)
             wall_data = _safe_parse_json(wall_raw)
