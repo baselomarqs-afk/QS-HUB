@@ -24,9 +24,11 @@ def load_pdf_pages(pdf_bytes: bytes, dpi: int = 150) -> List[np.ndarray]:
     for page_num in range(page_count):
         page = doc[page_num]
         mat  = fitz.Matrix(dpi / 72, dpi / 72)
-        pix  = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB)
-        img  = Image.open(io.BytesIO(pix.tobytes("png")))
-        arr  = np.array(img)[:, :, ::-1].copy()
+        pix  = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB, alpha=True)
+        img  = Image.open(io.BytesIO(pix.tobytes("png"))).convert("RGBA")
+        bg = Image.new("RGBA", img.size, (255, 255, 255, 255))
+        bg.paste(img, (0, 0), img)
+        arr  = np.array(bg.convert("RGB"))[:, :, ::-1].copy()
         pages.append(arr)
     doc.close()
     return pages
