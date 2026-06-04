@@ -399,11 +399,12 @@ async def _ask_ai_with_retry(img_bytes: bytes, full_prompt: str, mgr, force_reex
             print(f"Cache read error: {cache_ex}")
             
     last_err = ""
-    for attempt in range(6):
+    max_attempts = max(6, mgr.key_count() * 2)
+    for attempt in range(max_attempts):
         current_key, current_model = mgr.get_key_and_model()
         if not current_key or current_key == "NO_API_KEY_FOUND":
             last_err = "No valid API key found. All keys are in cooldown."
-            print(f"All keys in 60s cooldown. Waiting 15 seconds... (Attempt {attempt+1}/6)")
+            print(f"All keys in cooldown. Waiting 15 seconds... (Attempt {attempt+1}/{max_attempts})")
             import time
             time.sleep(15)
             continue
@@ -823,12 +824,13 @@ Return ONLY this JSON structure (null for not found):
             
     last_err = ""
     
-    for attempt in range(6):                 # retry up to 6 times
+    max_attempts = max(6, mgr.key_count() * 2)
+    for attempt in range(max_attempts):
         current_key, current_model = mgr.get_key_and_model()
             
         if not current_key or current_key == "NO_API_KEY_FOUND":
             last_err = "No valid API key found. All keys in cooldown."
-            print(f"All keys in 60s cooldown. Waiting 15 seconds... (Attempt {attempt+1}/6)")
+            print(f"All keys in cooldown. Waiting 15 seconds... (Attempt {attempt+1}/{max_attempts})")
             import time
             time.sleep(15)
             continue
@@ -930,7 +932,7 @@ Return ONLY this JSON structure (null for not found):
         "_ok": True,
         "_fallback": True,
         "confidence": "low (API Fallback)",
-        "notes": f"Gemini vision call failed after 15 attempts ({last_err}). Generated structural layout defaults.",
+        "notes": f"Gemini vision call failed after {max_attempts} attempts ({last_err}). Generated structural layout defaults.",
         "drawing_type": drawing_type
     }
     if drawing_type in COLUMN_TYPES or drawing_type in PERFLOOR_COLUMN_TYPES:
