@@ -29,16 +29,9 @@ For EACH column mark in the table, extract:
 - "mark": the column label (e.g. C1, C2)
 - "width_m":  the smaller plan dimension, in METRES
 - "length_m": the larger plan dimension, in METRES
-- "count_gf":   how many of this column on the GROUND floor (0 if none)
-- "count_1f":   how many on the 1ST floor (0 if none)
-- "count_2f":   how many on the 2ND floor (0 if none)
-- "count_roof": how many on the ROOF level (0 if none)
-
-If the schedule gives a single count (not split per floor), put it in count_gf
-and set the others to 0.
 
 Return ONLY this JSON (no extra text):
-{"columns": [{"mark":"C1","width_m":0.30,"length_m":0.60,"count_gf":4,"count_1f":4,"count_2f":0,"count_roof":0}],
+{"columns": [{"mark":"C1","width_m":0.30,"length_m":0.60}],
  "confidence":"high|medium|low", "notes":""}"""
 
 # Dedicated PER-FLOOR column pages → single count for that one floor
@@ -148,7 +141,8 @@ Return ONLY this JSON (no extra text):
 
 FLOORPLAN_TYPES = {"ground_floor_plan", "first_floor_plan", "second_floor_plan"}
 FLOOR_PLAN_PROMPT = """You are reading an ARCHITECTURAL FLOOR PLAN of a UAE villa floor.
-CRITICAL: You MUST extract EVERY SINGLE ROOM shown on the plan. This is required to calculate wet and dry areas.
+CRITICAL: You MUST extract EVERY SINGLE ROOM shown on the plan. 
+CRITICAL: DO NOT SKIP ANY BATHROOMS, TOILETS, POWDER ROOMS, OR KITCHENS. They are absolutely required for wet area calculations. If you skip them, the quantities will be 0.
 Villa plans rarely write the room AREA, but they DO show each room's name and its DIMENSIONS (e.g. "5.00 x 4.00").
 READ THE DIMENSIONS from the dimension lines or text — do not guess.
 
@@ -410,7 +404,7 @@ async def _ask_ai_with_retry(img_bytes: bytes, full_prompt: str, mgr, force_reex
             continue
             
         try:
-            client = genai.Client(api_key=current_key, http_options={'timeout': 45})
+            client = genai.Client(api_key=current_key, http_options={'timeout': 300.0})
             resp = client.models.generate_content(
                 model=current_model,
                 contents=[
@@ -836,8 +830,8 @@ Return ONLY this JSON structure (null for not found):
             continue
             
         try:
-            # Added a shorter timeout to fail fast on stuck networks
-            client = genai.Client(api_key=current_key, http_options={'timeout': 30})
+            # Removed the rush timeout, giving the AI up to 5 minutes to finish complex drawings.
+            client = genai.Client(api_key=current_key, http_options={'timeout': 300.0})
             resp = client.models.generate_content(
                 model=current_model,
                 contents=[

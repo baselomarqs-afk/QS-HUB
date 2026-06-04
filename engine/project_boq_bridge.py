@@ -79,7 +79,7 @@ _NECK_TYPICAL_L = 0.40   # m
 _TYPICAL_BEAM_SPAN_M = 4.5   # m — typical villa structural bay (column-to-column)
 
 
-def _neck_columns(project: dict) -> list[dict]:
+def _neck_columns(project: dict) -> tuple[list[dict], bool]:
     """
     Neck columns sit between footing and tie beam.
     If ground floor columns are known, we use their exact sizes.
@@ -87,7 +87,7 @@ def _neck_columns(project: dict) -> list[dict]:
     """
     gf_cols = _columns_for_floor(project, "gf")
     if gf_cols:
-        return gf_cols
+        return gf_cols, False
         
     out = []
     for f in _footings(project):
@@ -96,7 +96,7 @@ def _neck_columns(project: dict) -> list[dict]:
             "width_m":  _NECK_TYPICAL_W,
             "count":    f["count"],
         })
-    return out
+    return out, True
 
 
 def _tie_beam_dims(project: dict) -> tuple[float, float, float, bool]:
@@ -323,8 +323,10 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
     needs_input: list[str] = []
     estimates:   list[str] = []
 
-    tb_w, tb_d, tb_len, tb_est = _tie_beam_dims(project)
-    if tb_est:
+    tb_w, tb_d, tb_len, tb_estimated = _tie_beam_dims(project)
+    neck_cols_sched, nc_estimated = _neck_columns(project)
+    
+    if tb_estimated:
         estimates.append("tie_beam_total_length (estimated from perimeter + internal walls)")
 
     ext_perim = (project.get("external_perimeter")
@@ -366,7 +368,7 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
         "structural_levels": structural_levels,
         # schedules (engine-correct keys)
         "foundations_schedule":  _footings(project),
-        "neck_columns_schedule": _neck_columns(project),
+        "neck_columns_schedule": neck_cols_sched,
         "tb_width":          tb_w,
         "tb_depth":          tb_d,
         "tb_total_length":   tb_len,
@@ -376,7 +378,7 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
         "block_thickness":   project.get("block_thickness") or "200mm",
     }
 
-    if base["foundations_schedule"]:
+    if nc_estimated and base["foundations_schedule"]:
         estimates.append("neck columns (typical 0.30×0.40 m section × footing count)")
     if not base["foundations_schedule"]:
         needs_input.append("foundation schedule (no footings found)")

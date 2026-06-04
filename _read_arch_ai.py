@@ -80,6 +80,7 @@ Rules:
 - longest_length_m / longest_width_m = overall bounding-box dimensions (m)
 - Convert any mm or cm dimensions to METERS (1000mm = 1m, 100cm = 1m)
 - List EVERY room/space in "rooms" with its length and width from the dimension labels.
+- CRITICAL: DO NOT SKIP ANY BATHROOMS, TOILETS, OR KITCHENS. They are required for wet area calculations.
 - Use null for anything unclear
 - Return ONLY the JSON""",
 
@@ -102,6 +103,7 @@ Return ONLY this JSON:
 - floor_area_m2 = 1st floor built-up area in m²
 - All units in METERS (convert mm/cm)
 - List EVERY room/space in "rooms" with its length and width from the dimension labels.
+- CRITICAL: DO NOT SKIP ANY BATHROOMS, TOILETS, OR KITCHENS. They are required for wet area calculations.
 - Return ONLY the JSON""",
 
     "arch_2f": """This is the SECOND FLOOR PLAN of a UAE villa.
@@ -122,6 +124,7 @@ Return ONLY this JSON:
 }
 - All units in METERS
 - List EVERY room/space in "rooms" with its length and width.
+- CRITICAL: DO NOT SKIP ANY BATHROOMS, TOILETS, OR KITCHENS. They are required for wet area calculations.
 - Return ONLY the JSON""",
 
     "arch_roof": """This is the ROOF PLAN of a UAE villa.

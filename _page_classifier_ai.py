@@ -32,6 +32,7 @@ OUT_JSON = os.path.join(os.path.dirname(__file__), "_page_classification.json")
 PAGE_TYPES = [
     "foundation",        # Foundation layout (footings plan + SCHEDULE OF FOOTINGS)
     "tie_beam",          # Tie beam layout + SCHEDULE OF TIE BEAMS
+    "column_layout",     # Column layout plan
     "column_schedule",   # SCHEDULE OF COLUMNS (or column layout with schedule)
     "slab_1f",           # 1st floor slab/beam layout
     "slab_2f",           # 2nd floor slab/beam layout (if exists)
@@ -54,7 +55,7 @@ PAGE_TYPES = [
 _FITZ_RULES = [
     ("foundation",      ["SCHEDULE OF FOOTING", "FOUNDATION LAYOUT", "FOUNDATION PLAN"], ["F1", "F2"]),
     ("tie_beam",        ["SCHEDULE OF TIE BEAM", "TIE BEAM LAYOUT", "TIE BEAM PLAN"],    ["TB1", "TB2"]),
-    ("column_schedule", ["SCHEDULE OF COLUMN", "COLUMN SCHEDULE"],                       ["C1", "C2"]),
+    ("column_schedule", ["COLUMNS SCHEDULE", "SCHEDULE OF COLUMNS", "SCHEDULE OF COLUMN", "COLUMN SCHEDULE"], ["C1", "C2"]),
     ("slab_1f",         ["1ST FLOOR SLAB", "FIRST FLOOR SLAB", "1ST FLOOR BEAM",
                          "FIRST FLOOR BEAM", "1ST FLR SLAB"],                            ["B1", "B2"]),
     ("slab_2f",         ["2ND FLOOR SLAB", "SECOND FLOOR SLAB", "2ND FLOOR BEAM"],       ["B1", "B2"]),
@@ -111,7 +112,8 @@ Possible types are EXACTLY one of these (choose the closest match):
 Guidelines:
 - "foundation"      → footings layout / SCHEDULE OF FOOTINGS table
 - "tie_beam"        → tie beam plan / SCHEDULE OF TIE BEAMS
-- "column_schedule" → SCHEDULE OF COLUMNS table or column key plan
+- "column_layout"   → column key plan / columns layout (showing grid axes and column locations)
+- "column_schedule" → ONLY the SCHEDULE OF COLUMNS table (sizes and reinforcement), DO NOT select the floor plan layout / axes
 - "slab_1f"         → 1st floor slab/beam layout
 - "slab_2f"         → 2nd floor slab/beam layout
 - "slab_roof"       → roof slab/beam layout

@@ -26,7 +26,7 @@ try:
             
         http_opts = kwargs['http_options']
         if isinstance(http_opts, dict):
-            timeout_val = http_opts.get('timeout', 60.0)
+            timeout_val = http_opts.get('timeout', 300.0)
             http_opts['httpx_client'] = httpx.Client(timeout=timeout_val, http2=False)
             http_opts['httpx_async_client'] = httpx.AsyncClient(timeout=timeout_val, http2=False)
             

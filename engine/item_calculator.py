@@ -412,10 +412,10 @@ def _calc_generic_floor_item(item_key: str, inputs: Dict) -> float:
         if item_key.startswith(prefix):
             return round(val, 2)
 
-    # Slab concrete: area × thickness
+    # Slab concrete: area × thickness (default 0.25 minimum)
     if "slab_concrete" in item_key:
         return round(
-            _g(inputs, "slab_area") * (_g(inputs, "slab_thickness") or 0.20), 2
+            _g(inputs, "slab_area") * max(_g(inputs, "slab_thickness") or 0.25, 0.25), 2
         )
 
     # Beam concrete: length × width × depth × count  (spec: count matters)
@@ -443,8 +443,10 @@ def _calc_generic_floor_item(item_key: str, inputs: Dict) -> float:
     # Staircase: dynamic staircase_volume_per_level m³ per structural level
     if "staircase" in item_key:
         levels = int(_g(inputs, "structural_levels") or 1)
+        if levels <= 1:
+            return 0.0
         vol = _g(inputs, "staircase_volume_per_level", 5.2)
-        return round(vol * levels, 2)
+        return round(vol * (levels - 1), 2)
 
     return 0.0
 

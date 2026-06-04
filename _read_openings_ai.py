@@ -59,6 +59,7 @@ Rules:
 - count = number of that door type used in the building
 - type = short description (e.g. "single leaf wooden", "sliding glass", "fire-rated steel")
 - Include ALL rows from the schedule
+- DO NOT extract Arch openings (often marked with "A" or "AW"). Only extract actual doors (marked "D", "MD").
 - DO NOT include any labels or rows that contain the word "SHOP" or "SHOP DRAWING" - these are not doors.
 - Return ONLY the JSON, nothing else"""
 
@@ -74,11 +75,11 @@ Return ONLY this JSON:
 }
 
 Rules:
-- mark = window identifier (W1, W2, etc.)
+- mark = window or Arch opening identifier (W1, W2, A1, A2, etc. - items starting with A are Arch openings)
 - width_mm × height_mm = clear opening size in mm
-- count = number of that window type used in the building
-- type = short description (e.g. "aluminum sliding", "casement", "fixed glass")
-- Include ALL rows from the schedule
+- count = number of that window/arch type used in the building
+- type = short description (e.g. "aluminum sliding", "casement", "arch opening")
+- Include ALL rows from the schedule that are windows or Arch openings (A)
 - DO NOT include any labels or rows that contain the word "SHOP" or "SHOP DRAWING" - these are not windows.
 - Return ONLY the JSON, nothing else"""
 
@@ -123,11 +124,12 @@ def extract_openings(arch_pdf: str, classification: dict,
             print(f"    ERROR parsing doors on page {pi+1}: {e}")
             out["doors_error"] = str(e)
             
-    # Filter doors: remove any mark that starts with "W" and filter out "SHOP" hallucinations
+    # Filter doors: remove any mark that starts with "W" or "A" and filter out "SHOP" hallucinations
     out["doors"] = [
         d for d in extracted_doors_raw
         if "mark" in d 
         and not str(d["mark"]).strip().upper().startswith("W")
+        and not str(d["mark"]).strip().upper().startswith("A")
         and "SHOP" not in str(d["mark"]).strip().upper()
     ]
     print(f"  [doors] total filtered door types: {len(out['doors'])}")
@@ -151,11 +153,11 @@ def extract_openings(arch_pdf: str, classification: dict,
             print(f"    ERROR parsing windows on page {pi+1}: {e}")
             out["windows_error"] = str(e)
             
-    # Filter windows: keep only marks starting with "W" and filter out "SHOP" hallucinations
+    # Filter windows: keep only marks starting with "W" or "A" and filter out "SHOP" hallucinations
     out["windows"] = [
         w for w in extracted_wins_raw
         if "mark" in w 
-        and str(w["mark"]).strip().upper().startswith("W")
+        and (str(w["mark"]).strip().upper().startswith("W") or str(w["mark"]).strip().upper().startswith("A"))
         and "SHOP" not in str(w["mark"]).strip().upper()
     ]
     print(f"  [windows] total filtered window types: {len(out['windows'])}")
@@ -182,6 +184,12 @@ def extract_openings(arch_pdf: str, classification: dict,
                 num = m.group(1)
                 equiv.extend([f"W{num}", f"W-{num}"])
                 
+            # 3. A-1 or A1 -> A1, A-1, AL1, AL-1
+            m = re.match(r"^A[-_]?(\d+)$", mark_clean)
+            if m:
+                num = m.group(1)
+                equiv.extend([f"A{num}", f"A-{num}", f"AL{num}", f"AL-{num}"])
+                
             return list(set(equiv))
 
         door_marks = [d["mark"] for d in out["doors"] if "mark" in d]
@@ -199,7 +207,11 @@ def extract_openings(arch_pdf: str, classification: dict,
                 search_to_equiv[normalize_mark(m)] = norm_equivs
                 flat_search_list.extend(equivs)
 
-            c = count_token_in_page(arch_pdf, pi, flat_search_list)
+            try:
+                c = count_token_in_page(arch_pdf, pi, flat_search_list)
+            except Exception as e:
+                print(f"    WARNING: Failed to count tokens on page {pi+1} ({e}). Skipping page count fallback.")
+                c = {}
             for m in all_marks:
                 mk = normalize_mark(m)
                 equiv_counts = [c.get(eq, 0) for eq in search_to_equiv[mk]]

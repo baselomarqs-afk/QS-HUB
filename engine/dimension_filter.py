@@ -433,21 +433,24 @@ Nothing else. No perimeters, no heights, no column dims, no dates.
         },
         "extract_only": [
             "ext_perimeter",
-            "total_villa_height",
+            "total_villa_height_m",
+            "floor_to_floor_heights_m",
+            "parapet_height_m"
         ],
         "ignore_completely": [
             "dates", "sheet_numbers", "revision_marks", "scale_ratios",
             "column_dimensions", "beam_dimensions", "footing_dimensions",
-            "floor_heights", "individual_wall_lengths",
+            "individual_wall_lengths",
             "window_dimensions", "door_dimensions", "room_dimensions",
         ],
         "ai_instruction": """
 Extract ONLY:
-1. Total external perimeter of the villa
-2. Total villa height from ground level to roof top
+1. Total external perimeter of the villa (if shown)
+2. "total_villa_height_m" (overall height from ground level to top of parapet/roof in meters)
+3. "floor_to_floor_heights_m" (an array of heights per floor in order: GF, 1F, 2F... in meters)
+4. "parapet_height_m" (height of parapet wall in meters)
 
 DO NOT extract:
-- Individual floor heights (total only)
 - Individual wall lengths
 - Column, beam, footing, window, door dimensions
 - Dates, sheet numbers, scale ratios

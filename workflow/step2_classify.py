@@ -10,7 +10,7 @@ from pdf_engine.pdf_loader import page_to_pil
 from workflow.workflow_state import mark_step_done
 
 # Candidate types per PDF kind — used by the AI-vision refiner
-_STRUCT_TYPES = ["foundations", "tie_beam", "upper_columns", "neck_columns",
+_STRUCT_TYPES = ["foundations", "tie_beam", "column_layout", "upper_columns", "neck_columns",
                  "columns_1f", "columns_2f", "columns_roof",
                  "slab_1st", "slab_2nd", "roof_slab"]
 _ARCH_TYPES   = ["ground_floor_plan", "first_floor_plan", "second_floor_plan",

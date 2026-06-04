@@ -138,6 +138,27 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
                         
                 extracted.update(cv_data)
 
+            # OCR fallback for floor heights if missing
+            if dtype in ["elevations", "ground_floor_plan", "first_floor_plan", "second_floor_plan", "roof_floor_plan"]:
+                if not extracted.get("floor_height") and not extracted.get("floor_to_floor_heights_m"):
+                    import re
+                    # Look for standard level markers like LVL +4.00, FFL +3.80, etc.
+                    matches = re.findall(r'(?:LVL|FFL|SSL|LEVEL)[\s]*[=:]?[\s]*\+?\s*(\d+\.\d{1,2})', page_text, re.IGNORECASE)
+                    if matches:
+                        heights = sorted([float(m) for m in matches])
+                        if len(heights) > 1:
+                            # Differences between consecutive levels are floor heights
+                            diffs = [round(heights[i] - heights[i-1], 2) for i in range(1, len(heights))]
+                            valid_diffs = [d for d in diffs if 2.5 <= d <= 6.0]
+                            if valid_diffs:
+                                # use the mode of the valid differences
+                                mode_h = max(set(valid_diffs), key=valid_diffs.count)
+                                extracted["floor_height"] = mode_h
+                                extracted["notes"] = extracted.get("notes", "") + f" [OCR FALLBACK: Floor height derived from level markers as {mode_h}m]"
+                                # Also set the total villa height array if it's an elevation
+                                if dtype == "elevations":
+                                    extracted["floor_to_floor_heights_m"] = valid_diffs
+
             key = f"{pdf_type}_p{page_num}_{dtype}"
             return key, {**extracted, **page_info}
         except Exception as e:
@@ -215,8 +236,56 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
                                 n = len(re.findall(rf"\b{match_pattern}\b", full_text))
                                 if n > 0:
                                     item["count_in_plans"] = n
+                                    item["count_in_plans"] = n
                                     item["count_source"] = "floor_plans_fitz"
-                                    
+
+        # ── CROSS-CHECK: Columns PyMuPDF (fitz) exact match counting ──
+        # Extract column counts from the column layout plan to override hallucinations
+        col_layout_pages = []
+        for p in ready:
+            if p["pdf"] == "structural" and p["detected_type"] == "column_layout":
+                col_layout_pages.append(p)
+                
+        if col_layout_pages:
+            from _pdf_utils import count_token_in_page
+            for k, data in results.items():
+                if data.get("drawing_type") == "upper_columns":
+                    all_marks = [str(c.get("mark", "")).strip().upper() for c in data.get("columns", []) if c.get("mark")]
+                    if all_marks:
+                        # Iterate through each column layout page and sum the counts
+                        for lp in col_layout_pages:
+                            pdf_idx = lp["page_index"]
+                            struct_texts = state_data.get("str_texts", [])
+                            if pdf_idx < len(struct_texts):
+                                # Determine original pdf path
+                                project_cache = os.path.join(CACHE_ROOT, str(req.project_id))
+                                str_pdf_path = os.path.join(project_cache, "str.pdf")
+                                if os.path.exists(str_pdf_path):
+                                    try:
+                                        # internal_page_idx logic
+                                        internal_idx = pdf_idx
+                                        boundaries = state_data.get("str_pdf_boundaries", [])
+                                        for b in boundaries:
+                                            if b["start"] <= pdf_idx <= b["end"]:
+                                                internal_idx = pdf_idx - b["start"]
+                                                break
+                                        
+                                        counts = count_token_in_page(str_pdf_path, internal_idx, all_marks)
+                                        for c in data.get("columns", []):
+                                            m = str(c.get("mark", "")).strip().upper()
+                                            if m in counts and counts[m] > 0:
+                                                # Column layouts are typically the Ground Floor / Neck columns view.
+                                                # We map these exact counts to gf, 1f, 2f.
+                                                c["count_gf"] = c.get("count_gf", 0) + counts[m]
+                                                c["count_1f"] = c.get("count_1f", 0) + counts[m]
+                                                if state_data.get("current_step") and state_data.get("confirmed_auto_data"):
+                                                    # check if 2f exists
+                                                    if "2f" in state_data.get("confirmed_auto_data", {}).get("floors", {}):
+                                                        c["count_2f"] = c.get("count_2f", 0) + counts[m]
+                                                c["count_source"] = "column_layout_fitz"
+                                    except Exception as ex:
+                                        print(f"Error counting columns with PyMuPDF: {ex}")
+                                        
         state_data["extraction_results"] = results
         state_data["current_step"] = 4
         

@@ -256,21 +256,67 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
       </div>
 
       {/* Create New Project Section */}
-      <div className="glass-panel" style={{ padding: '25px', marginBottom: '35px' }}>
-        <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '15px' }}>
-          {isArabic ? 'بدء مشروع جديد' : 'Start a New Project'}
-        </h3>
-        <form onSubmit={handleCreateProject} style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+      <div className="glass-panel" style={{ 
+        padding: '30px', 
+        marginBottom: '35px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px',
+        background: 'linear-gradient(145deg, rgba(59, 130, 246, 0.05) 0%, rgba(15, 23, 42, 0) 100%)',
+        border: '1px solid rgba(59, 130, 246, 0.15)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ padding: '10px', background: 'var(--primary-glow)', borderRadius: '12px', color: 'var(--primary)' }}>
+            <Plus size={24} />
+          </div>
+          <div>
+            <h3 style={{ fontSize: '1.3rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+              {isArabic ? 'بدء مشروع جديد' : 'Start a New Project'}
+            </h3>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+              {isArabic ? 'قم بإنشاء مساحة عمل جديدة لحصر الكميات' : 'Create a new workspace for quantity takeoff'}
+            </p>
+          </div>
+        </div>
+        
+        <form onSubmit={handleCreateProject} style={{ 
+          display: 'flex', 
+          gap: '12px', 
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          backgroundColor: 'var(--bg-secondary)',
+          padding: '8px',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--border-color)',
+          boxShadow: 'var(--shadow-sm)'
+        }}>
           <input
             type="text"
-            className="input-field"
-            style={{ flex: 1, minWidth: '250px' }}
-            placeholder={isArabic ? 'اسم المشروع (مثال: فيلا رقم 12)' : 'Project Name (e.g. Villa 12)'}
+            className="form-input"
+            style={{ 
+              flex: 1, 
+              minWidth: '250px',
+              border: 'none',
+              boxShadow: 'none',
+              background: 'transparent',
+              fontSize: '1rem',
+              padding: '8px 12px'
+            }}
+            placeholder={isArabic ? 'اسم المشروع (مثال: فيلا رقم 12)' : 'Enter project name (e.g. Villa 12)...'}
             value={newProjName}
             onChange={e => setNewProjName(e.target.value)}
             disabled={creating}
           />
-          <button type="submit" className="btn btn-primary" disabled={creating || !newProjName.trim()}>
+          <button 
+            type="submit" 
+            className="btn btn-primary" 
+            style={{ 
+              padding: '12px 24px', 
+              fontSize: '1rem',
+              borderRadius: '8px'
+            }} 
+            disabled={creating || !newProjName.trim()}
+          >
             {creating ? (isArabic ? 'جاري الإنشاء...' : 'Creating...') : (isArabic ? 'بدء المشروع 🚀' : 'Start Project 🚀')}
           </button>
         </form>

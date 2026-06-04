@@ -24,6 +24,12 @@ PAGE_ITEMS_MAP = {
         ],
         "ai_prompt_focus": "Extract tie beam width, depth, and total length. Extract external perimeter and ground floor area.",
     },
+    "column_layout": {
+        "drawing_keywords": ["column layout", "axes", "مخطط الأعمدة", "محاور"],
+        "pdf_type": "structural",
+        "extract_items": [],
+        "ai_prompt_focus": "Column layout plan showing grid axes and column locations.",
+    },
     "upper_columns": {
         "drawing_keywords": ["column schedule", "جدول الأعمدة", "COL SCH", "COLUMN SCHEDULE"],
         "pdf_type": "structural",
