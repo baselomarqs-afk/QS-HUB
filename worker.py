@@ -69,13 +69,37 @@ def _process_ai_extraction(payload: dict) -> dict:
     pil_img = Image.open(img_path)
     page_arr = np.array(pil_img)[:, :, ::-1].copy()
 
-    extracted = extract_page(page_arr, dtype, page_text, user_id)
+    try:
+        extracted = extract_page(page_arr, dtype, page_text, user_id)
+    except Exception as e:
+        _log.exception("Worker AI extraction failed")
+        extracted = {"_ok": False, "_error": str(e), "drawing_type": dtype}
 
     # Apply CV extraction for floor plans
     cv_types = {"ground_floor_plan", "first_floor_plan", "second_floor_plan", "roof_floor_plan", "setting_out"}
     if dtype in cv_types:
-        cv_data = process_floor_plan_image(img_path)
-        extracted.update(cv_data)
+        try:
+            cv_data = process_floor_plan_image(img_path)
+            perim_m = extracted.get("ext_perimeter") or 0.0
+            if not perim_m:
+                l = extracted.get("overall_length_m", 0) or 0
+                w = extracted.get("overall_width_m", 0) or 0
+                perim_m = (l + w) * 2
+            
+            cv_perim_px = cv_data.get("cv_perimeter_px", 0)
+            if perim_m and cv_perim_px > 0:
+                scale = perim_m / cv_perim_px
+                cv_data["cv_perimeter_m"] = cv_perim_px * scale
+                cv_data["cv_area_m2"] = cv_data.get("cv_area_px", 0) * (scale ** 2)
+                
+                if not extracted.get("total_floor_area") or extracted.get("total_floor_area", 0) == 0:
+                    extracted["total_floor_area"] = round(cv_data["cv_area_m2"], 2)
+                    extracted["notes"] = extracted.get("notes", "") + f" [OPENCV FALLBACK: Area calculated geometrically as {extracted['total_floor_area']}m2]"
+                    extracted["_ok"] = True
+                    
+            extracted.update(cv_data)
+        except Exception as cve:
+            _log.exception("OpenCV failed: %s", cve)
 
     return extracted
 
@@ -114,20 +138,45 @@ def _process_full_pipeline(payload: dict) -> dict:
             page_arr = np.array(pil_img)[:, :, ::-1].copy()
             page_text = page_info.get("page_text", "")
 
-            extracted = extract_page(page_arr, dtype, page_text, user_id)
+            try:
+                extracted = extract_page(page_arr, dtype, page_text, user_id)
+            except Exception as e:
+                _log.exception("Worker AI extraction failed for page %s", page_info.get("page_num"))
+                extracted = {"_ok": False, "_error": str(e), "drawing_type": dtype}
 
             cv_types = {"ground_floor_plan", "first_floor_plan", "second_floor_plan", "roof_floor_plan", "setting_out"}
             if dtype in cv_types:
-                cv_data = process_floor_plan_image(img_path)
-                extracted.update(cv_data)
+                try:
+                    cv_data = process_floor_plan_image(img_path)
+                    perim_m = extracted.get("ext_perimeter") or 0.0
+                    if not perim_m:
+                        l = extracted.get("overall_length_m", 0) or 0
+                        w = extracted.get("overall_width_m", 0) or 0
+                        perim_m = (l + w) * 2
+                    
+                    cv_perim_px = cv_data.get("cv_perimeter_px", 0)
+                    if perim_m and cv_perim_px > 0:
+                        scale = perim_m / cv_perim_px
+                        cv_data["cv_perimeter_m"] = cv_perim_px * scale
+                        cv_data["cv_area_m2"] = cv_data.get("cv_area_px", 0) * (scale ** 2)
+                        
+                        if not extracted.get("total_floor_area") or extracted.get("total_floor_area", 0) == 0:
+                            extracted["total_floor_area"] = round(cv_data["cv_area_m2"], 2)
+                            extracted["notes"] = extracted.get("notes", "") + f" [OPENCV FALLBACK: Area calculated geometrically as {extracted['total_floor_area']}m2]"
+                            # Resurrect the page if AI failed but OpenCV succeeded!
+                            extracted["_ok"] = True
+                            
+                    extracted.update(cv_data)
+                except Exception as cve:
+                    _log.exception("OpenCV failed: %s", cve)
 
             key = f"{page_info['pdf']}_p{page_info['page_num']}_{dtype}"
             results[key] = {**extracted, **page_info}
 
-        except Exception as e:
-            _log.exception("Worker extraction failed for page %s", page_info.get("page_num"))
+        except Exception as outer_e:
+            _log.exception("Worker image processing failed for page %s", page_info.get("page_num"))
             key = f"{page_info['pdf']}_p{page_info['page_num']}_{dtype}"
-            results[key] = {"_ok": False, "_error": str(e), "drawing_type": dtype, **page_info}
+            results[key] = {"_ok": False, "_error": str(outer_e), "drawing_type": dtype, **page_info}
 
     return {"extraction_results": results}
 
