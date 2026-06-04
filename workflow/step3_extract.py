@@ -394,11 +394,14 @@ async def _ask_ai_with_retry(img_bytes: bytes, full_prompt: str, mgr, force_reex
             print(f"Cache read error: {cache_ex}")
             
     last_err = ""
-    for attempt in range(3):
+    for attempt in range(6):
         current_key, current_model = mgr.get_key_and_model()
         if not current_key or current_key == "NO_API_KEY_FOUND":
-            last_err = "No valid API key found."
-            break
+            last_err = "No valid API key found. All keys are in cooldown."
+            print(f"All keys in 60s cooldown. Waiting 15 seconds... (Attempt {attempt+1}/6)")
+            import time
+            time.sleep(15)
+            continue
             
         try:
             client = genai.Client(api_key=current_key, http_options={'timeout': 45})
@@ -772,12 +775,15 @@ Return ONLY this JSON structure (null for not found):
             
     last_err = ""
     
-    for attempt in range(3):                 # retry up to 3 times
+    for attempt in range(6):                 # retry up to 6 times
         current_key, current_model = mgr.get_key_and_model()
             
         if not current_key or current_key == "NO_API_KEY_FOUND":
-            last_err = "No valid API key found."
-            break
+            last_err = "No valid API key found. All keys in cooldown."
+            print(f"All keys in 60s cooldown. Waiting 15 seconds... (Attempt {attempt+1}/6)")
+            import time
+            time.sleep(15)
+            continue
             
         try:
             # Added a shorter timeout to fail fast on stuck networks

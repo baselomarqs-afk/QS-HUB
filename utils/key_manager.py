@@ -34,17 +34,17 @@ class KeyManager:
     def __init__(self, keys: List[str]):
         self._keys  = [k.strip() for k in keys if k and k.strip()]
         self._lock  = threading.Lock()
-        
-        # إنشاء مصفوفة التدوير: مفتاح1-نموذج1، مفتاح2-نموذج1، ... لتوزيع حمل الـ RPM على المفاتيح أولاً
+
+        # Rotate keys first, then models — spreads RPM load across keys before hitting same model twice
         self._combinations = []
-        for m in ROTATION_MODELS:
-            for k in self._keys:
+        for k in self._keys:
+            for m in ROTATION_MODELS:
                 self._combinations.append((k, m))
-                
+
         self._index = 0
         self._usage: dict = {}
         for k, m in self._combinations:
-            self._usage[(k, m)] = {"count": 0, "date": date.today(), "exhausted": False}
+            self._usage[(k, m)] = {"count": 0, "date": date.today(), "exhausted": False, "exhausted_at": 0}
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -60,11 +60,12 @@ class KeyManager:
             return None, "gemini-3.1-flash-lite" # fallback if all exhausted
 
     def mark_rate_limited(self, key: str, model: str):
-        """استدعِ هذا عند استقبال 429 — سيتخطى هذه التركيبة."""
+        """استدعِ هذا عند استقبال 429 — يتخطى هذه التركيبة لمدة 60 ثانية فقط."""
         with self._lock:
             combo = (key, model)
             if combo in self._usage:
                 self._usage[combo]["exhausted"] = True
+                self._usage[combo]["exhausted_at"] = time.time()
 
     def mark_exhausted(self, key: str, model: str):
         """علّم تركيبة باعتبارها منتهية يدوياً."""
@@ -109,12 +110,17 @@ class KeyManager:
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _active_combo(self) -> Optional[Tuple[str, str]]:
-        """يبحث عن أول تركيبة غير منتهية."""
+        """يبحث عن أول تركيبة غير منتهية. المفاتيح المعلّقة تنتهي بعد 60 ثانية تلقائياً."""
         if not self._combinations:
             return None
+        now = time.time()
         for _ in range(len(self._combinations)):
             combo = self._combinations[self._index % len(self._combinations)]
-            if not self._usage[combo]["exhausted"]:
+            u = self._usage[combo]
+            # Auto-recover after 60 seconds
+            if u["exhausted"] and (now - u.get("exhausted_at", 0)) > 60:
+                u["exhausted"] = False
+            if not u["exhausted"]:
                 return combo
             self._index += 1
         return None
@@ -124,11 +130,19 @@ class KeyManager:
             self._index = (self._index + 1) % len(self._combinations)
 
     def _reset_daily_counts(self):
-        """يصفّر العداد كل يوم جديد."""
+        """يصفّر العداد كل يوم جديد ويُشغّل auto-exhaustion عند بلوغ الحد."""
         today = date.today()
         for combo in self._combinations:
-            if self._usage[combo]["date"] != today:
-                self._usage[combo] = {"count": 0, "date": today, "exhausted": False}
+            k, m = combo
+            u = self._usage[combo]
+            if u["date"] != today:
+                self._usage[combo] = {"count": 0, "date": today, "exhausted": False, "exhausted_at": 0}
+            else:
+                # Auto-mark exhausted when daily limit reached
+                limit = MODEL_DAILY_LIMITS.get(m, MODEL_DAILY_LIMITS["default"])
+                if u["count"] >= limit and not u["exhausted"]:
+                    u["exhausted"] = True
+                    u["exhausted_at"] = time.time()
 
 
 # ── تحميل المفاتيح من .env أو متغيرات البيئة ──────────────────────────────────
