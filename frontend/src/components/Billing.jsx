@@ -169,7 +169,7 @@ export default function Billing({ token, isArabic }) {
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  border: p.tier === details.plan_tier ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                  border: '2px solid var(--primary)',
                   overflow: 'hidden'
                 }}>
                   {showDiscount && (
