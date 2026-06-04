@@ -646,3 +646,63 @@ BOQ_ITEM_DEFAULT_RATES = {
 def _get_item_rate(item_key: str, emirate: str) -> float:
     # Pricing disabled by request — quantity-only BOQ (all rates & totals are zero).
     return 0.0
+
+
+def build_boq_dataframe_from_project(project: dict) -> tuple[pd.DataFrame, dict]:
+    """
+    Build the export-ready BOQ DataFrame straight from _project_data.json.
+    Returns (df, meta).  df columns match engine/boq_builder output so the
+    existing Excel exporter & UI table work unchanged.
+    """
+    results, meta = compute_all_quantities(project)
+    emirate = project.get("emirate") or "Dubai"
+
+    rows = []
+    item_num = 1
+
+    def add_section(title: str):
+        rows.append({
+            "#": "", "Description (English)": f"■ {title}", "الوصف": "",
+            "Unit": "", "Quantity": "", "_is_header": True,
+        })
+
+    for page_type, page in DRAWING_ITEMS_MAP.items():
+        if page_type in ["slab_1st", "slab_2nd", "first_floor_plan", "second_floor_plan"]:
+            total_qty = sum(results.get(item["key"], 0.0) or 0.0 for item in page["items"])
+            if total_qty == 0:
+                continue
+
+        section_title = f"{page['label_en']} | {page['label_ar']}"
+        add_section(section_title)
+        for item in page["items"]:
+            qty = results.get(item["key"], 0.0)
+            nrm_code = POMI_NRM_MAP.get(item["key"], str(item_num))
+            rate = _get_item_rate(item["key"], emirate)
+            total = qty * rate if qty is not None and rate is not None else 0.0
+
+            en_name = item["name_en"]
+            ar_name = item["name_ar"]
+            if "block" in item["key"]:
+                t = "200mm"
+                if "solid" in item["key"]:
+                    t = project.get("solid_block_thickness", "200mm")
+                elif "thermal" in item["key"] or "parapet" in item["key"]:
+                    t = project.get("thermal_block_thickness", "200mm")
+                elif "internal" in item["key"]:
+                    t = project.get("hollow_block_thickness", "100mm")
+                en_name += f" ({t} Thickness)"
+                ar_name += f" (سماكة {t})"
+            rows.append({
+                "#": nrm_code,
+                "Description (English)": en_name,
+                "الوصف": ar_name,
+                "Unit": item["unit"],
+                "Quantity": round(float(qty), 2) if qty is not None else 0.0,
+                "has_error": qty is None,
+                "_is_header": False,
+            })
+            item_num += 1
+
+    df = pd.DataFrame(rows)
+    df = df.where(pd.notnull(df), None)
+    return df, meta
