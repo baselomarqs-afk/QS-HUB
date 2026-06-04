@@ -255,6 +255,11 @@ def reconstruct_project_inputs(state_data: dict):
 
     _ll = float(confirmed.get("longest_length") or 0)
     _lw = float(confirmed.get("longest_width") or 0)
+    
+    # gf_area fallback from foundation dimensions
+    if (not confirmed.get("gf_area") or float(confirmed.get("gf_area") or 0) < 30) and _ll and _lw:
+        confirmed["gf_area"] = round(_ll * _lw * 0.75, 2)
+        sources["gf_area"] = "Geometry L×W×0.75"
     if (not confirmed.get("ext_perimeter") or float(confirmed.get("ext_perimeter") or 0) < 10) and _ll and _lw:
         confirmed["ext_perimeter"] = round(2 * (_ll + _lw), 2)
         if "ext_perimeter" not in sources or sources["ext_perimeter"] == "AI OCR":
