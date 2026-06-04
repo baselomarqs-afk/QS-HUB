@@ -94,6 +94,10 @@ body {
   box-shadow: var(--shadow-md);
 }
 
+.pricing-tier-card {
+  border: 2px solid var(--primary) !important;
+}
+
 /* Custom Styled Tables for BOQ and Prices */
 .premium-table-container {
   overflow-x: auto;
