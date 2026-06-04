@@ -259,7 +259,7 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
         </h3>
         
         <div className="pricing-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-          <div className="glass-card" style={{ textAlign: 'center', padding: '25px 15px' }}>
+          <div className="glass-card" style={{ textAlign: 'center', padding: '25px 15px', border: '2px solid var(--primary)' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>TIER 1</span>
             <h3 style={{ fontSize: '2rem', fontWeight: 800, margin: '10px 0 5px' }}>50 AED</h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '15px' }}>{isArabic ? 'لكل شهر' : 'per month'}</p>
@@ -279,7 +279,7 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
             </div>
           </div>
 
-          <div className="glass-card" style={{ textAlign: 'center', padding: '25px 15px' }}>
+          <div className="glass-card" style={{ textAlign: 'center', padding: '25px 15px', border: '2px solid var(--primary)' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>TIER 3</span>
             <div style={{ textDecoration: 'line-through', opacity: 0.5, fontSize: '0.9rem', marginTop: '5px' }}>250 AED</div>
             <h3 style={{ fontSize: '2rem', fontWeight: 800, margin: '5px 0', color: 'var(--success)' }}>125 AED</h3>
@@ -291,7 +291,7 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
             </div>
           </div>
 
-          <div className="glass-card" style={{ textAlign: 'center', padding: '25px 15px' }}>
+          <div className="glass-card" style={{ textAlign: 'center', padding: '25px 15px', border: '2px solid var(--primary)' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>TIER 4</span>
             <h3 style={{ fontSize: '2rem', fontWeight: 800, margin: '10px 0 5px' }}>500 AED</h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '15px' }}>{isArabic ? 'لكل شهر' : 'per month'}</p>
