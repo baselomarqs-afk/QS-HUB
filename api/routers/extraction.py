@@ -152,9 +152,8 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
         initial_args = [(p, None) for p in ready]
         completed_count = 0
         
-        # Since memory-heavy Numpy processing is bypassed, we can safely increase concurrency
-        # to dramatically speed up AI extraction.
-        with ThreadPoolExecutor(max_workers=8) as executor:
+        # CRITICAL: Keep max_workers=1 to avoid Gemini 429 Too Many Requests and Render Free Tier OOMs.
+        with ThreadPoolExecutor(max_workers=1) as executor:
             import concurrent.futures
             future_to_args = {executor.submit(extract_single_page, arg): arg for arg in initial_args}
             
