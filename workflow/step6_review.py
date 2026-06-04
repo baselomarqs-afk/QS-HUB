@@ -31,7 +31,7 @@ def get_section_confidence(section: str) -> str:
     """Heuristic to determine confidence based on source pages."""
     res = st.session_state.get("extraction_results", {})
     deps = []
-    if section == "sub": deps = ["foundation_plan", "tie_beam_plan"]
+    if section == "sub": deps = ["foundation_plan", "tie_beam"]
     elif section == "sup": deps = ["ground_columns", "upper_columns", "ground_floor_plan", "first_floor_plan", "roof_plan"]
     elif section == "fin": deps = ["ground_floor_plan", "first_floor_plan"]
     elif section == "open": deps = ["window_schedule", "door_schedule"]

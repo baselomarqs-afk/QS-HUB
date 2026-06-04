@@ -15,6 +15,8 @@ from engine.dimension_filter import (
     get_ai_prompt_for_drawing,
     filter_ocr_by_drawing_inputs,
 )
+from workflow.workflow_state import get_current_step, set_step, step_done, STEPS
+from _pdf_utils import normalize_mark
 from workflow.workflow_state import mark_step_done
 
 
@@ -677,7 +679,6 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             merged["int_walls_10cm_m"] = wall_data.get("int_walls_10cm_m", 0.0)
             merged["int_walls_20cm_m"] = wall_data.get("int_walls_20cm_m", 0.0)
             return merged
-            return merged
             
         data = asyncio.run(run_dedicated_extractors())
         data = _finishes_from_rooms(data)
@@ -1223,7 +1224,6 @@ def render_step3() -> bool:
                         for item in data.get(lst_type, []):
                             mark = str(item.get("mark", "")).strip().upper()
                             if mark and len(mark) > 1: # avoid matching single letters like 'D' everywhere
-                                from _pdf_utils import normalize_mark
                                 m_clean = normalize_mark(mark)
                                 match_pattern = ""
                                 for char in m_clean:

@@ -60,14 +60,14 @@ def perform_structural_sanity_checks(data: dict, drawing_type: str) -> list[str]
     """
     warnings = []
     
-    if drawing_type in ["foundation_plan", "tie_beam_plan"]:
+    if drawing_type in ["foundation_plan", "tie_beam"]:
         l = data.get("longest_length", 0) or 0
         w = data.get("longest_width", 0) or 0
         if l > 0 and w > 0:
             if l < 5 or w < 5:
                 warnings.append(f"Overall dimensions ({l}m x {w}m) seem too small for a villa. Are they in meters?")
                 
-        if drawing_type == "tie_beam_plan":
+        if drawing_type == "tie_beam":
             tb_len = data.get("tb_total_length", 0) or 0
             if tb_len > 0 and l > 0 and w > 0:
                 approx_perim = (l + w) * 2

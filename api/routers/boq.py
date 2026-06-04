@@ -210,6 +210,8 @@ async def export_pdf(project_id: int, current_user: dict = Depends(get_current_u
     validate_critical_inputs_for_export(state_data)
     
     items = state_data.get("boq_items") or []
+    if not items:
+        raise HTTPException(status_code=400, detail="No BOQ items calculated yet for this project. Please calculate first.")
     
     # Map items to PDF builder expectations
     boq_items = []

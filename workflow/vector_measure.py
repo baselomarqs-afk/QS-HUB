@@ -102,6 +102,9 @@ def measure_page(pdf_path: str, page_index: int,
                       'matched': int, 'confidence': float } }
     """
     doc  = fitz.open(pdf_path)
+    if page_index >= len(doc):
+        doc.close()
+        return {}
     page = doc[page_index]
     ratio = scale_ratio or detect_page_scale(page)
     pt_to_m = _pt_to_m(ratio)
@@ -161,6 +164,9 @@ def measure_tie_beams(pdf_path: str, page_index: int,
                      confidence, scale} }.
     """
     doc   = fitz.open(pdf_path)
+    if page_index >= len(doc):
+        doc.close()
+        return {}
     page  = doc[page_index]
     ratio = scale_ratio or detect_page_scale(page)
     pt_to_m = _pt_to_m(ratio)

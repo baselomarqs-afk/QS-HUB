@@ -12,6 +12,8 @@ from utils.db import safe_query, safe_execute
 from workflow.step3_extract import extract_page, merge_schedule_json_to_results
 from engine.sanity_checker import sanity_check
 from api.routers.data_review import reconstruct_project_inputs
+from utils.garbage_collection import background_cleanup_project
+from _pdf_utils import normalize_mark
 
 SETTINGS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "user_settings.json")
 def get_user_settings():
@@ -208,7 +210,6 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
                         for item in data.get(lst_type, []):
                             mark = str(item.get("mark", "")).strip().upper()
                             if mark and len(mark) > 1:
-                                from _pdf_utils import normalize_mark
                                 m_clean = normalize_mark(mark)
                                 match_pattern = "".join(c + r"[\s\-_./]*" if c.isalpha() else c for c in m_clean).rstrip(r"[\s\-_./]*")
                                 n = len(re.findall(rf"\b{match_pattern}\b", full_text))
