@@ -302,8 +302,13 @@ def _finishes_from_rooms(data: dict) -> dict:
 
 def _safe_parse_json(raw_str: str) -> dict:
     import json, re
-    if not raw_str or raw_str.startswith('{"_error"'):
+    if not raw_str:
         return {}
+    if raw_str.startswith('{"_error"'):
+        try:
+            return json.loads(raw_str)
+        except Exception:
+            return {"_error": "Failed to parse error"}
     raw_str = re.sub(r"```json|```", "", raw_str).strip()
     try:
         return json.loads(raw_str)
@@ -488,6 +493,15 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             
             d1 = _safe_parse_json(r1)
             d2 = _safe_parse_json(r2)
+            if "_error" in d1 or "_error" in d2:
+                err = d1.get("_error") or d2.get("_error")
+                return {
+                    "_ok": True, "_fallback": True,
+                    "confidence": "low (API Fallback)",
+                    "notes": f"Gemini vision call failed ({err}). Generated structural layout defaults.",
+                    "drawing_type": drawing_type,
+                    "longest_length": 20.0, "longest_width": 15.0, "footings": []
+                }
             merged = {**d1, **d2}
             return merged
             
@@ -529,6 +543,16 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             
             d1 = _safe_parse_json(r1)
             d2 = _safe_parse_json(r2)
+            if "_error" in d1 or "_error" in d2:
+                err = d1.get("_error") or d2.get("_error")
+                return {
+                    "_ok": True, "_fallback": True,
+                    "confidence": "low (API Fallback)",
+                    "notes": f"Gemini vision call failed ({err}). Generated structural layout defaults.",
+                    "drawing_type": drawing_type,
+                    "tb_width": 0.30, "tb_depth": 0.60, "tb_total_length": 80.0,
+                    "ext_perimeter": 70.0, "gf_area": 250.0
+                }
             merged = {**d1, **d2}
             
             # --- VECTOR MEASUREMENT OVERRIDES ---
@@ -585,6 +609,18 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             
             d1 = _safe_parse_json(r1)
             d2 = _safe_parse_json(r2)
+            if "_error" in d1 or "_error" in d2:
+                err = d1.get("_error") or d2.get("_error")
+                fallback = {
+                    "_ok": True, "_fallback": True,
+                    "confidence": "low (API Fallback)",
+                    "notes": f"Gemini vision call failed ({err}). Generated structural layout defaults.",
+                    "drawing_type": drawing_type,
+                    "slab_area": 250.0, "slab_thickness": 0.20, "beams": []
+                }
+                if drawing_type == "roof_slab":
+                    fallback["roof_perimeter"] = 70.0
+                return fallback
             merged = {**d1, **d2}
             
             # --- VECTOR MEASUREMENT OVERRIDES ---
@@ -662,6 +698,18 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             arch_data = _safe_parse_json(arch_raw)
             wall_data = _safe_parse_json(wall_raw)
             open_data = _safe_parse_json(open_raw)
+            
+            if any("_error" in d for d in [arch_data, wall_data, open_data]):
+                errs = [d.get("_error") for d in [arch_data, wall_data, open_data] if "_error" in d]
+                err = errs[0] if errs else "Unknown Error"
+                return {
+                    "_ok": True, "_fallback": True,
+                    "confidence": "low (API Fallback)",
+                    "notes": f"Gemini vision call failed ({err}). Generated structural layout defaults.",
+                    "drawing_type": drawing_type,
+                    "total_floor_area": 250.0, "ext_perimeter": 70.0,
+                    "int_walls_10cm_m": 0.0, "int_walls_20cm_m": 50.0
+                }
             
             # Merge them together into the schema expected by _finishes_from_rooms
             merged = {}

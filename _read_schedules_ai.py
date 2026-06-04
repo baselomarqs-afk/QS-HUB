@@ -7,6 +7,7 @@ Usage:
 """
 import sys, os, io, re, json, fitz
 from PIL import Image
+import utils.key_manager  # Apply the HTTP/2 disable monkeypatch to genai.Client
 import google.genai as genai
 from google.genai import types
 

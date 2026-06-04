@@ -286,6 +286,7 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
         final_payload = {
             "done": True,
             "extraction_results": results,
+            "confirmed_auto_data": state_data.get("confirmed_auto_data") or {},
             "sanity_warnings": warnings,
             "next_step": 4
         }

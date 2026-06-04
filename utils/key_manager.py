@@ -11,6 +11,39 @@ import threading
 from typing import List, Optional, Tuple
 from datetime import datetime, date
 
+
+# ── Monkeypatch google.genai.Client to disable HTTP/2 and prevent timeouts on Windows / proxy networks ──
+try:
+    from google import genai
+    from google.genai import types
+    import httpx
+    
+    _orig_init = genai.Client.__init__
+
+    def patched_init(self, *args, **kwargs):
+        if 'http_options' not in kwargs:
+            kwargs['http_options'] = {}
+            
+        http_opts = kwargs['http_options']
+        if isinstance(http_opts, dict):
+            timeout_val = http_opts.get('timeout', 60.0)
+            http_opts['httpx_client'] = httpx.Client(timeout=timeout_val, http2=False)
+            http_opts['httpx_async_client'] = httpx.AsyncClient(timeout=timeout_val, http2=False)
+            
+            clean_opts = {k: v for k, v in http_opts.items() if k != 'timeout'}
+            kwargs['http_options'] = types.HttpOptions(**clean_opts)
+        elif isinstance(http_opts, types.HttpOptions):
+            if not http_opts.httpx_client:
+                http_opts.httpx_client = httpx.Client(timeout=60.0, http2=False)
+            if not http_opts.httpx_async_client:
+                http_opts.httpx_async_client = httpx.AsyncClient(timeout=60.0, http2=False)
+                
+        _orig_init(self, *args, **kwargs)
+
+    genai.Client.__init__ = patched_init
+except Exception:
+    pass
+
 # النماذج التي سيتم التدوير بينها مع كل مفتاح
 ROTATION_MODELS = [
     "gemini-3.1-flash-lite",
