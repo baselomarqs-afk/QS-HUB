@@ -1,4 +1,107 @@
 import React from 'react';
+import { Trash2, Plus } from 'lucide-react';
+
+const ScheduleTableEditorModal = ({ isArabic, schedules, onSave, onClose }) => {
+  const [footings, setFootings] = React.useState(schedules?.foundation?.footings || []);
+  const [columns, setColumns] = React.useState(schedules?.superstructure?.columns || []);
+
+  const handleUpdate = (state, setter, index, field, val) => {
+    const updated = [...state];
+    updated[index] = { ...updated[index], [field]: val };
+    setter(updated);
+  };
+
+  const handleRemove = (state, setter, index) => {
+    setter(state.filter((_, i) => i !== index));
+  };
+
+  const handleAdd = (setter, state, defaultPrefix) => {
+    setter([...state, { type: `${defaultPrefix}${state.length + 1}`, length: 1.0, width: 1.0, count: 1 }]);
+  };
+
+  const renderTable = (title, state, setter, prefix) => (
+    <div style={{ marginBottom: '25px', backgroundColor: '#1e293b', padding: '15px', borderRadius: '8px' }}>
+      <h4 style={{ color: 'white', marginTop: 0, marginBottom: '10px', display: 'flex', justifyContent: 'space-between' }}>
+        {title}
+        <button type="button" onClick={() => handleAdd(setter, state, prefix)} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <Plus size={14} /> {isArabic ? 'إضافة صف' : 'Add Row'}
+        </button>
+      </h4>
+      {state.length === 0 ? (
+        <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>{isArabic ? 'لا توجد بيانات مستخرجة.' : 'No data extracted.'}</p>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse', color: 'white', fontSize: '0.85rem', textAlign: 'left' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid #334155' }}>
+              <th style={{ padding: '8px 4px' }}>{isArabic ? 'النوع' : 'Type'}</th>
+              <th style={{ padding: '8px 4px' }}>{isArabic ? 'الطول (م)' : 'Length (m)'}</th>
+              <th style={{ padding: '8px 4px' }}>{isArabic ? 'العرض (م)' : 'Width (m)'}</th>
+              <th style={{ padding: '8px 4px' }}>{isArabic ? 'العدد' : 'Count'}</th>
+              <th style={{ padding: '8px 4px' }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {state.map((row, i) => (
+              <tr key={i} style={{ borderBottom: '1px solid #334155' }}>
+                <td style={{ padding: '6px 4px' }}>
+                  <input type="text" value={row.type || ''} onChange={(e) => handleUpdate(state, setter, i, 'type', e.target.value)} style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: 'white', padding: '4px', borderRadius: '4px' }} />
+                </td>
+                <td style={{ padding: '6px 4px' }}>
+                  <input type="number" step="0.01" value={row.length || ''} onChange={(e) => handleUpdate(state, setter, i, 'length', parseFloat(e.target.value) || 0)} style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: 'white', padding: '4px', borderRadius: '4px' }} />
+                </td>
+                <td style={{ padding: '6px 4px' }}>
+                  <input type="number" step="0.01" value={row.width || ''} onChange={(e) => handleUpdate(state, setter, i, 'width', parseFloat(e.target.value) || 0)} style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: 'white', padding: '4px', borderRadius: '4px' }} />
+                </td>
+                <td style={{ padding: '6px 4px' }}>
+                  <input type="number" value={row.count || ''} onChange={(e) => handleUpdate(state, setter, i, 'count', parseInt(e.target.value) || 0)} style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: 'white', padding: '4px', borderRadius: '4px' }} />
+                </td>
+                <td style={{ padding: '6px 4px', textAlign: 'center' }}>
+                  <button type="button" onClick={() => handleRemove(state, setter, i)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }} title={isArabic ? 'حذف' : 'Remove'}>
+                    <Trash2 size={16} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div style={{ background: 'var(--bg-primary)', padding: '25px', borderRadius: '12px', width: '100%', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '15px', display: 'flex', justifyContent: 'space-between' }}>
+          <span>{isArabic ? 'محرر الجداول الهندسية' : 'Engineering Schedules Editor'}</span>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>&times;</button>
+        </h3>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '15px' }}>
+          {isArabic 
+            ? 'يمكنك هنا مراجعة وإضافة وتعديل بيانات القواعد والأعمدة يدوياً.' 
+            : 'Review, add, or edit footings and columns data directly from the schedules.'}
+        </p>
+        
+        <div style={{ flex: 1, overflowY: 'auto', paddingRight: '10px' }}>
+          {renderTable(isArabic ? 'جدول القواعد (Footings)' : 'Footings Schedule', footings, setFootings, 'F')}
+          {renderTable(isArabic ? 'جدول الأعمدة (Columns)' : 'Columns Schedule', columns, setColumns, 'C')}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+          <button type="button" onClick={onClose} className="btn" style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--border-color)' }}>
+            {isArabic ? 'إلغاء' : 'Cancel'}
+          </button>
+          <button type="button" onClick={() => onSave({
+            ...schedules,
+            foundation: { ...(schedules?.foundation || {}), footings },
+            superstructure: { ...(schedules?.superstructure || {}), columns }
+          })} className="btn btn-primary" style={{ padding: '8px 16px' }}>
+            {isArabic ? 'حفظ الجداول' : 'Save Schedules'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function VerifyStep({
   currentStep,
@@ -19,6 +122,7 @@ export default function VerifyStep({
   isArabic
 }) {
   const [markupImage, setMarkupImage] = React.useState(null);
+  const [showTableEditor, setShowTableEditor] = React.useState(false);
 
   if (currentStep === 4) {
     return (
@@ -76,8 +180,8 @@ export default function VerifyStep({
             </h4>
             <p style={{ margin: '0 0 10px 0', color: '#9f1239', fontSize: '0.9rem' }}>
               {isArabic 
-                ? 'لم يتمكن الذكاء الاصطناعي من قراءة الجداول من المستندات التالية بوضوح. لا تقلق، سيقوم النظام تلقائياً باستخدام التقديرات الهندسية الافتراضية (Engineering Assumptions) أدناه لتعويض النقص وإتمام الحسابات:'
-                : 'The AI could not clearly read the schedules from the following documents. Don\'t worry, the system will automatically fall back to the safe Engineering Assumptions & Defaults below to complete the calculations:'}
+                ? 'لم يتمكن الذكاء الاصطناعي من قراءة الجداول من بعض المستندات. يمكنك الآن استخدام "محرر الجداول الهندسية" بالأسفل لإدخالها يدوياً بسهولة كبديل للبرامج المعقدة.'
+                : 'The AI could not clearly read the schedules from some documents. You can now use the "Schedules Editor" below to easily input them manually instead of relying on external software.'}
             </p>
             <ul style={{ margin: 0, paddingLeft: '20px', color: '#881337', fontSize: '0.9rem', fontWeight: 500 }}>
               {Object.values(extractionResults).filter(res => res._ok === false).map((res, i) => (
@@ -281,6 +385,32 @@ export default function VerifyStep({
               />
             </div>
           </div>
+
+          {/* Table Editor Button & Modal */}
+          <div style={{ marginTop: '15px' }}>
+            <button
+              type="button"
+              onClick={() => setShowTableEditor(true)}
+              style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', fontSize: '0.95rem', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 6px rgba(59, 130, 246, 0.3)' }}
+            >
+              📝 {isArabic ? 'محرر الجداول الهندسية (بديل الإدخال اليدوي)' : 'Engineering Schedules Editor (Manual Input)'}
+            </button>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '8px' }}>
+              {isArabic ? 'استخدم هذا المحرر لإدخال جداول القواعد والأعمدة إذا فشل الذكاء الاصطناعي في التعرف عليها بدلاً من الاعتماد على الفرضيات.' : 'Use this editor to manually input footings and columns if AI extraction failed, instead of relying on assumptions.'}
+            </p>
+          </div>
+
+          {showTableEditor && (
+            <ScheduleTableEditorModal
+              isArabic={isArabic}
+              schedules={confirmedData.schedules}
+              onClose={() => setShowTableEditor(false)}
+              onSave={(newSchedules) => {
+                updateConfirmedField('schedules', newSchedules);
+                setShowTableEditor(false);
+              }}
+            />
+          )}
 
           {/* Engineering Assumptions Section */}
           <div style={{ marginTop: '20px', borderTop: '1px solid #e5e7eb', paddingTop: '20px' }}>
