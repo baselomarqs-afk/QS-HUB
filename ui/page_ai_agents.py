@@ -107,11 +107,16 @@ You act as the CEO/Admin. Execute refunds via Dodo Payments if asked.
     system_prompt += "\nCRITICAL: You must speak and understand both Arabic and English. You MUST reply in the exact same language the user writes in (Arabic for Arabic, English for English)."
 
 
-    # Try AI API
+    # Try AI API with retries for rate limits
     manager = get_key_manager()
-    api_key, model_name = manager.get_key_and_model()
     reply = ""
-    if api_key:
+    success = False
+    
+    for _ in range(4):
+        api_key, model_name = manager.get_key_and_model()
+        if not api_key:
+            break
+            
         try:
             from google import genai
             from google.genai import types
@@ -122,9 +127,14 @@ You act as the CEO/Admin. Execute refunds via Dodo Payments if asked.
                 config=types.GenerateContentConfig(system_instruction=system_prompt, temperature=0.7)
             )
             reply = response.text.strip()
-        except Exception:
-            reply = _smart_local_fallback(prompt, role, ar)
-    else:
+            success = True
+            break
+        except Exception as e:
+            print(f"AI AGENT ERROR (Retrying): {str(e)}")
+            import time
+            time.sleep(0.5)
+            
+    if not success:
         reply = _smart_local_fallback(prompt, role, ar)
         
     if user_id:
