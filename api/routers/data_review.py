@@ -370,6 +370,20 @@ def reconstruct_project_inputs(state_data: dict):
     elif "solid_block_height" not in sources:
         sources["solid_block_height"] = "Eng. Standard (Default)"
             
+    # Column Fallback
+    if "column_schedule" not in confirmed.get("schedules", {}) or not confirmed["schedules"]["column_schedule"].get("columns"):
+        gf_area = float(confirmed.get("gf_area") or 0.0)
+        if gf_area > 0:
+            est_count = max(4, int(gf_area / 16.0)) # Typical: 1 column per 16m2
+            if "schedules" not in confirmed:
+                confirmed["schedules"] = {}
+            confirmed["schedules"]["column_schedule"] = {
+                "columns": [
+                    {"mark": "C1", "width_m": 0.2, "length_m": 0.6, "count": est_count, "count_in_plans": est_count}
+                ]
+            }
+            sources["column_schedule"] = "Geometric Fallback"
+            
     confirmed["sources"] = sources
     state_data["confirmed_auto_data"] = confirmed
 

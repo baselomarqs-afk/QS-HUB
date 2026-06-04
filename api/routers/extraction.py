@@ -126,8 +126,13 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
                 cv_perim_px = cv_data.get("cv_perimeter_px", 0)
                 if perim_m and cv_perim_px > 0:
                     scale = perim_m / cv_perim_px
-                    # Do not overwrite int_walls_length with the highly inflated cv_data value.
-                    # The AI mathematically calculates it much more accurately from room dimensions.
+                    cv_data["cv_perimeter_m"] = cv_perim_px * scale
+                    cv_data["cv_area_m2"] = cv_data.get("cv_area_px", 0) * (scale ** 2)
+                    
+                    # If AI failed to extract GF area, fallback to OpenCV geometry
+                    if not extracted.get("total_floor_area") or extracted.get("total_floor_area", 0) == 0:
+                        extracted["total_floor_area"] = round(cv_data["cv_area_m2"], 2)
+                        extracted["notes"] = extracted.get("notes", "") + f" [OPENCV FALLBACK: Area calculated geometrically as {extracted['total_floor_area']}m2]"
                         
                 extracted.update(cv_data)
 

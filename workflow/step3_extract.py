@@ -681,6 +681,26 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             
         data = asyncio.run(run_dedicated_extractors())
         data = _finishes_from_rooms(data)
+        
+        # --- BULLSHIT FILTER ---
+        try:
+            length = float(data.get("overall_length_m") or 0.0)
+            width = float(data.get("overall_width_m") or 0.0)
+            bbox_area = length * width
+            
+            if bbox_area > 0:
+                area = float(data.get("total_floor_area") or 0.0)
+                if area <= 0 or area > bbox_area * 1.1 or area < bbox_area * 0.3:
+                    data["total_floor_area"] = round(bbox_area * 0.85, 2)
+                    data["notes"] = (data.get("notes", "") + " [BULLSHIT FILTER: AI Area rejected. Geometric fallback used.]").strip()
+                    
+                perim = float(data.get("ext_perimeter") or 0.0)
+                if perim <= 0 or perim > (length + width) * 4 or perim < (length + width) * 1.5:
+                    data["ext_perimeter"] = round((length + width) * 2, 2)
+                    data["notes"] = (data.get("notes", "") + " [BULLSHIT FILTER: AI Perimeter rejected. Geometric fallback used.]").strip()
+        except Exception as e:
+            print(f"Bullshit filter error: {e}")
+
         data = _normalize_units(data)
         
         from workflow.sanity_checks import perform_floor_plan_sanity_checks
