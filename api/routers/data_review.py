@@ -202,6 +202,13 @@ def reconstruct_project_inputs(state_data: dict):
             if val_10 == 0 and val_20 == 0:
                 val_20 = float(page.get("int_walls_length") or 0.0)
                 
+            # GEOMETRIC FALLBACK: If internal walls failed completely, estimate from floor area
+            if val_10 == 0 and val_20 == 0:
+                area = float(page.get("total_floor_area") or page.get("floor_area") or confirmed.get("gf_area") or 0.0)
+                if area > 0:
+                    val_20 = round(area * 1.5, 2)
+                    sources["int_walls_20cm_m"] = "Geometric Fallback"
+                
             if "int_walls_10cm_m" not in sources or sources["int_walls_10cm_m"] == "AI OCR":
                 if val_10 > 0:
                     confirmed["int_walls_10cm_m"] = confirmed.get("int_walls_10cm_m", 0.0) + val_10

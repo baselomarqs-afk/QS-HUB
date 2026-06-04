@@ -53,9 +53,9 @@ Extract ONLY the roof slab dimensions (ALL in METRES):
 Return ONLY this JSON:
 {"slab_area":null,"slab_thickness":0.20,"roof_perimeter":null,"confidence":"high|medium|low","notes":""}"""
 
-BEAM_SCHEDULE_PROMPT = """You are reading a BEAM schedule of a UAE villa.
-Extract ONLY the beam types and their section dimensions (ALL in METRES):
+BEAM_SCHEDULE_PROMPT = """You are reading a BEAM plan and schedule of a UAE villa.
+Extract ONLY the beam types, their section dimensions, AND their estimated total lengths from the plan (ALL in METRES):
 - "beams": one object per beam TYPE:
-    {"mark":"B1","width":<m>,"depth":<m>}
+    {"mark":"B1","width":<m>,"depth":<m>,"length":<total_length_of_all_segments_m>}
 Return ONLY this JSON:
-{"beams":[{"mark":"B1","width":0.20,"depth":0.60}],"confidence":"high|medium|low","notes":""}"""
+{"beams":[{"mark":"B1","width":0.20,"depth":0.60,"length":35.5}],"confidence":"high|medium|low","notes":""}"""
