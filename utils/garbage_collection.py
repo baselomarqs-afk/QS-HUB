@@ -33,3 +33,16 @@ async def cache_cleanup_task():
         
         # Sleep for 6 hours before checking again
         await asyncio.sleep(6 * 60 * 60)
+
+async def background_cleanup_project(project_cache_path: str, delay_seconds: int = 3600):
+    """
+    Schedules a single project cache folder for deletion after a delay.
+    Called after a project extraction completes to free disk space.
+    """
+    await asyncio.sleep(delay_seconds)
+    try:
+        if os.path.exists(project_cache_path) and os.path.isdir(project_cache_path):
+            shutil.rmtree(project_cache_path)
+            print(f"[Garbage Collection] Cleaned up project cache: {project_cache_path}")
+    except Exception as e:
+        print(f"[Garbage Collection] Error cleaning up {project_cache_path}: {e}")
