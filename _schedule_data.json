@@ -1,0 +1,199 @@
+{
+  "foundation": {
+    "footings": []
+  },
+  "tie_beam": {
+    "tie_beams": [
+      {
+        "type": "TB1",
+        "width_mm": 200,
+        "depth_mm": 500,
+        "length_m": 98.7,
+        "length_source": "measured_vector",
+        "length_confidence": 1.0
+      },
+      {
+        "type": "TB2",
+        "width_mm": 200,
+        "depth_mm": 500,
+        "length_m": 90.27,
+        "length_source": "measured_vector",
+        "length_confidence": 1.0
+      },
+      {
+        "type": "TB3",
+        "width_mm": 200,
+        "depth_mm": 500,
+        "length_m": 83.61,
+        "length_source": "measured_vector",
+        "length_confidence": 1.0
+      }
+    ],
+    "wall_footings": []
+  },
+  "column_schedule": {
+    "columns": [
+      {
+        "mark": "C1",
+        "width_mm": 200,
+        "depth_mm": 500,
+        "height_gf_mm": null,
+        "count_gf": 21,
+        "height_1f_mm": null,
+        "count_1f": null,
+        "height_2f_mm": null,
+        "count_2f": null,
+        "height_roof_mm": null,
+        "count_roof": null,
+        "count_gf_source": "fitz_text_extract"
+      },
+      {
+        "mark": "C2",
+        "width_mm": 200,
+        "depth_mm": 600,
+        "height_gf_mm": null,
+        "count_gf": 3,
+        "height_1f_mm": null,
+        "count_1f": null,
+        "height_2f_mm": null,
+        "count_2f": null,
+        "height_roof_mm": null,
+        "count_roof": null,
+        "count_gf_source": "fitz_text_extract"
+      },
+      {
+        "mark": "C3",
+        "width_mm": 200,
+        "depth_mm": 700,
+        "height_gf_mm": null,
+        "count_gf": 11,
+        "height_1f_mm": null,
+        "count_1f": null,
+        "height_2f_mm": null,
+        "count_2f": null,
+        "height_roof_mm": null,
+        "count_roof": null,
+        "count_gf_source": "fitz_text_extract"
+      },
+      {
+        "mark": "C4",
+        "width_mm": 200,
+        "depth_mm": 800,
+        "height_gf_mm": null,
+        "count_gf": null,
+        "height_1f_mm": null,
+        "count_1f": null,
+        "height_2f_mm": null,
+        "count_2f": null,
+        "height_roof_mm": null,
+        "count_roof": null
+      },
+      {
+        "mark": "C5",
+        "width_mm": 200,
+        "depth_mm": 900,
+        "height_gf_mm": null,
+        "count_gf": null,
+        "height_1f_mm": null,
+        "count_1f": null,
+        "height_2f_mm": null,
+        "count_2f": null,
+        "height_roof_mm": null,
+        "count_roof": null
+      },
+      {
+        "mark": "C6",
+        "width_mm": 200,
+        "depth_mm": 1000,
+        "height_gf_mm": null,
+        "count_gf": null,
+        "height_1f_mm": null,
+        "count_1f": null,
+        "height_2f_mm": null,
+        "count_2f": null,
+        "height_roof_mm": null,
+        "count_roof": null
+      }
+    ]
+  },
+  "slab_1f": {
+    "slab_thickness_mm": 200,
+    "beams": [
+      {
+        "mark": "B1",
+        "width_mm": 200,
+        "depth_mm": 600,
+        "count": 2,
+        "count_source": "fitz_text_extract",
+        "length_m": 9.11,
+        "length_source": "measured_vector",
+        "length_confidence": 1.0
+      },
+      {
+        "mark": "B2",
+        "width_mm": 200,
+        "depth_mm": 600,
+        "count": 12,
+        "count_source": "fitz_text_extract",
+        "length_m": 68.9,
+        "length_source": "measured_vector",
+        "length_confidence": 1.0
+      },
+      {
+        "mark": "HB1",
+        "width_mm": 400,
+        "depth_mm": 700,
+        "count": 2,
+        "count_source": "fitz_text_extract",
+        "length_m": 10.78,
+        "length_source": "measured_vector",
+        "length_confidence": 1.0
+      }
+    ]
+  },
+  "slab_roof": {
+    "slab_thickness_mm": 220,
+    "beams": [
+      {
+        "mark": "B1",
+        "width_mm": 200,
+        "depth_mm": 600,
+        "count": 7,
+        "count_source": "fitz_text_extract",
+        "length_m": 38.66,
+        "length_source": "measured_vector",
+        "length_confidence": 1.0
+      },
+      {
+        "mark": "B2",
+        "width_mm": 200,
+        "depth_mm": 600,
+        "count": 12,
+        "count_source": "fitz_text_extract",
+        "length_m": 69.3,
+        "length_source": "measured_vector",
+        "length_confidence": 1.0
+      },
+      {
+        "mark": "B3",
+        "width_mm": 200,
+        "depth_mm": 600,
+        "count": 2,
+        "count_source": "fitz_text_extract",
+        "length_m": 11.74,
+        "length_source": "measured_vector",
+        "length_confidence": 1.0
+      },
+      {
+        "mark": "B4",
+        "width_mm": 200,
+        "depth_mm": 800,
+        "count": 1,
+        "count_source": "fitz_text_extract",
+        "length_m": 0.0,
+        "length_source": "measured_vector",
+        "length_confidence": 0.0
+      }
+    ]
+  }
+}

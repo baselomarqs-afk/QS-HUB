@@ -1,5 +1,5 @@
 import React from 'react';
-import { Upload } from 'lucide-react';
+import { Upload, Info } from 'lucide-react';
 
 export default function UploadStep({
   strFiles,
@@ -26,8 +26,11 @@ export default function UploadStep({
           {/* Structural Drawing */}
           <div style={{ border: '2px dashed var(--border-color)', borderRadius: '12px', padding: '30px', textAlign: 'center', backgroundColor: 'var(--bg-primary)' }}>
             <Upload size={32} color="var(--text-muted)" style={{ marginBottom: '10px' }} />
-            <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '8px' }}>
+            <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
               {isArabic ? 'المخطط الإنشائي (Structural)' : 'Structural Drawings (PDF)'}
+              <div title={isArabic ? 'يجب أن يحتوي على الجداول الإنشائية (قواعد، أعمدة، ميد، تسليح الأسقف)' : 'Must contain structural schedules (Footings, Columns, Tie Beams, Slabs)'} style={{ cursor: 'help', color: 'var(--primary)' }}>
+                <Info size={14} />
+              </div>
             </h4>
             <input type="file" multiple accept=".pdf" onChange={(e) => setStrFiles(Array.from(e.target.files))} />
             {strFiles && strFiles.length > 0 && (
@@ -42,8 +45,11 @@ export default function UploadStep({
           {/* Architectural Drawing */}
           <div style={{ border: '2px dashed var(--border-color)', borderRadius: '12px', padding: '30px', textAlign: 'center', backgroundColor: 'var(--bg-primary)' }}>
             <Upload size={32} color="var(--text-muted)" style={{ marginBottom: '10px' }} />
-            <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '8px' }}>
+            <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
               {isArabic ? 'المخطط المعماري (Architectural)' : 'Architectural Drawings (PDF)'}
+              <div title={isArabic ? 'يجب أن يحتوي على المساقط الأفقية للأدوار، وجداول الأبواب والنوافذ' : 'Must contain Floor Plans and Doors & Windows schedules'} style={{ cursor: 'help', color: 'var(--primary)' }}>
+                <Info size={14} />
+              </div>
             </h4>
             <input type="file" multiple accept=".pdf" onChange={(e) => setArchFiles(Array.from(e.target.files))} />
             {archFiles && archFiles.length > 0 && (

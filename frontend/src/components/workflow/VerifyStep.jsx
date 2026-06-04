@@ -19,6 +19,23 @@ export default function VerifyStep({
   isArabic
 }) {
   const [markupImage, setMarkupImage] = React.useState(null);
+  const [showJsonEditor, setShowJsonEditor] = React.useState(false);
+  const [jsonInput, setJsonInput] = React.useState('');
+
+  const handleOpenJsonEditor = () => {
+    setJsonInput(JSON.stringify(confirmedData.schedules || {}, null, 2));
+    setShowJsonEditor(true);
+  };
+
+  const handleSaveJsonEditor = () => {
+    try {
+      const parsed = JSON.parse(jsonInput);
+      updateConfirmedField('schedules', parsed);
+      setShowJsonEditor(false);
+    } catch (err) {
+      alert(isArabic ? 'صيغة JSON غير صحيحة.' : 'Invalid JSON format.');
+    }
+  };
 
   if (currentStep === 4) {
     return (
@@ -67,6 +84,27 @@ export default function VerifyStep({
             ? 'يرجى تدقيق القيم التي استخرجها الذكاء الاصطناعي وتعديل أي قيم غير دقيقة قبل حساب جداول الحصر.'
             : 'Inspect the parameters extracted by AI. Correct any dimensions before running engineering calculations.'}
         </p>
+
+        {/* Failed Extractions Warnings */}
+        {extractionResults && Object.values(extractionResults).filter(res => res._ok === false).length > 0 && (
+          <div style={{ backgroundColor: '#fff1f2', borderLeft: '4px solid #e11d48', padding: '15px', marginBottom: '20px', borderRadius: '4px', boxShadow: 'var(--shadow-sm)' }}>
+            <h4 style={{ color: '#be123c', fontSize: '1rem', fontWeight: 700, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              🚨 {isArabic ? 'تنبيه: فشل قراءة بعض المخططات' : 'Alert: AI Extraction Failed for Some Pages'}
+            </h4>
+            <p style={{ margin: '0 0 10px 0', color: '#9f1239', fontSize: '0.9rem' }}>
+              {isArabic 
+                ? 'لم يتمكن الذكاء الاصطناعي من قراءة المستندات التالية بوضوح. يرجى إدخال قيمها يدوياً أدناه لتجنب الحسابات الخاطئة:'
+                : 'The AI could not clearly read the following documents. Please input their values manually below to avoid miscalculations:'}
+            </p>
+            <ul style={{ margin: 0, paddingLeft: '20px', color: '#881337', fontSize: '0.9rem', fontWeight: 500 }}>
+              {Object.values(extractionResults).filter(res => res._ok === false).map((res, i) => (
+                <li key={i} style={{ marginBottom: '6px' }}>
+                  <strong>{res.detected_type || 'Unknown'} (Page {res.page_num || '?'})</strong>: {res._error || 'Unreadable format or missing tables.'}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {sanityWarnings && sanityWarnings.length > 0 && (
           <div style={{ backgroundColor: '#fee2e2', borderLeft: '4px solid #ef4444', padding: '15px', marginBottom: '20px', borderRadius: '4px' }}>
@@ -260,6 +298,47 @@ export default function VerifyStep({
               />
             </div>
           </div>
+
+          {/* Advanced JSON Editor Button */}
+          <div style={{ marginTop: '10px' }}>
+            <button
+              type="button"
+              onClick={handleOpenJsonEditor}
+              style={{ background: 'transparent', color: '#3b82f6', border: '1px solid #3b82f6', padding: '8px 16px', borderRadius: '6px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 600 }}
+            >
+              ⚙️ {isArabic ? 'متقدم: تعديل جداول القواعد والأعمدة يدوياً (JSON)' : 'Advanced: Edit Schedules Data (JSON)'}
+            </button>
+          </div>
+
+          {/* JSON Editor Modal */}
+          {showJsonEditor && (
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+              <div style={{ background: 'var(--bg-primary)', padding: '25px', borderRadius: '12px', width: '100%', maxWidth: '700px', boxShadow: '0 10px 25px rgba(0,0,0,0.3)' }}>
+                <h3 style={{ marginTop: 0, marginBottom: '15px', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>{isArabic ? 'محرر بيانات الجداول' : 'Schedules Data Editor'}</span>
+                  <button type="button" onClick={() => setShowJsonEditor(false)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>&times;</button>
+                </h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '15px' }}>
+                  {isArabic 
+                    ? 'قم بتعديل المصفوفات المستخرجة للقواعد، والأعمدة، والميد مباشرة هنا. تأكد من صحة صيغة JSON.' 
+                    : 'Modify the extracted arrays for footings, columns, and beams directly here. Ensure valid JSON.'}
+                </p>
+                <textarea
+                  value={jsonInput}
+                  onChange={(e) => setJsonInput(e.target.value)}
+                  style={{ width: '100%', height: '300px', fontFamily: 'monospace', fontSize: '0.9rem', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: '#1e293b', color: '#e2e8f0' }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                  <button type="button" onClick={() => setShowJsonEditor(false)} className="btn" style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--border-color)' }}>
+                    {isArabic ? 'إلغاء' : 'Cancel'}
+                  </button>
+                  <button type="button" onClick={handleSaveJsonEditor} className="btn btn-primary" style={{ padding: '8px 16px' }}>
+                    {isArabic ? 'حفظ التعديلات' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Engineering Assumptions Section */}
           <div style={{ marginTop: '20px', borderTop: '1px solid #e5e7eb', paddingTop: '20px' }}>

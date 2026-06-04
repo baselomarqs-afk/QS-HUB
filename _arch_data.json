@@ -1,0 +1,47 @@
+{
+  "_source_pdf": "C:\\Users\\basel\\Downloads\\New folder (5)\\arch1777959560477.pdf",
+  "floors": {
+    "gf": {
+      "area": 159.62,
+      "ext_perimeter": 53.06,
+      "wall_internal": 57.27,
+      "wet_area": 36.75,
+      "wet_perimeter": 62.2,
+      "dry_area": 122.87,
+      "dry_perimeter": 105.4,
+      "balcony_area": null,
+      "is_ground_floor": true
+    },
+    "1f": {
+      "area": 222.7,
+      "ext_perimeter": 50.46,
+      "wall_internal": 61.77,
+      "wet_area": 27.28,
+      "wet_perimeter": 42.0,
+      "dry_area": 117.06,
+      "dry_perimeter": 132.0,
+      "balcony_area": 0.0,
+      "is_ground_floor": false
+    },
+    "roof": {
+      "area": 181.68,
+      "ext_perimeter": 61.0,
+      "is_ground_floor": false
+    }
+  },
+  "plot_area": 775.89,
+  "compound_length": 111.42,
+  "gf_area": 159.62,
+  "external_perimeter": 53.06,
+  "longest_length": 21.2,
+  "longest_width": 14.6,
+  "roof_slab_area": 181.68,
+  "roof_perimeter": 61.0,
+  "parapet_height": 1.2,
+  "total_villa_height": null,
+  "structural_levels": 3,
+  "_arch_warnings": [
+    "plot_area auto-computed from 37.83×20.51",
+    "compound_length estimated from sqrt(plot_area): 111.42"
+  ]
+}
