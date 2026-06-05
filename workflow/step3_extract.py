@@ -443,6 +443,13 @@ async def _ask_ai_with_retry(img_bytes: bytes, full_prompt: str, mgr, force_reex
 
 
 def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_id: int = None, previous_warnings: list = None, image_path: str = None, pdf_path: str = None, internal_page_idx: int = None, force_reextract: bool = False) -> dict:
+    csv_injection = ""
+    if pdf_path and internal_page_idx is not None:
+        from pdf_engine.table_extractor import extract_tables_as_csv
+        raw_csv = extract_tables_as_csv(pdf_path, internal_page_idx)
+        if raw_csv:
+            csv_injection = f"\n\n[DETERMINISTIC PDF EXTRACTION OVERRIDE]\nThe following is the raw CSV data of the tables extracted perfectly from the PDF using OCR. Rely on this text heavily for counts and dimensions, and use the image only as a visual reference:\n```csv\n{raw_csv}\n```\n"
+
     """
     Extract the values a drawing's formulas need.
     Uses AI Vision for complex readings, and strict Vector Math (PyMuPDF) for beam lengths.
@@ -477,6 +484,9 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
                 warning_text = "\n- ".join(previous_warnings)
                 refl = f"\n\n[CRITICAL SELF-REFLECTION REQUIRED]\nYour previous extraction failed these checks:\n- {warning_text}\nOutput a FIXED JSON."
                 p1 += refl; p2 += refl
+            
+            p1 += csv_injection
+            p2 += csv_injection
                 
             if page_texts and page_texts.strip():
                 txt = f"\n\n--- RAW TEXT ---\n{page_texts}\n-----------------"
@@ -529,6 +539,9 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
                 refl = f"\n\n[CRITICAL SELF-REFLECTION REQUIRED]\nYour previous extraction failed these checks:\n- {warning_text}\nOutput a FIXED JSON."
                 p1 += refl; p2 += refl
                 
+            p1 += csv_injection
+            p2 += csv_injection
+
             if page_texts and page_texts.strip():
                 txt = f"\n\n--- RAW TEXT ---\n{page_texts}\n-----------------"
                 p1 += txt; p2 += txt
@@ -594,6 +607,9 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
                 warning_text = "\n- ".join(previous_warnings)
                 refl = f"\n\n[CRITICAL SELF-REFLECTION REQUIRED]\nYour previous extraction failed these checks:\n- {warning_text}\nOutput a FIXED JSON."
                 p1 += refl; p2 += refl
+            
+            p1 += csv_injection
+            p2 += csv_injection
                 
             if page_texts and page_texts.strip():
                 txt = f"\n\n--- RAW TEXT ---\n{page_texts}\n-----------------"
@@ -679,6 +695,10 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
                 warning_text = "\n- ".join(previous_warnings)
                 refl = f"\n\n[CRITICAL SELF-REFLECTION REQUIRED]\nYour previous extraction failed these checks:\n- {warning_text}\nOutput a FIXED JSON."
                 arch_p += refl; wall_p += refl; open_p += refl
+            
+            arch_p += csv_injection
+            wall_p += csv_injection
+            open_p += csv_injection
                 
             if page_texts and page_texts.strip():
                 txt = f"\n\n--- RAW TEXT ---\n{page_texts}\n-----------------"
@@ -769,6 +789,7 @@ Return ONLY this JSON structure (null for not found):
 {schema}"""
 
     full_prompt += METRES_NOTE
+    full_prompt += csv_injection
     
     if user_id:
         from engine.qto_memory import format_rules_for_prompt

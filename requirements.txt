@@ -38,3 +38,5 @@ matplotlib>=3.8.0
 # To enable OCR: pip install easyocr
 # NOTE: streamlit is no longer needed — the API is fully decoupled.
 DBUtils>=3.1.0
+
+pdfplumber==0.11.0
