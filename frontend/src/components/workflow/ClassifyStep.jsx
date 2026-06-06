@@ -1,5 +1,5 @@
 import React from 'react';
-import { ZoomIn, ZoomOut } from 'lucide-react';
+import { ZoomIn, ZoomOut, Plus, Trash2 } from 'lucide-react';
 
 export default function ClassifyStep({
   classifiedPages,
@@ -12,6 +12,24 @@ export default function ClassifyStep({
   handleSaveClassifications,
   loading
 }) {
+  const handleDuplicate = (e, idx) => {
+    e.stopPropagation();
+    const updated = [...classifiedPages];
+    const newPage = { ...updated[idx], detected_type: 'unknown' };
+    updated.splice(idx + 1, 0, newPage);
+    setClassifiedPages(updated);
+  };
+
+  const handleRemove = (e, idx, pageNum) => {
+    e.stopPropagation();
+    const count = classifiedPages.filter(p => p.page_num === pageNum).length;
+    if (count > 1) {
+      const updated = [...classifiedPages];
+      updated.splice(idx, 1);
+      setClassifiedPages(updated);
+    }
+  };
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '25px', height: 'calc(100vh - 160px)' }}>
       {/* Left Page Image Viewer */}
@@ -68,35 +86,48 @@ export default function ClassifyStep({
                   {page.pdf === 'structural' ? (isArabic ? 'إنشائي' : 'Structural') : (isArabic ? 'معماري' : 'Architectural')} P{page.page_num}
                 </span>
               </div>
-              <select
-                className="form-input"
-                value={page.detected_type}
-                onChange={(e) => {
-                  const updated = [...classifiedPages];
-                  updated[idx].detected_type = e.target.value;
-                  setClassifiedPages(updated);
-                }}
-                style={{ width: '160px', padding: '6px 10px', fontSize: '0.85rem' }}
-              >
-                <option value="unknown">{isArabic ? 'غير مصنف' : 'Unknown'}</option>
-                <option value="foundations">{isArabic ? 'جدول القواعد (Foundations)' : 'Foundations Schedule'}</option>
-                <option value="tie_beam">{isArabic ? 'مخطط الميدة (Tie Beams)' : 'Tie Beams Layout'}</option>
-                <option value="upper_columns">{isArabic ? 'جدول الأعمدة (Columns Schedule)' : 'Columns Schedule'}</option>
-                <option value="neck_columns">{isArabic ? 'أعمدة الأرضي/الرقبة (Neck Columns)' : 'Neck Columns'}</option>
-                <option value="columns_1f">{isArabic ? 'أعمدة الأول (1st Floor Columns)' : '1st Floor Columns'}</option>
-                <option value="columns_2f">{isArabic ? 'أعمدة الثاني (2nd Floor Columns)' : '2nd Floor Columns'}</option>
-                <option value="columns_roof">{isArabic ? 'أعمدة السطح (Roof Columns)' : 'Roof Columns'}</option>
-                <option value="slab_1st">{isArabic ? 'سقف الأول (1st Floor Slab)' : '1st Floor Slab'}</option>
-                <option value="slab_2nd">{isArabic ? 'سقف الثاني (2nd Floor Slab)' : '2nd Floor Slab'}</option>
-                <option value="roof_slab">{isArabic ? 'سقف السطح (Roof Slab)' : 'Roof Slab'}</option>
-                <option value="setting_out">{isArabic ? 'مخطط الموقع/الموقع العام (Setting Out)' : 'Setting Out / Plot Plan'}</option>
-                <option value="ground_floor_plan">{isArabic ? 'مخطط الأرضي (Ground Floor Plan)' : 'Ground Floor Plan'}</option>
-                <option value="first_floor_plan">{isArabic ? 'مخطط الأول (1st Floor Plan)' : '1st Floor Plan'}</option>
-                <option value="second_floor_plan">{isArabic ? 'مخطط الثاني (2nd Floor Plan)' : '2nd Floor Plan'}</option>
-                <option value="roof_floor_plan">{isArabic ? 'مخطط السطح (Roof Floor Plan)' : 'Roof Floor Plan'}</option>
-                <option value="elevations">{isArabic ? 'الواجهات (Elevations)' : 'Elevations'}</option>
-                <option value="schedules">{isArabic ? 'جداول الفتحات والأبواب (Schedules)' : 'Schedules (Doors/Windows)'}</option>
-              </select>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <select
+                  className="form-input"
+                  value={page.detected_type}
+                  onChange={(e) => {
+                    const updated = [...classifiedPages];
+                    updated[idx].detected_type = e.target.value;
+                    setClassifiedPages(updated);
+                  }}
+                  style={{ width: '160px', padding: '6px 10px', fontSize: '0.85rem' }}
+                >
+                  <option value="unknown">{isArabic ? 'غير مصنف' : 'Unknown'}</option>
+                  <option value="foundations">{isArabic ? 'جدول القواعد (Foundations)' : 'Foundations Schedule'}</option>
+                  <option value="tie_beam">{isArabic ? 'مخطط الميدات (Tie Beams)' : 'Tie Beams Layout'}</option>
+                  <option value="upper_columns">{isArabic ? 'جدول الأعمدة (Columns Schedule)' : 'Columns Schedule'}</option>
+                  <option value="neck_columns">{isArabic ? 'أعمدة الرقاب/القبو (Neck Columns)' : 'Neck Columns'}</option>
+                  <option value="columns_1f">{isArabic ? 'أعمدة الأول (1st Floor Columns)' : '1st Floor Columns'}</option>
+                  <option value="columns_2f">{isArabic ? 'أعمدة الثاني (2nd Floor Columns)' : '2nd Floor Columns'}</option>
+                  <option value="columns_roof">{isArabic ? 'أعمدة السطح (Roof Columns)' : 'Roof Columns'}</option>
+                  <option value="slab_1st">{isArabic ? 'سقف الأول (1st Floor Slab)' : '1st Floor Slab'}</option>
+                  <option value="slab_2nd">{isArabic ? 'سقف الثاني (2nd Floor Slab)' : '2nd Floor Slab'}</option>
+                  <option value="roof_slab">{isArabic ? 'سقف الملحق (Roof Slab)' : 'Roof Slab'}</option>
+                  <option value="ground_floor_plan">{isArabic ? 'معماري الأرضي (Ground Floor Plan)' : 'Ground Floor Plan'}</option>
+                  <option value="first_floor_plan">{isArabic ? 'معماري الأول (First Floor Plan)' : 'First Floor Plan'}</option>
+                  <option value="second_floor_plan">{isArabic ? 'معماري الثاني (Second Floor Plan)' : 'Second Floor Plan'}</option>
+                  <option value="roof_floor_plan">{isArabic ? 'معماري السطح (Roof Floor Plan)' : 'Roof Floor Plan'}</option>
+                  <option value="arch_doors">{isArabic ? 'جدول الأبواب (Doors Schedule)' : 'Doors Schedule'}</option>
+                  <option value="arch_windows">{isArabic ? 'جدول النوافذ (Windows Schedule)' : 'Windows Schedule'}</option>
+                  <option value="elevations">{isArabic ? 'واجهات (Elevations)' : 'Elevations'}</option>
+                  <option value="setting_out">{isArabic ? 'مخطط التوقيع (Setting Out)' : 'Setting Out'}</option>
+                </select>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button type="button" onClick={(e) => handleDuplicate(e, idx)} title={isArabic ? 'إضافة تصنيف آخر لهذه الصفحة' : 'Add another classification for this page'} style={{ background: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', padding: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                    <Plus size={14} />
+                  </button>
+                  {classifiedPages.filter(p => p.page_num === page.page_num).length > 1 && (
+                    <button type="button" onClick={(e) => handleRemove(e, idx, page.page_num)} title={isArabic ? 'حذف هذا التصنيف' : 'Remove classification'} style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', padding: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           ))}
         </div>
