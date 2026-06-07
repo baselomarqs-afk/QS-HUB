@@ -1,5 +1,5 @@
 import React from 'react';
-import { ZoomIn, ZoomOut, Plus, Trash2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, Plus, Trash2, Info } from 'lucide-react';
 
 export default function ClassifyStep({
   classifiedPages,
