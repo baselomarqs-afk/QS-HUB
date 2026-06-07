@@ -29,9 +29,13 @@ For EACH column mark in the table, extract:
 - "mark": the column label (e.g. C1, C2)
 - "width_m":  the smaller plan dimension, in METRES
 - "length_m": the larger plan dimension, in METRES
+- "count_gf": number of columns of this mark on the Ground Floor (or "count" if the table has only one general count column)
+- "count_1f": number of columns on the First Floor
+- "count_2f": number of columns on the Second Floor
+- "count_roof": number of columns on the Roof Floor
 
 Return ONLY this JSON (no extra text):
-{"columns": [{"mark":"C1","width_m":0.30,"length_m":0.60}],
+{"columns": [{"mark":"C1","width_m":0.20,"length_m":0.60,"count_gf":12,"count_1f":12,"count_2f":0,"count_roof":8}],
  "confidence":"high|medium|low", "notes":""}"""
 
 # Dedicated PER-FLOOR column pages → single count for that one floor
@@ -259,14 +263,19 @@ def _finishes_from_rooms(data: dict) -> dict:
     W = data.get("overall_width_m") if data.get("overall_width_m") is not None else data.get("longest_width")
     L, W = dim(L), dim(W)
     ext_per = 2 * (L + W) if (L and W) else 0.0
-    if not total_area and L and W:
-        total_area = L * W
+    
+    summed_rooms_area = total_area
+    
+    # The AI frequently misses corridors and unmarked spaces.
+    # If L and W are present, L * W is a much safer upper bound for area.
+    # We assume ~85% of the bounding box is the actual floor plate.
+    if L and W:
+        bounding_area = L * W * 0.85
+        total_area = max(summed_rooms_area, bounding_area)
 
-    # ── Consistency: a floor's external perimeter must match its built area ──
-    # If overall dims were misread (e.g. whole-building dims on a small setback
-    # floor), the implied area dwarfs the real floor area → derive perimeter
-    # from the area instead (a compact floor perimeter ≈ 4.2·√area).
-    if total_area > 0:
+    # --> Consistency: a floor's external perimeter must match its built area <--
+    # Only override perimeter if we DON'T have explicit L and W from dimension lines.
+    if total_area > 0 and not (L and W):
         implied = (ext_per / 4.0) ** 2 if ext_per else 0.0
         if (not ext_per) or implied > total_area * 1.8:
             ext_per = round(4.2 * (total_area ** 0.5), 2)
