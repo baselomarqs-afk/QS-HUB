@@ -115,7 +115,14 @@ export default function Billing({ token, isArabic }) {
                   </button>
                 </div>
               ) : (
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', display: 'block', marginTop: '8px' }}>Inactive</span>
+                <div style={{ marginTop: '12px', padding: '10px', backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: '6px' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
+                    {isArabic ? 'الحالة: غير نشط' : 'Status: Inactive'}
+                  </span>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.4' }}>
+                    {isArabic ? 'أنت غير مشترك حالياً في أي باقة. يرجى اختيار باقة من الأسفل لترقية حسابك.' : 'You are not subscribed to any plan. Please choose a package below to upgrade your account.'}
+                  </p>
+                </div>
               )}
             </div>
 

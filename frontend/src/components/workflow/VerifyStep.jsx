@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Info } from 'lucide-react';
 
 const ScheduleTableEditorModal = ({ isArabic, schedules, onSave, onClose }) => {
   const [footings, setFootings] = React.useState(schedules?.foundation?.footings || []);
@@ -166,11 +166,19 @@ export default function VerifyStep({
             👁️ {isArabic ? 'عرض التلوين التلقائي' : 'View CV Takeoffs'}
           </button>
         </h3>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '25px' }}>
-          {isArabic 
-            ? 'يرجى تدقيق القيم التي استخرجها الذكاء الاصطناعي وتعديل أي قيم غير دقيقة قبل حساب جداول الحصر.'
-            : 'Inspect the parameters extracted by AI. Correct any dimensions before running engineering calculations.'}
-        </p>
+      <div style={{ padding: '15px 20px', backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '8px', display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '25px', textAlign: isArabic ? 'right' : 'left' }}>
+        <div style={{ color: '#3b82f6', marginTop: '2px' }}><Info size={20} /></div>
+        <div>
+          <h4 style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px', fontSize: '0.95rem' }}>
+            {isArabic ? 'ما المطلوب في هذه الخطوة؟' : 'What to do in this step?'}
+          </h4>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0, lineHeight: '1.5' }}>
+            {isArabic 
+              ? 'يرجى تدقيق القيم التي استخرجها الذكاء الاصطناعي وتعديل أي قيم غير دقيقة قبل حساب جداول الحصر النهائي. إذا كانت هناك قيم مفقودة يمكنك إضافتها يدوياً عبر محرر الجداول.'
+              : 'Inspect the parameters extracted by AI. Correct any dimensions before running engineering calculations. If there are missing values, you can use the Schedules Editor to add them manually.'}
+          </p>
+        </div>
+      </div>
 
         {/* Failed Extractions Warnings */}
         {extractionResults && Object.values(extractionResults).filter(res => res._ok === false).length > 0 && (

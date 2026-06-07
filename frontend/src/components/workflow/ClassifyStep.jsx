@@ -31,7 +31,23 @@ export default function ClassifyStep({
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '25px', height: 'calc(100vh - 160px)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+      {/* Step Instructions */}
+      <div style={{ padding: '15px 20px', backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '8px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+        <div style={{ color: '#3b82f6', marginTop: '2px' }}><Info size={20} /></div>
+        <div>
+          <h4 style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px', fontSize: '0.95rem' }}>
+            {isArabic ? 'ما المطلوب في هذه الخطوة؟' : 'What to do in this step?'}
+          </h4>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0, lineHeight: '1.5' }}>
+            {isArabic 
+              ? 'قام الذكاء الاصطناعي بمحاولة التعرف على صفحات المخطط وتصنيفها. المطلوب منك هو مراجعة هذه القائمة بالنظر للصفحة على اليسار، وتأكيد نوع المخطط (قواعد، أعمدة، معماري... إلخ) أو تغييره من القائمة المنسدلة إذا كان غير صحيح. يمكنك تكرار الصفحة لتصنيفها بأكثر من نوع بالضغط على (+).'
+              : 'The AI has attempted to automatically classify your drawings. Please review the list on the right while looking at the preview on the left. Correct any misclassified pages using the dropdown menu. You can also duplicate a page using (+) if it contains multiple schedules.'}
+          </p>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '25px', height: 'calc(100vh - 230px)' }}>
       {/* Left Page Image Viewer */}
       <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -144,6 +160,7 @@ export default function ClassifyStep({
           )}
         </button>
       </div>
+    </div>
     </div>
   );
 }

@@ -15,11 +15,19 @@ export default function UploadStep({
       <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '8px' }}>
         {isArabic ? '1. رفع مخططات الفيلا الهندسية' : '1. Upload Villa Drawing Blueprints'}
       </h3>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '25px' }}>
-        {isArabic 
-          ? 'يرجى رفع ملفات المخططات الإنشائية والمعمارية بصيغة PDF لتبدأ المنصة بالتقطيع والتعرف.'
-          : 'Please upload structural and architectural drawing sheets to initiate quantity estimation.'}
-      </p>
+      <div style={{ padding: '15px 20px', backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '8px', display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '25px' }}>
+        <div style={{ color: '#3b82f6', marginTop: '2px' }}><Info size={20} /></div>
+        <div>
+          <h4 style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px', fontSize: '0.95rem' }}>
+            {isArabic ? 'ما المطلوب في هذه الخطوة؟' : 'What to do in this step?'}
+          </h4>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0, lineHeight: '1.5' }}>
+            {isArabic 
+              ? 'يرجى رفع ملفات المخططات الإنشائية والمعمارية بصيغة PDF ليقوم الذكاء الاصطناعي بقراءتها. (المخطط الإنشائي يجب أن يحتوي على جداول القواعد والأعمدة والميد، والمعماري يجب أن يحتوي على المساقط).'
+              : 'Please upload the structural and architectural blueprints (PDF format). The structural drawing must contain the schedules (footings, columns, etc.), and the architectural drawing must contain the floor plans.'}
+          </p>
+        </div>
+      </div>
 
       <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>

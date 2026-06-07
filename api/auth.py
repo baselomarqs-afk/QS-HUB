@@ -88,8 +88,8 @@ async def register(req: UserRegister):
     
     hashed = password_hash(req.password)
     success, err = safe_execute(
-        "INSERT INTO qto_users (email, password_hash, role) VALUES (%s, %s, %s)",
-        (email, hashed, "user")
+        "INSERT INTO qto_users (email, password_hash, role, extra_projects_allowance) VALUES (%s, %s, %s, %s)",
+        (email, hashed, "user", 1)
     )
     if not success:
         raise HTTPException(status_code=500, detail=f"Database insertion failed: {err}")

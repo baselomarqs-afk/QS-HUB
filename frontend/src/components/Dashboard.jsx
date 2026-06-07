@@ -158,6 +158,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
       console.error(err);
     }
   };
+  const limitReached = details && (details.usage.projects >= (details.project_limit + details.extra_projects));
 
   return (
     <div className="dashboard-content" style={{ padding: '30px', textAlign: isArabic ? 'right' : 'left', direction: isArabic ? 'rtl' : 'ltr' }}>
@@ -279,47 +280,85 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
           </div>
         </div>
         
-        <form onSubmit={handleCreateProject} style={{ 
-          display: 'flex', 
-          gap: '12px', 
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          backgroundColor: 'var(--bg-secondary)',
-          padding: '8px',
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid var(--border-color)',
-          boxShadow: 'var(--shadow-sm)'
-        }}>
-          <input
-            type="text"
-            className="form-input"
-            style={{ 
-              flex: 1, 
-              minWidth: '250px',
-              border: 'none',
-              boxShadow: 'none',
-              background: 'transparent',
-              fontSize: '1rem',
-              padding: '8px 12px'
-            }}
-            placeholder={isArabic ? 'اسم المشروع (مثال: فيلا رقم 12)' : 'Enter project name (e.g. Villa 12)...'}
-            value={newProjName}
-            onChange={e => setNewProjName(e.target.value)}
-            disabled={creating}
-          />
-          <button 
-            type="submit" 
-            className="btn btn-primary" 
-            style={{ 
-              padding: '12px 24px', 
-              fontSize: '1rem',
-              borderRadius: '8px'
-            }} 
-            disabled={creating || !newProjName.trim()}
-          >
-            {creating ? (isArabic ? 'جاري الإنشاء...' : 'Creating...') : (isArabic ? 'بدء المشروع 🚀' : 'Start Project 🚀')}
-          </button>
-        </form>
+        {limitReached ? (
+          <div style={{
+            padding: '20px',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: '8px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            gap: '12px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--error)' }}>
+              <ShieldAlert size={20} />
+              <span style={{ fontWeight: 700, fontSize: '1rem' }}>
+                {isArabic ? 'لقد استنفدت رصيد المشاريع المتاحة لك!' : 'You have reached your projects limit!'}
+              </span>
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
+              {isArabic 
+                ? 'لا يمكنك إنشاء المزيد من المشاريع حالياً. يرجى الاشتراك في باقة أعلى أو شراء إضافات لمتابعة إنشاء المشاريع.'
+                : 'You cannot create more projects. Please subscribe to a higher plan or purchase add-ons to continue.'}
+            </p>
+            <button 
+              onClick={() => onNavigate('billing')}
+              className="btn btn-primary"
+              style={{
+                marginTop: '5px',
+                padding: '10px 20px',
+                backgroundColor: 'var(--error)',
+                border: 'none',
+                fontWeight: 700
+              }}
+            >
+              {isArabic ? 'اشترك لمزيد من المشاريع' : 'Subscribe for more projects'}
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleCreateProject} style={{ 
+            display: 'flex', 
+            gap: '12px', 
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            backgroundColor: 'var(--bg-secondary)',
+            padding: '8px',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border-color)',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
+            <input
+              type="text"
+              className="form-input"
+              style={{ 
+                flex: 1, 
+                minWidth: '250px',
+                border: 'none',
+                boxShadow: 'none',
+                background: 'transparent',
+                fontSize: '1rem',
+                padding: '8px 12px'
+              }}
+              placeholder={isArabic ? 'اسم المشروع (مثال: فيلا رقم 12)' : 'Enter project name (e.g. Villa 12)...'}
+              value={newProjName}
+              onChange={e => setNewProjName(e.target.value)}
+              disabled={creating}
+            />
+            <button 
+              type="submit" 
+              className="btn btn-primary" 
+              style={{ 
+                padding: '12px 24px', 
+                fontSize: '1rem',
+                borderRadius: '8px'
+              }} 
+              disabled={creating || !newProjName.trim()}
+            >
+              {creating ? (isArabic ? 'جاري الإنشاء...' : 'Creating...') : (isArabic ? 'بدء المشروع 🚀' : 'Start Project 🚀')}
+            </button>
+          </form>
+        )}
       </div>
 
       {/* Active Project State Recovery Banner */}
