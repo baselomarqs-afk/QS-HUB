@@ -44,6 +44,10 @@ def execute_agent_tool(role, prompt, user_id):
             return "I have officially recorded your complaint and forwarded it directly to the Admin/AI Manager for immediate review. We apologize for any inconvenience."
             
     elif role == "mgr":
+        import re
+        emails = re.findall(r"[a-z0-9\.\-+_]+@[a-z0-9\.\-+_]+\.[a-z]+", q)
+        target_email = emails[0] if emails else None
+        
         if any(kw in q for kw in ["report", "تقرير", "status"]):
             stats = get_platform_stats()
             # Send Real email report
@@ -57,19 +61,79 @@ def execute_agent_tool(role, prompt, user_id):
             )
             return f"I have compiled the daily report and sent it to your admin email. Current Stats: {stats} (Email Sent: {sent})"
             
-        if any(kw in q for kw in ["refund", "استرجاع", "cancel"]):
-            import re
-            emails = re.findall(r"[a-z0-9\.\-+_]+@[a-z0-9\.\-+_]+\.[a-z]+", q)
-            if emails:
-                target_email = emails[0]
+        # 1. Cancel Subscriptions
+        if any(kw in q for kw in ["refund", "استرجاع", "cancel", "تجميد", "إلغاء اشتراك"]):
+            if target_email:
                 from utils.payments import issue_dodo_refund
                 success, msg = issue_dodo_refund(target_email)
                 safe_execute(
                     "INSERT INTO qto_agent_conversations (user_id, agent_role, sender, message) VALUES (%s, %s, %s, %s)",
-                    (user_id, "mgr", "system", f"DODO REFUND ATTEMPT ({target_email}): {msg}")
+                    (user_id, "mgr", "system", f"DODO CANCELLATION/REFUND ATTEMPT ({target_email}): {msg}")
                 )
-                return f"I executed the Dodo Payments API for {target_email}. Result: {msg}"
-            return "I have verified the refund policy. Please provide the user's exact email in your message to execute the Dodo refund API call."
+                return f"I executed the cancellation/refund API for {target_email}. Result: {msg}"
+            return "Please provide the user's exact email in your message to execute the cancellation/refund API call."
+
+        # 2. User Profiling
+        if any(kw in q for kw in ["profile", "تقرير عن", "تفاصيل"]):
+            if target_email:
+                user_df = safe_query("SELECT id, name, projects_consumed, extra_projects_allowance FROM qto_users WHERE email=%s LIMIT 1", (target_email,))
+                if user_df.empty:
+                    return f"User {target_email} not found in the database."
+                u_id = user_df.iloc[0]['id']
+                u_name = user_df.iloc[0]['name']
+                consumed = user_df.iloc[0]['projects_consumed']
+                extra = user_df.iloc[0]['extra_projects_allowance']
+                
+                sub_df = safe_query("SELECT plan_tier, status FROM qto_subscriptions WHERE user_id=%s ORDER BY id DESC LIMIT 1", (u_id,))
+                tier = sub_df.iloc[0]['plan_tier'] if not sub_df.empty else 0
+                sub_status = sub_df.iloc[0]['status'] if not sub_df.empty else 'none'
+                
+                return f"**User Profile:** {u_name} ({target_email})\n- **Consumed Projects:** {consumed}\n- **Extra Allowance:** {extra}\n- **Plan Tier:** {tier}\n- **Subscription Status:** {sub_status}"
+            return "Please provide the user's exact email to fetch their profile."
+
+        # 3. DB Health & Cleanup
+        if any(kw in q for kw in ["cleanup", "clean", "تنظيف"]):
+            from utils.garbage_collection import force_cleanup_now
+            count = force_cleanup_now()
+            return f"I have manually forced a system-wide garbage collection. {count} old project cache folders were successfully deleted to free up disk space."
+
+        if any(kw in q for kw in ["size", "حجم", "database size"]):
+            size_df = safe_query("SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) as MB FROM information_schema.tables WHERE table_schema = DATABASE()")
+            if not size_df.empty:
+                mb = size_df.iloc[0]['MB']
+                return f"The current live database size is **{mb} MB**. The database is healthy and performing optimally."
+            return "Could not retrieve database size."
+
+        # 4. Agent Supervision
+        if any(kw in q for kw in ["sarah", "سارة", "أداء سارة", "cc performance"]):
+            cc_logs = safe_query("SELECT sender, message FROM qto_agent_conversations WHERE agent_role='cc' AND created_at > NOW() - INTERVAL 1 DAY ORDER BY id DESC LIMIT 10")
+            if cc_logs.empty:
+                return "Sarah has not had any customer interactions in the past 24 hours."
+            
+            transcript = "\n".join([f"**{row['sender']}**: {row['message']}" for _, row in cc_logs.iterrows()])
+            return f"Here are the last 10 messages from Sarah's (Customer Care) interactions today:\n\n{transcript}\n\nPlease review these logs."
+
+        # 5. Broadcasts / Direct Messages
+        if any(kw in q for kw in ["email", "رسالة", "broadcast", "إشعار"]):
+            msg_match = re.search(r'["\'](.*?)["\']', prompt, re.DOTALL)
+            if not msg_match:
+                return "Please provide the exact message you want to send enclosed in quotes (e.g. 'Hello everyone...')."
+            
+            email_body = msg_match.group(1)
+            from utils.mailer import send_custom_email
+            
+            if "all" in q or "الجميع" in q:
+                users_df = safe_query("SELECT email FROM qto_users")
+                count = 0
+                for _, row in users_df.iterrows():
+                    send_custom_email("THE QS HUB - Important Update", email_body, row['email'])
+                    count += 1
+                return f"Broadcast email successfully sent to {count} users."
+            elif target_email:
+                success = send_custom_email("THE QS HUB - Support Update", email_body, target_email)
+                return f"Direct email sent to {target_email} successfully." if success else f"Failed to send email to {target_email}."
+            else:
+                return "Please specify an email address or 'all' to broadcast."
 
     return None
 

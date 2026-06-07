@@ -82,3 +82,35 @@ def send_reset_email(to_email: str, token: str) -> bool:
     except Exception as e:
         print(f"Failed to send reset email: {e}")
         return False
+def send_custom_email(subject: str, body_html: str, to_email: str) -> bool:
+    """
+    Sends a custom email via SMTP to a specific user.
+    """
+    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+    smtp_port = int(os.environ.get("SMTP_PORT", 587))
+    smtp_user = os.environ.get("SMTP_USER", "")
+    smtp_pass = os.environ.get("SMTP_PASS") or os.environ.get("SMTP_PASSWORD") or ""
+    from_email = os.environ.get("SMTP_FROM", smtp_user)
+
+    if not smtp_host or not smtp_user or not smtp_pass:
+        print("SMTP credentials not configured. Email not sent.")
+        return False
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = f"The QS Hub <{from_email}>"
+    msg["To"] = to_email
+
+    part1 = MIMEText(body_html, "html")
+    msg.attach(part1)
+
+    try:
+        server = smtplib.SMTP(smtp_host, smtp_port)
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.sendmail(smtp_user, to_email, msg.as_string())
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Failed to send custom email: {e}")
+        return False

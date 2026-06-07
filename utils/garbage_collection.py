@@ -46,3 +46,20 @@ async def background_cleanup_project(project_cache_path: str, delay_seconds: int
             print(f"[Garbage Collection] Cleaned up project cache: {project_cache_path}")
     except Exception as e:
         print(f"[Garbage Collection] Error cleaning up {project_cache_path}: {e}")
+
+def force_cleanup_now() -> int:
+    """
+    Synchronously deletes all project folders in CACHE_ROOT.
+    Returns the number of folders deleted.
+    """
+    count = 0
+    if os.path.exists(CACHE_ROOT):
+        for entry in os.listdir(CACHE_ROOT):
+            folder_path = os.path.join(CACHE_ROOT, entry)
+            if os.path.isdir(folder_path):
+                try:
+                    shutil.rmtree(folder_path)
+                    count += 1
+                except Exception as e:
+                    print(f"[Garbage Collection] Error force deleting {folder_path}: {e}")
+    return count
