@@ -678,7 +678,7 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
         from workflow.elevation_extractor import extract_elevation_data
         
         if image_path and os.path.exists(image_path):
-            data = await extract_elevation_data(image_path, mgr)
+            data = asyncio.run(extract_elevation_data(image_path, mgr))
         else:
             data = {"gf_height_m": None, "f1_height_m": None, "total_villa_height_m": None, "parapet_height_m": None}
         data["drawing_type"] = drawing_type
