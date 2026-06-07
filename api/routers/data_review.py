@@ -175,8 +175,15 @@ def reconstruct_project_inputs(state_data: dict):
                 sources["roof_perimeter"] = "AI OCR"
                 
             if not confirmed.get("roof_slab_area") or confirmed.get("roof_slab_area") == 0.0:
-                confirmed["roof_slab_area"] = page.get("slab_area") or page.get("total_floor_area") or 0.0
-                sources["roof_slab_area"] = "AI OCR"
+                area = page.get("slab_area") or page.get("total_floor_area") or 0.0
+                # If area is suspiciously small (e.g. just the stairhead), reject it to trigger fallback
+                gf_area = confirmed.get("gf_area") or 0.0
+                if gf_area > 0 and area > 0 and area < (gf_area * 0.3):
+                    area = 0.0
+                    
+                if area > 0:
+                    confirmed["roof_slab_area"] = area
+                    sources["roof_slab_area"] = "AI OCR"
             elif "roof_slab_area" not in sources:
                 sources["roof_slab_area"] = "AI OCR"
         elif dtype == "setting_out":
