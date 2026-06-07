@@ -131,7 +131,7 @@ export default function ClassifyStep({
                   <option value="roof_floor_plan">{isArabic ? 'معماري السطح (Roof Floor Plan)' : 'Roof Floor Plan'}</option>
                   <option value="arch_doors">{isArabic ? 'جدول الأبواب (Doors Schedule)' : 'Doors Schedule'}</option>
                   <option value="arch_windows">{isArabic ? 'جدول النوافذ (Windows Schedule)' : 'Windows Schedule'}</option>
-                  <option value="elevations">{isArabic ? 'واجهات (Elevations)' : 'Elevations'}</option>
+                  <option value="sections">{isArabic ? 'مقاطع (Sections)' : 'Sections'}</option>
                   <option value="setting_out">{isArabic ? 'مخطط التوقيع (Setting Out)' : 'Setting Out'}</option>
                 </select>
                 <div style={{ display: 'flex', gap: '4px' }}>

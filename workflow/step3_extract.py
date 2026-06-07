@@ -56,7 +56,7 @@ TIE_BEAM_TYPES   = {"tie_beam"}
 SLAB_TYPES       = {"slab_1st", "slab_2nd", "slab_roof", "roof_slab"}
 SCHEDULE_TYPES   = {"schedules", "door_schedule", "window_schedule"}
 SETTING_OUT_TYPES= {"setting_out"}
-ELEVATION_TYPES  = {"elevations"}
+ELEVATION_TYPES  = {"elevations", "sections"}
 
 FOUNDATION_PROMPT = """You are reading a FOUNDATION / FOOTING plan + SCHEDULE OF FOOTINGS of a UAE villa.
 The "footings" list is MANDATORY — there is always a footing schedule table; read every

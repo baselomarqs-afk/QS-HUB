@@ -30,6 +30,8 @@ Return ONLY this JSON (no markdown):
 
 async def extract_arch_data(image_path: str, key_manager: KeyManager = None) -> dict:
     from workflow.step3_extract import _ask_ai_with_retry
-    raw = await _ask_ai_with_retry(image_path, ARCH_PROMPT, key_manager)
+    with open(image_path, "rb") as f:
+        img_bytes = f.read()
+    raw = await _ask_ai_with_retry(img_bytes, ARCH_PROMPT, key_manager)
     from workflow.step3_extract import parse_json
     return parse_json(raw)
