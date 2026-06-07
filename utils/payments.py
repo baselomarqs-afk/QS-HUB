@@ -80,6 +80,31 @@ def create_checkout_session(user: dict, tier: int | str) -> str:
         return checkout_url
 
 
+def create_portal_session(user_id: int) -> str:
+    """Create a Dodo Payments customer portal session."""
+    client = _get_dodo_client()
+    df = safe_query(
+        "SELECT provider_customer_id FROM qto_subscriptions WHERE user_id=%s AND provider='dodopayments' AND status='active' ORDER BY id DESC LIMIT 1",
+        (user_id,)
+    )
+    if df.empty or not df.iloc[0]["provider_customer_id"]:
+        raise RuntimeError("No active Dodo Payments customer ID found for this user.")
+        
+    customer_id = df.iloc[0]["provider_customer_id"]
+    try:
+        session = client.customers.customer_portal.create(
+            customer_id=customer_id,
+            return_url=app_base_url()
+        )
+        # Using getattr since dodopayments SDK returns a Pydantic model (CustomerPortalSession)
+        portal_url = getattr(session, "url", None)
+        if not portal_url:
+            raise RuntimeError("Dodo Payments did not return a portal URL.")
+        return portal_url
+    except Exception as e:
+        raise RuntimeError(f"Customer portal creation failed: {str(e)}")
+
+
 def _parse_rfc3339(value: str | None) -> str | None:
     if not value:
         return None

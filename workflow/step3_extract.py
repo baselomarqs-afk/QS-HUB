@@ -56,6 +56,7 @@ TIE_BEAM_TYPES   = {"tie_beam"}
 SLAB_TYPES       = {"slab_1st", "slab_2nd", "slab_roof", "roof_slab"}
 SCHEDULE_TYPES   = {"schedules", "door_schedule", "window_schedule"}
 SETTING_OUT_TYPES= {"setting_out"}
+ELEVATION_TYPES  = {"elevations"}
 
 FOUNDATION_PROMPT = """You are reading a FOUNDATION / FOOTING plan + SCHEDULE OF FOOTINGS of a UAE villa.
 The "footings" list is MANDATORY — there is always a footing schedule table; read every
@@ -670,6 +671,18 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
         full_prompt = SCHEDULE_PROMPT
     elif drawing_type in SETTING_OUT_TYPES:
         full_prompt = SETTING_OUT_PROMPT
+    elif drawing_type in ELEVATION_TYPES:
+        import asyncio
+        from utils.key_manager import get_key_manager
+        mgr = get_key_manager()
+        from workflow.elevation_extractor import extract_elevation_data
+        
+        if image_path and os.path.exists(image_path):
+            data = await extract_elevation_data(image_path, mgr)
+        else:
+            data = {"gf_height_m": None, "f1_height_m": None, "total_villa_height_m": None, "parapet_height_m": None}
+        data["drawing_type"] = drawing_type
+        return data
     elif drawing_type in FLOORPLAN_TYPES:
         import asyncio
         from utils.key_manager import get_key_manager
@@ -962,6 +975,11 @@ Return ONLY this JSON structure (null for not found):
         fallback_data["tb_total_length"] = 80.0
         fallback_data["ext_perimeter"] = 70.0
         fallback_data["gf_area"] = 250.0
+    elif drawing_type in ELEVATION_TYPES:
+        fallback_data["gf_height_m"] = 4.0
+        fallback_data["f1_height_m"] = 4.0
+        fallback_data["total_villa_height_m"] = 9.5
+        fallback_data["parapet_height_m"] = 1.2
     elif drawing_type in SLAB_TYPES or drawing_type == "roof_slab":
         fallback_data["slab_area"] = 250.0
         fallback_data["slab_thickness"] = 0.20
@@ -1420,7 +1438,13 @@ def render_step3() -> bool:
                 else:
                     st.markdown("❓ **windows**: *not found*")
 
-            # ── All other types (floor plans, tie beam, setting out, elevations, roof plan) ──
+            elif drawing_type in ELEVATION_TYPES:
+                for fld in ("gf_height_m", "f1_height_m", "total_villa_height_m", "parapet_height_m"):
+                    val = data.get(fld)
+                    if val is not None:
+                        st.markdown(f"🔹 **{fld}**: `{val} m`")
+
+            # 🔻 All other types (floor plans, tie beam, setting out, roof plan) 🔻
             else:
                 config  = DRAWING_REQUIRED_INPUTS.get(drawing_type, {})
                 extract = config.get("extract_only", [])

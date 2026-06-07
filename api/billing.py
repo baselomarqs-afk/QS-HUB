@@ -71,6 +71,14 @@ async def get_checkout_url(
 
 @router.get("/portal")
 async def get_portal_url(current_user: dict = Depends(get_current_user)):
-    portal_url = get_setting("DODO_CUSTOMER_PORTAL_URL")
-    return {"portal_url": portal_url}
+    try:
+        from utils.payments import create_portal_session
+        url = create_portal_session(current_user["id"])
+        return {"portal_url": url}
+    except Exception as e:
+        # Fallback to static URL if no subscription
+        portal_url = get_setting("DODO_CUSTOMER_PORTAL_URL")
+        if portal_url:
+            return {"portal_url": portal_url}
+        raise HTTPException(status_code=400, detail=str(e))
 

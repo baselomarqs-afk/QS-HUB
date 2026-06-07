@@ -99,7 +99,7 @@ export default function ClassifyStep({
                 >
                   <option value="unknown">{isArabic ? 'غير مصنف' : 'Unknown'}</option>
                   <option value="foundations">{isArabic ? 'جدول القواعد (Foundations)' : 'Foundations Schedule'}</option>
-                  <option value="tie_beam">{isArabic ? 'مخطط الميدات (Tie Beams)' : 'Tie Beams Layout'}</option>
+                  <option value="tie_beam">{isArabic ? 'الميدات وبلاطة الأرضي (Tie Beams & S.O.G)' : 'Tie Beams & Slab on Grade'}</option>
                   <option value="upper_columns">{isArabic ? 'جدول الأعمدة (Columns Schedule)' : 'Columns Schedule'}</option>
                   <option value="neck_columns">{isArabic ? 'أعمدة الرقاب/القبو (Neck Columns)' : 'Neck Columns'}</option>
                   <option value="columns_1f">{isArabic ? 'أعمدة الأول (1st Floor Columns)' : '1st Floor Columns'}</option>
@@ -107,7 +107,8 @@ export default function ClassifyStep({
                   <option value="columns_roof">{isArabic ? 'أعمدة السطح (Roof Columns)' : 'Roof Columns'}</option>
                   <option value="slab_1st">{isArabic ? 'سقف الأول (1st Floor Slab)' : '1st Floor Slab'}</option>
                   <option value="slab_2nd">{isArabic ? 'سقف الثاني (2nd Floor Slab)' : '2nd Floor Slab'}</option>
-                  <option value="roof_slab">{isArabic ? 'سقف الملحق (Roof Slab)' : 'Roof Slab'}</option>
+                  <option value="roof_slab">{isArabic ? 'سقف الملحق/السطح (Roof Slab)' : 'Roof Slab'}</option>
+                  <option value="elevations">{isArabic ? 'الواجهات والمقاطع (Elevations / Sections)' : 'Elevations / Sections'}</option>
                   <option value="ground_floor_plan">{isArabic ? 'معماري الأرضي (Ground Floor Plan)' : 'Ground Floor Plan'}</option>
                   <option value="first_floor_plan">{isArabic ? 'معماري الأول (First Floor Plan)' : 'First Floor Plan'}</option>
                   <option value="second_floor_plan">{isArabic ? 'معماري الثاني (Second Floor Plan)' : 'Second Floor Plan'}</option>

@@ -644,6 +644,10 @@ with st.sidebar:
             # Clear nav_page so app.py resets it to Landing on next run
             if "nav_page" in st.session_state:
                 del st.session_state["nav_page"]
+            if "qs_chat_history" in st.session_state:
+                del st.session_state["qs_chat_history"]
+            if "cc_chat_history" in st.session_state:
+                del st.session_state["cc_chat_history"]
             st.rerun()
 
     st.divider()

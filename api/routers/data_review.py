@@ -225,10 +225,16 @@ def reconstruct_project_inputs(state_data: dict):
     # values from wherever they exist instead of leaving them as 0.
     _ANY_PAGE_FIELDS = (
         "longest_length", "longest_width", "total_villa_height",
-        "gf_area", "ext_perimeter",
+        "gf_area", "ext_perimeter", "gf_height", "f1_height", "parapet_height"
     )
     # Map: some pages use different key names for the same concept
     _FIELD_ALIASES = {
+        "longest_length": ("overall_length_m", "longest_length"),
+        "longest_width": ("overall_width_m", "longest_width"),
+        "gf_height": ("gf_height_m", "floor_height_m"),
+        "f1_height": ("f1_height_m",),
+        "total_villa_height": ("total_villa_height_m",),
+        "parapet_height": ("parapet_height_m",),
         "gf_area": ("gf_area", "total_floor_area", "floor_area"),
         "ext_perimeter": ("ext_perimeter", "external_perimeter"),
     }

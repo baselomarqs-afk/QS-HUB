@@ -5,14 +5,16 @@ from utils.key_manager import KeyManager
 logger = logging.getLogger(__name__)
 
 # Prompt strictly focused on architectural layout (Rooms, Areas, Dimensions)
-ARCH_PROMPT = """This is a floor plan of a UAE villa. Your ONLY task is to extract room dimensions, floor area, and overall dimensions. DO NOT attempt to count doors, windows, or measure walls. Focus 100% of your attention on reading text labels for room sizes and dimension lines.
+ARCH_PROMPT = """This is an Architectural Floor Plan of a UAE villa. Your ONLY task is to extract room dimensions, floor area, and the OVERALL building dimensions. DO NOT attempt to count doors or windows.
 
-Villa plans rarely write the room AREA, but they DO show each room's name and its DIMENSIONS (e.g. "5.00 x 4.00").
-READ THE DIMENSIONS from the dimension lines or text — do not guess.
+CRITICAL INSTRUCTION FOR OVERALL DIMENSIONS:
+To calculate External Plaster and Paint accurately, we need the TRUE overall outer dimensions of the building. Look for the longest dimension lines that span the ENTIRE length and width of the building footprint. Do NOT accidentally grab the dimension of a single room and call it the overall dimension. 
+- "overall_length_m": The absolute maximum outer length of the building (METRES).
+- "overall_width_m": The absolute maximum outer width of the building (METRES).
 
 List EVERY room/space in the "rooms" array:
-- "name": room name (Living, Bedroom, Bathroom, Kitchen, Majlis, Terrace, WC, Laundry …)
-- "length_m","width_m": the room size from its dimension labels (METRES) — REQUIRED
+- "name": room name (Living, Bedroom, Bathroom, Kitchen, Majlis, Terrace, WC, Laundry ...)
+- "length_m","width_m": the room size from its dimension labels (METRES) - REQUIRED.
 - "area_m2": only if an area is explicitly printed (else null)
 
 Also read the overall dimension lines:

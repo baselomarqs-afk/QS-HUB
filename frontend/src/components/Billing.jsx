@@ -47,6 +47,26 @@ export default function Billing({ token, isArabic }) {
     }
   };
 
+  const handlePortal = async () => {
+    setLoading(true);
+    setMessage('');
+    try {
+      const res = await fetch(`/api/billing/portal`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.portal_url) {
+        window.open(data.portal_url, '_blank');
+      } else {
+        throw new Error(data.detail || 'Could not generate customer portal link.');
+      }
+    } catch (err) {
+      setMessage(`Error: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading && !details) {
     return (
       <div style={{ textAlign: 'center', padding: '50px' }}>
@@ -84,9 +104,18 @@ export default function Billing({ token, isArabic }) {
               </span>
               <h3 style={{ fontSize: '1.4rem', fontWeight: 800, marginTop: '5px' }}>{details.plan_name}</h3>
               {details.subscription_status === 'active' ? (
-                <span style={{ color: 'var(--success)', fontSize: '0.8rem', fontWeight: 700 }}>✓ Active</span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}>
+                  <span style={{ color: 'var(--success)', fontSize: '0.8rem', fontWeight: 700 }}>✓ Active</span>
+                  <button 
+                    className="btn btn-secondary" 
+                    onClick={handlePortal} 
+                    style={{ fontSize: '0.75rem', padding: '4px 10px', borderRadius: '6px' }}
+                  >
+                    {isArabic ? 'إدارة الاشتراك' : 'Manage Subscription'}
+                  </button>
+                </div>
               ) : (
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Inactive</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', display: 'block', marginTop: '8px' }}>Inactive</span>
               )}
             </div>
 
