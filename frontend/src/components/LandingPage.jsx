@@ -327,7 +327,7 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
         </div>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
           © 2026 THE QS HUB. All rights reserved. <br />
-          For support, contact us at: support@qshub.ae
+          For support, contact us at: support@qshub.online
         </p>
       </footer>
 

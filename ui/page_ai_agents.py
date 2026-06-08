@@ -332,7 +332,7 @@ def render_ai_agents():
         col_s1, col_s2, col_s3 = st.columns([1, 1.2, 1])
         with col_s2:
             if st.button(btn_label, use_container_width=True, type="primary"):
-                st.info("Support channel: support@qshub.ae")
+                st.info("Support channel: support@qshub.online")
         return
 
     welcome_qs = "مرحباً باشمهندس باسل! أنا مساعد الكميات الذكي (QS Assistant). كيف يمكنني مساعدتك اليوم؟" if ar else "Hello Eng. Basel! I am your QS Assistant. Ask me about takeoff formulas or UAE market updates!"
