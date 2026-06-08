@@ -113,7 +113,11 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
         </p>
 
         <button className="btn btn-primary" onClick={onGetStarted} style={{ padding: '12px 35px', fontSize: '1.05rem', fontWeight: 700 }}>
-          {isArabic ? 'ابدأ مشروعك الأول مجاناً' : 'Start your 1st project for free'}
+          {isArabic ? (
+            <>ابدأ مشروعك الأول <span style={{ color: '#ff4444' }}>مجاناً</span></>
+          ) : (
+            <>Start your 1st project <span style={{ color: '#ff4444' }}>for free</span></>
+          )}
         </button>
       </section>
 
