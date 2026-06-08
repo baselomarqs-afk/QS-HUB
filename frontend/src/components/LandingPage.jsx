@@ -126,7 +126,7 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
           marginBottom: '35px',
           fontFamily: 'var(--font-display)'
         }}>
-          {isArabic ? 'المميزات الرئيسية للمنصة' : 'Core Platform Features'}
+          {isArabic ? 'من حاسبي الكميات.. إلى حاسبي الكميات' : 'From quantity surveyors to quantity surveyors'}
         </h3>
         
         <div className="features-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px' }}>
