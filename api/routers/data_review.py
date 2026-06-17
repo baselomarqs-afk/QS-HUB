@@ -71,9 +71,9 @@ def reconstruct_project_inputs(state_data: dict):
 
     # Reconstruct openings if missing or empty
     openings = confirmed.get("openings") or {}
-    if "totals" not in openings:
-        openings["totals"] = {"door_count": 0, "window_area": 0.0}
-        
+    openings["totals"] = {"door_count": 0, "window_area": 0.0}
+    
+    # First pass: Extract arrays from schedules if not already present
     for page_key, page in ext_res.items():
         if not isinstance(page, dict) or not page.get("_ok"):
             continue
@@ -81,27 +81,32 @@ def reconstruct_project_inputs(state_data: dict):
         if dtype in ["schedules", "door_schedule", "window_schedule", "arch_doors", "arch_windows"]:
             if "doors" not in openings and page.get("doors"):
                 openings["doors"] = page["doors"]
-                # Sum door count from the schedule
-                for d in page["doors"]:
-                    mark = str(d.get("mark") or d.get("type") or "").strip().upper()
-                    if mark.startswith("A"):
-                        continue
-                    qty = int(d.get("count_in_plans") or d.get("count") or d.get("qty") or d.get("quantity") or 1)
-                    openings["totals"]["door_count"] += qty
-                    
             if "windows" not in openings and page.get("windows"):
                 openings["windows"] = page["windows"]
-                # Sum window area from the schedule
-                for w in page["windows"]:
-                    qty = int(w.get("count_in_plans") or w.get("count") or w.get("qty") or w.get("quantity") or 1)
-                    width = float(w.get("width_m") or w.get("width") or (float(w.get("width_mm") or 0)/1000) or 1.0)
-                    height = float(w.get("height_m") or w.get("height") or (float(w.get("height_mm") or 0)/1000) or 1.0)
-                    # If dimensions are in mm, convert to m (for width/height keys not marked as mm)
-                    if width > 10: width /= 1000.0
-                    if height > 10: height /= 1000.0
-                    openings["totals"]["window_area"] += (qty * width * height)
-        
-        # Aggregate direct visual counts from floor plans if they exist (ONLY if schedules were not found)
+                
+    # Calculate totals from the authoritative arrays if they exist
+    if openings.get("doors"):
+        for d in openings["doors"]:
+            mark = str(d.get("mark") or d.get("type") or "").strip().upper()
+            if mark.startswith("A"):
+                continue
+            qty = int(d.get("count_in_plans") or d.get("count") or d.get("qty") or d.get("quantity") or 1)
+            openings["totals"]["door_count"] += qty
+            
+    if openings.get("windows"):
+        for w in openings["windows"]:
+            qty = int(w.get("count_in_plans") or w.get("count") or w.get("qty") or w.get("quantity") or 1)
+            width = float(w.get("width_m") or w.get("width") or (float(w.get("width_mm") or 0)/1000) or 1.0)
+            height = float(w.get("height_m") or w.get("height") or (float(w.get("height_mm") or 0)/1000) or 1.0)
+            if width > 10: width /= 1000.0
+            if height > 10: height /= 1000.0
+            openings["totals"]["window_area"] += (qty * width * height)
+
+    # Second pass: Fallback to floor plan estimates if authoritative arrays are missing
+    for page_key, page in ext_res.items():
+        if not isinstance(page, dict) or not page.get("_ok"):
+            continue
+        dtype = page.get("drawing_type") or page.get("detected_type")
         if dtype in ["ground_floor_plan", "first_floor_plan", "second_floor_plan", "roof_floor_plan"]:
             if not openings.get("doors"):
                 doors = page.get("total_doors_count")
@@ -296,6 +301,20 @@ def reconstruct_project_inputs(state_data: dict):
     if confirmed.get("ext_perimeter") and float(confirmed.get("ext_perimeter")) > 0:
         if "gf" in confirmed["floors"] and not confirmed["floors"]["gf"].get("ext_perimeter"):
             confirmed["floors"]["gf"]["ext_perimeter"] = float(confirmed["ext_perimeter"])
+
+    if not confirmed.get("total_villa_height") or float(confirmed.get("total_villa_height") or 0) == 0.0:
+        total_h = 0.0
+        floors = confirmed.get("floors") or {}
+        if "gf" in floors or float(confirmed.get("gf_area") or 0) > 0:
+            total_h += float(confirmed.get("gf_height") or 4.0)
+        if "1f" in floors:
+            total_h += float(confirmed.get("f1_height") or 4.0)
+        if "2f" in floors:
+            total_h += float(confirmed.get("f2_height") or 4.0)
+            
+        if total_h > 0:
+            confirmed["total_villa_height"] = total_h
+            sources["total_villa_height"] = "Math Fallback (Sum of Floors)"
 
     # Advanced CV Extractor & QS Heuristics Fallbacks
     

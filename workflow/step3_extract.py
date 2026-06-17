@@ -304,7 +304,7 @@ def _finishes_from_rooms(data: dict) -> dict:
     return data
 
 
-def _safe_parse_json(raw_str: str) -> dict:
+def parse_json(raw_str: str) -> dict:
     import json, re
     if not raw_str:
         return {}
@@ -506,8 +506,8 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             t2 = _ask_ai_with_retry(img_bytes, p2, mgr, force_reextract=force_reextract)
             r1, r2 = await asyncio.gather(t1, t2)
             
-            d1 = _safe_parse_json(r1)
-            d2 = _safe_parse_json(r2)
+            d1 = parse_json(r1)
+            d2 = parse_json(r2)
             if "_error" in d1 or "_error" in d2:
                 err = d1.get("_error") or d2.get("_error")
                 return {
@@ -559,8 +559,8 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             t2 = _ask_ai_with_retry(img_bytes, p2, mgr, force_reextract=force_reextract)
             r1, r2 = await asyncio.gather(t1, t2)
             
-            d1 = _safe_parse_json(r1)
-            d2 = _safe_parse_json(r2)
+            d1 = parse_json(r1)
+            d2 = parse_json(r2)
             if "_error" in d1 or "_error" in d2:
                 err = d1.get("_error") or d2.get("_error")
                 return {
@@ -628,8 +628,8 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             t2 = _ask_ai_with_retry(img_bytes, p2, mgr, force_reextract=force_reextract)
             r1, r2 = await asyncio.gather(t1, t2)
             
-            d1 = _safe_parse_json(r1)
-            d2 = _safe_parse_json(r2)
+            d1 = parse_json(r1)
+            d2 = parse_json(r2)
             if "_error" in d1 or "_error" in d2:
                 err = d1.get("_error") or d2.get("_error")
                 fallback = {
@@ -734,9 +734,9 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             wall_raw = await _ask_ai_with_retry(img_bytes, wall_p, mgr, force_reextract=force_reextract)
             open_raw = await _ask_ai_with_retry(img_bytes, open_p, mgr, force_reextract=force_reextract)
             
-            arch_data = _safe_parse_json(arch_raw)
-            wall_data = _safe_parse_json(wall_raw)
-            open_data = _safe_parse_json(open_raw)
+            arch_data = parse_json(arch_raw)
+            wall_data = parse_json(wall_raw)
+            open_data = parse_json(open_raw)
             
             if any("_error" in d for d in [arch_data, wall_data, open_data]):
                 errs = [d.get("_error") for d in [arch_data, wall_data, open_data] if "_error" in d]
