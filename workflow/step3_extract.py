@@ -690,6 +690,8 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             data = asyncio.run(extract_elevation_data(image_path, mgr))
         else:
             data = {"gf_height_m": None, "f1_height_m": None, "total_villa_height_m": None, "parapet_height_m": None}
+        
+        data["_ok"] = True
         data["drawing_type"] = drawing_type
         return data
     elif drawing_type in FLOORPLAN_TYPES:

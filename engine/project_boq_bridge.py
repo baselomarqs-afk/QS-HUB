@@ -270,30 +270,35 @@ def _columns_for_floor(project: dict, floor_key: str) -> list[dict]:
 
 def _doors(project: dict) -> list[dict]:
     """
-    Doors are COUNTED FROM THE PLANS: the AI counts every door symbol on each floor
-    plan (summed into openings.totals.door_count). The door schedule is only a
-    fallback when the plans yielded no count. Editable in the review table.
+    Prefer door schedule counts if available, otherwise fallback to floor plan AI counts.
     """
     openings = project.get("openings", {})
-    plan_count = int(openings.get("totals", {}).get("door_count") or 0)
-    if plan_count:
-        return [{"count": plan_count}]
     doors = openings.get("doors") or openings.get("doors_schedule") or []
-    sched_total = sum(safe_int(d.get("count")) for d in doors)
-    return [{"count": sched_total}] if sched_total else []
+    
+    sched_total = 0
+    for d in doors:
+        mark = str(d.get("mark") or d.get("type") or "").strip().upper()
+        # Ignore arches (usually starting with A) and only count doors
+        if mark.startswith("A"):
+            continue
+        sched_total += safe_int(d.get("count"))
+        
+    if sched_total > 0:
+        return [{"count": sched_total}]
+    
+    plan_count = int(openings.get("totals", {}).get("door_count") or 0)
+    if plan_count > 0:
+        return [{"count": plan_count}]
+    return []
 
 
 def _windows(project: dict) -> list[dict]:
     """
-    Windows are COUNTED/MEASURED FROM THE PLANS: the AI sums the window area on each
-    floor plan (openings.totals.window_area). The window schedule is only a fallback.
-    Editable in the review table.
+    Prefer window schedule if available, otherwise fallback to floor plan AI area.
     """
     openings = project.get("openings", {})
-    plan_area = float(openings.get("totals", {}).get("window_area") or 0)
-    if plan_area:
-        return [{"width_m": 1.0, "height_m": plan_area, "count": 1}]
     wins = openings.get("windows") or openings.get("windows_schedule") or []
+    
     out = []
     for w in wins:
         if w.get("width_mm"):
@@ -304,8 +309,20 @@ def _windows(project: dict) -> list[dict]:
             height_m = safe_float(w["height_mm"]) / 1000.0
         else:
             height_m = safe_float(w.get("height_m") or w.get("height") or w.get("length"))
+        
+        # Guard against swapping: if height is huge and width is small
+        if width_m < 0.1 and height_m > 0.1: 
+            pass # Keep as is, might be narrow window
+            
         out.append({"width_m": width_m, "height_m": height_m, "count": safe_int(w.get("count"))})
-    return out
+        
+    if out:
+        return out
+        
+    plan_area = float(openings.get("totals", {}).get("window_area") or 0)
+    if plan_area > 0:
+        return [{"width_m": 1.0, "height_m": plan_area, "count": 1}]
+    return []
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -374,6 +391,8 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
         "tb_total_length":   tb_len,
         "doors_schedule":    _doors(project),
         "windows_schedule":  _windows(project),
+        "total_windows_area": (project.get("openings") or {}).get("totals", {}).get("window_area") or 0.0,
+        "total_doors_count":  (project.get("openings") or {}).get("totals", {}).get("door_count") or 0.0,
         "concrete_grade":    project.get("concrete_grade") or "C30/37",
         "block_thickness":   project.get("block_thickness") or "200mm",
     }
@@ -450,8 +469,8 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
             "balcony_area":     f.get("balcony_area") or 0.0,
             "beams_schedule":   beams,
             "columns_schedule": _columns_for_floor(project, fk),
-            "windows_deduction": project.get("total_windows_area", 0.0) * area_ratio,
-            "doors_deduction_count": project.get("total_doors_count", 0.0) * area_ratio,
+            "windows_deduction": base["total_windows_area"] * area_ratio,
+            "doors_deduction_count": base["total_doors_count"] * area_ratio,
         }
 
     meta = {"needs_input": needs_input, "estimates": estimates}

@@ -83,6 +83,9 @@ def reconstruct_project_inputs(state_data: dict):
                 openings["doors"] = page["doors"]
                 # Sum door count from the schedule
                 for d in page["doors"]:
+                    mark = str(d.get("mark") or d.get("type") or "").strip().upper()
+                    if mark.startswith("A"):
+                        continue
                     qty = int(d.get("count_in_plans") or d.get("count") or d.get("qty") or d.get("quantity") or 1)
                     openings["totals"]["door_count"] += qty
                     
@@ -91,9 +94,9 @@ def reconstruct_project_inputs(state_data: dict):
                 # Sum window area from the schedule
                 for w in page["windows"]:
                     qty = int(w.get("count_in_plans") or w.get("count") or w.get("qty") or w.get("quantity") or 1)
-                    width = float(w.get("width") or w.get("width_m") or 1.0)
-                    height = float(w.get("height") or w.get("height_m") or 1.0)
-                    # If dimensions are in mm, convert to m
+                    width = float(w.get("width_m") or w.get("width") or (float(w.get("width_mm") or 0)/1000) or 1.0)
+                    height = float(w.get("height_m") or w.get("height") or (float(w.get("height_mm") or 0)/1000) or 1.0)
+                    # If dimensions are in mm, convert to m (for width/height keys not marked as mm)
                     if width > 10: width /= 1000.0
                     if height > 10: height /= 1000.0
                     openings["totals"]["window_area"] += (qty * width * height)
