@@ -78,7 +78,7 @@ def reconstruct_project_inputs(state_data: dict):
         if not isinstance(page, dict) or not page.get("_ok"):
             continue
         dtype = page.get("drawing_type") or page.get("detected_type")
-        if dtype in ["schedules", "door_schedule", "window_schedule"]:
+        if dtype in ["schedules", "door_schedule", "window_schedule", "arch_doors", "arch_windows"]:
             if "doors" not in openings and page.get("doors"):
                 openings["doors"] = page["doors"]
                 # Sum door count from the schedule
@@ -101,17 +101,19 @@ def reconstruct_project_inputs(state_data: dict):
                     if height > 10: height /= 1000.0
                     openings["totals"]["window_area"] += (qty * width * height)
         
-        # Aggregate direct visual counts from floor plans if they exist
+        # Aggregate direct visual counts from floor plans if they exist (ONLY if schedules were not found)
         if dtype in ["ground_floor_plan", "first_floor_plan", "second_floor_plan", "roof_floor_plan"]:
-            doors = page.get("total_doors_count")
-            if doors is not None:
-                try: openings["totals"]["door_count"] += int(doors)
-                except: pass
+            if not openings.get("doors"):
+                doors = page.get("total_doors_count")
+                if doors is not None:
+                    try: openings["totals"]["door_count"] += int(doors)
+                    except: pass
             
-            windows = page.get("total_windows_area")
-            if windows is not None:
-                try: openings["totals"]["window_area"] += float(windows)
-                except: pass
+            if not openings.get("windows"):
+                windows = page.get("total_windows_area")
+                if windows is not None:
+                    try: openings["totals"]["window_area"] += float(windows)
+                    except: pass
                 
     confirmed["openings"] = openings
 
