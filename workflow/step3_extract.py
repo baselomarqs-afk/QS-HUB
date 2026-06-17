@@ -58,7 +58,7 @@ Return ONLY this JSON (no extra text):
 FOUNDATION_TYPES = {"foundations"}
 TIE_BEAM_TYPES   = {"tie_beam"}
 SLAB_TYPES       = {"slab_1st", "slab_2nd", "slab_roof", "roof_slab"}
-SCHEDULE_TYPES   = {"schedules", "door_schedule", "window_schedule"}
+SCHEDULE_TYPES   = {"schedules", "door_schedule", "window_schedule", "arch_doors", "arch_windows"}
 SETTING_OUT_TYPES= {"setting_out"}
 ELEVATION_TYPES  = {"elevations", "sections"}
 
