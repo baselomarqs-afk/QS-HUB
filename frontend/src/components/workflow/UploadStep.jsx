@@ -30,7 +30,7 @@ export default function UploadStep({
       </div>
 
       <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        <div className="grid-cols-2" style={{ gap: '20px' }}>
           {/* Structural Drawing */}
           <div style={{ border: '2px dashed var(--border-color)', borderRadius: '12px', padding: '30px', textAlign: 'center', backgroundColor: 'var(--bg-primary)' }}>
             <Upload size={32} color="var(--text-muted)" style={{ marginBottom: '10px' }} />

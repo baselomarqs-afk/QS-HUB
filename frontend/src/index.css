@@ -469,3 +469,63 @@ body.dark-mode .btn-secondary:hover {
     font-size: 1.25rem !important;
   }
 }
+
+/* --- COMPREHENSIVE MOBILE OVERRIDES INJECTED --- */
+@media (max-width: 768px) {
+  /* Prevent horizontal scrolling on body */
+  body, html {
+    overflow-x: hidden !important;
+    width: 100vw !important;
+    max-width: 100% !important;
+  }
+  
+  /* Make all tables scrollable instead of overflowing the page */
+  .table-container, 
+  div[style*="overflow-x: auto"], 
+  div[style*="overflowX: auto"] {
+    width: 100% !important;
+    max-width: 100vw !important;
+    display: block !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 20px;
+  }
+  
+  table {
+    min-width: 600px !important; /* Force tables to stretch inside their scroll container */
+  }
+
+  /* Fix horizontal Stepper overflowing */
+  .glass-panel[style*="overflow-x: auto"], 
+  .glass-panel[style*="overflowX: auto"] {
+    width: calc(100vw - 20px) !important;
+    margin: 10px auto !important;
+    padding: 10px !important;
+    display: flex !important;
+    overflow-x: auto !important;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    justify-content: flex-start !important;
+  }
+  
+  .glass-panel[style*="overflow-x: auto"] > div, 
+  .glass-panel[style*="overflowX: auto"] > div {
+    min-width: 120px !important;
+    scroll-snap-align: start;
+    flex-shrink: 0;
+  }
+
+  /* Fix the content area padding that pushes things out */
+  .dashboard-grid > main > div[style*="padding: 0 30px"] {
+    padding: 0 10px 30px !important;
+  }
+
+  /* Make sure the FAB is positioned properly and doesn't block text */
+  [data-testid="stVerticalBlock"] > div:has(.support-fab-anchor) + div button,
+  div:has(.support-fab-anchor) + div button {
+    bottom: 15px !important;
+    right: 15px !important;
+    width: 50px !important;
+    height: 50px !important;
+  }
+}
