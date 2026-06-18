@@ -312,7 +312,8 @@ def _calc_ext_plaster(i):
     Spec: (ext_perimeter * (height for the full villa height + 1.2 m)) - total_windows_area
     Full-height plaster including 1.2 m ground clearance; minus windows.
     """
-    return round(max(0.0, _g(i, "ext_perimeter") * (_g(i, "total_villa_height") + 1.2) - _g(i, "total_windows_area", 0.0)), 2)
+    windows = _calc_windows(i)
+    return round(max(0.0, _g(i, "ext_perimeter") * (_g(i, "total_villa_height") + 1.2) - windows), 2)
 
 
 def _calc_ext_finishes(i):

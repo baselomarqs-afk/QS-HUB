@@ -59,6 +59,19 @@ async def calculate_boq(req: RunCalculationReq, current_user: dict = Depends(get
     
     # Prepare mock inputs from active schedules/confirm data
     # (In project_boq_bridge, the single source of truth is a synthetic project dict)
+    
+    # Safe fallback for height
+    h_db = state_data["confirmed_auto_data"].get("total_villa_height")
+    if h_db and float(h_db) > 0:
+        total_h = float(h_db)
+    else:
+        gfh = req.gf_height if req.gf_height > 0 else 4.0
+        f1h = req.f1_height if req.f1_height > 0 else 4.0
+        f2h = req.f2_height if req.f2_height > 0 else 4.0
+        total_h = gfh + (f1h if req.num_floors >= 2 else 0) + (f2h if req.num_floors >= 3 else 0)
+        if total_h == 0:
+            total_h = 4.0 * max(1, req.num_floors)
+
     project_payload = {
         "longest_length": state_data["confirmed_auto_data"].get("longest_length"),
         "longest_width": state_data["confirmed_auto_data"].get("longest_width"),
@@ -69,7 +82,7 @@ async def calculate_boq(req: RunCalculationReq, current_user: dict = Depends(get
         "roof_perimeter": state_data["confirmed_auto_data"].get("roof_perimeter"),
         "roof_slab_area": state_data["confirmed_auto_data"].get("roof_slab_area"),
         "compound_length": state_data["confirmed_auto_data"].get("compound_length"),
-        "total_villa_height": state_data["confirmed_auto_data"].get("total_villa_height") if state_data["confirmed_auto_data"].get("total_villa_height") else (req.gf_height + (req.f1_height if req.num_floors >= 2 else 0) + (req.f2_height if req.num_floors >= 3 else 0)),
+        "total_villa_height": total_h,
         "parapet_height": state_data["confirmed_auto_data"].get("parapet_height", 1.0),
         "excavation_depth": excavation_depth,
         "neck_column_height": state_data["confirmed_auto_data"].get("neck_column_height") or 1.0,
