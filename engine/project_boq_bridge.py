@@ -281,7 +281,7 @@ def _doors(project: dict) -> list[dict]:
         # Ignore arches (usually starting with A) and only count doors
         if mark.startswith("A"):
             continue
-        sched_total += safe_int(d.get("count"))
+        sched_total += safe_int(d.get("count") or d.get("count_in_plans") or d.get("qty") or 1)
         
     if sched_total > 0:
         return [{"count": sched_total}]
@@ -314,9 +314,13 @@ def _windows(project: dict) -> list[dict]:
         if width_m < 0.1 and height_m > 0.1: 
             pass # Keep as is, might be narrow window
             
-        out.append({"width_m": width_m, "height_m": height_m, "count": safe_int(w.get("count"))})
+        c = safe_int(w.get("count") or w.get("count_in_plans") or w.get("qty") or 1)
+        out.append({"width_m": width_m, "height_m": height_m, "count": c})
         
-    if out:
+    # Check if total calculated area from out is zero
+    total_area_from_out = sum(w["width_m"] * w["height_m"] * w["count"] for w in out)
+    
+    if out and total_area_from_out > 0:
         return out
         
     plan_area = float(openings.get("totals", {}).get("window_area") or 0)
