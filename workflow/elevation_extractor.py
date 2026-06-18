@@ -25,5 +25,5 @@ async def extract_elevation_data(image_path: str, key_manager: KeyManager = None
     with open(image_path, "rb") as f:
         img_bytes = f.read()
     raw = await _ask_ai_with_retry(img_bytes, ELEVATION_PROMPT, key_manager)
-    from workflow.step3_extract import parse_json
+    from _pdf_utils import parse_json
     return parse_json(raw)
