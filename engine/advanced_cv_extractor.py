@@ -84,6 +84,8 @@ def process_floor_plan_image(img_path):
         
         markup_filename = os.path.basename(markup_path)
         
+        total_internal_px = 0  # To prevent NameError crash
+        
         return {
             "cv_perimeter_px": max_perimeter,
             "cv_area_px": max_area,

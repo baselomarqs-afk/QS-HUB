@@ -344,6 +344,43 @@ def reconstruct_project_inputs(state_data: dict):
                 confirmed["compound_length_is_estimated"] = True
                 sources["compound_length"] = "Math Fallback (4√(GF*2))"
 
+    # 1.5 Auto-Scale Suspicious Floor Areas using CV
+    gf_cv_area = 0
+    gf_cv_perim = 0
+    for page_key, page in ext_res.items():
+        if page.get("drawing_type") == "ground_floor_plan" or page.get("detected_type") == "ground_floor_plan":
+            gf_cv_area = page.get("cv_area_px", 0)
+            gf_cv_perim = page.get("cv_perimeter_px", 0)
+            break
+            
+    if gf_cv_area > 0 and confirmed.get("gf_area") and float(confirmed["gf_area"]) > 0:
+        # Calculate sqm per pixel from the Ground Floor
+        area_scale = float(confirmed["gf_area"]) / gf_cv_area
+        perim_val = float(confirmed.get("ext_perimeter") or 0)
+        perim_scale = perim_val / gf_cv_perim if gf_cv_perim > 0 and perim_val > 0 else math.sqrt(area_scale)
+        
+        for fk, dtype in [("1f", "first_floor_plan"), ("2f", "second_floor_plan"), ("roof", "roof_floor_plan")]:
+            target_page = None
+            for page_key, page in ext_res.items():
+                if page.get("drawing_type") == dtype or page.get("detected_type") == dtype:
+                    target_page = page
+                    break
+            
+            if target_page and target_page.get("cv_area_px", 0) > 0:
+                cv_area = target_page.get("cv_area_px")
+                cv_perim = target_page.get("cv_perimeter_px", 0)
+                
+                # If CV area is significantly smaller than GF (< 75%), it's a partial floor / annex
+                if cv_area < 0.75 * gf_cv_area:
+                    if fk in confirmed.get("floors", {}):
+                        f_area = float(confirmed["floors"][fk].get("area") or 0)
+                        # If OCR hallucinated an area close to GF area
+                        if f_area >= 0.75 * float(confirmed["gf_area"]):
+                            confirmed["floors"][fk]["area"] = round(cv_area * area_scale, 2)
+                            confirmed["floors"][fk]["ext_perimeter"] = round(cv_perim * perim_scale, 2)
+                            confirmed["floors"][fk]["is_cv_scaled"] = True
+                            sources[f"{fk}_area"] = "CV Auto-Scaled (Fixed OCR Hallucination)"
+
     # Ensure gf_area syncs back to floors["gf"]
     if confirmed.get("gf_area") and float(confirmed.get("gf_area")) > 0:
         if "gf" not in confirmed["floors"]:
