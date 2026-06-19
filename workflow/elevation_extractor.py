@@ -43,5 +43,6 @@ async def extract_elevation_data(image_path: str, key_manager: KeyManager = None
     with open(image_path, "rb") as f:
         img_bytes = f.read()
     raw = await _ask_ai_with_retry(img_bytes, prompt, key_manager)
-    from _pdf_utils import parse_json
-    return parse_json(raw)
+    import re
+    raw = re.sub(r"```json|```", "", raw).strip()
+    return json.loads(raw)
