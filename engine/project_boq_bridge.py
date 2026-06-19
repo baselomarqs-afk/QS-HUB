@@ -603,7 +603,6 @@ POMI_NRM_MAP = {
     "roof_waterproofing": "F.5",
     "wet_wp_1f": "F.6.1",
     "wet_wp_2f": "F.6.2",
-    "balcony_wp_gf": "F.7.1",
     "balcony_wp_1f": "F.7.2",
     
     # Finishes

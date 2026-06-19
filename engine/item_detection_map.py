@@ -347,7 +347,6 @@ DRAWING_ITEMS_MAP = {
             {"key": "int_plaster_gf",   "name_en": "Internal Plaster (GF)",        "name_ar": "لياسة داخلية أرضي",       "unit": "m²", "formula_str": "(int_block × 2) + ext_block",            "inputs_needed": ["int_walls_length_gf", "ext_perimeter", "gf_height"],     "ai_question": "What is internal walls total length (m), external perimeter (m), and floor height (m)?"},
             {"key": "dry_ceiling_gf",   "name_en": "Dry Area Ceiling (GF)",        "name_ar": "أسقف جافة أرضي",          "unit": "m²", "formula_str": "dry_area_flooring",                     "inputs_needed": ["gf_total_area", "gf_wet_area"],                          "ai_question": "What is total floor area (m²) and wet area (m²)?"},
             {"key": "wet_ceiling_gf",   "name_en": "Wet Area Ceiling (GF)",        "name_ar": "أسقف رطبة أرضي",          "unit": "m²", "formula_str": "wet_area_flooring",                     "inputs_needed": ["gf_wet_area"],                                           "ai_question": "What is the total wet area (m²) for the ground floor?"},
-            {"key": "balcony_wp_gf",    "name_en": "Balcony Waterproofing (GF)",   "name_ar": "عزل البلكونة أرضي",       "unit": "m²", "formula_str": "balcony_area",                           "inputs_needed": ["gf_balcony_area"],                                       "ai_question": "What is the total balcony/terrace area (m²) on the ground floor?"},
         ],
     },
 

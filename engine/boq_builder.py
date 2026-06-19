@@ -102,7 +102,6 @@ def build_boq_dataframe(
     add_item("Internal Plaster (GF)", "لياسة داخلية أرضي", "m²", gf_res.get("int_plaster", 0.0))
     add_item("Dry Area Ceiling (GF)", "أسقف جافة أرضي", "m²", gf_res.get("dry_ceiling", 0.0))
     add_item("Wet Area Ceiling (GF)", "أسقف رطبة أرضي", "m²", gf_res.get("wet_ceiling", 0.0))
-    add_item("Balcony Waterproofing (GF)", "عزل البلكونة أرضي", "m²", gf_res.get("balcony_wp", 0.0))
 
     # 8. 1st Floor Plan | مسقط الدور الأول
     add_section("1st Floor Plan | مسقط الدور الأول")
