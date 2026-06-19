@@ -280,6 +280,7 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
             <h4 style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{isArabic ? '3 مشاريع حصر' : '3 Projects'}</h4>
             <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', fontSize: '0.75rem', fontWeight: 800, padding: '4px 8px', borderRadius: '10px', marginTop: '10px', display: 'inline-block' }}>
               🔥 {isArabic ? 'خصم 50% لأول شهر' : '50% OFF 1ST MONTH'}
+              <div style={{ fontSize: '0.65rem', marginTop: '2px', opacity: 0.9 }}>{isArabic ? 'كود الخصم: QTO2026' : 'Code: QTO2026'}</div>
             </div>
           </div>
 
@@ -292,6 +293,7 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
             <h4 style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{isArabic ? '8 مشاريع حصر' : '8 Projects'}</h4>
             <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', fontSize: '0.75rem', fontWeight: 800, padding: '4px 8px', borderRadius: '10px', marginTop: '10px', display: 'inline-block' }}>
               🔥 {isArabic ? 'خصم 50% لأول شهر' : '50% OFF 1ST MONTH'}
+              <div style={{ fontSize: '0.65rem', marginTop: '2px', opacity: 0.9 }}>{isArabic ? 'كود الخصم: QTO2026' : 'Code: QTO2026'}</div>
             </div>
           </div>
 

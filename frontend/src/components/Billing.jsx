@@ -222,6 +222,7 @@ export default function Billing({ token, isArabic }) {
                       borderRadius: '10px'
                     }}>
                       🔥 50% OFF
+                      <div style={{ fontSize: '0.55rem', textAlign: 'center', marginTop: '2px', opacity: 0.9 }}>Code: QTO2026</div>
                     </div>
                   )}
 
