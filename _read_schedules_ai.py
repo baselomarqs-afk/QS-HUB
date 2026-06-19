@@ -14,6 +14,11 @@ from google.genai import types
 sys.stdout.reconfigure(encoding='utf-8')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from pdf_engine.table_extractor import extract_tables_as_csv
+from pdf_engine.ocr_engine import extract_all_text
+import cv2
+import numpy as np
+
 # ── API key ───────────────────────────────────────────────────────────────────
 API_KEY = sys.argv[1] if len(sys.argv) > 1 else os.environ.get('GOOGLE_API_KEY', '')
 if not API_KEY:
@@ -113,6 +118,7 @@ def count_beams_fitz(pdf_path: str, page_index: int, marks: list[str]) -> dict[s
     Count beam label occurrences on a drawing page using fitz text extraction.
     AI Vision gives unreliable (often round) numbers for label counts;
     fitz reads the actual text tokens in the PDF, which is authoritative.
+    If the page is scanned (sparse tokens), falls back to OCR.
 
     Args:
         pdf_path:   Path to the STR PDF.
@@ -128,10 +134,26 @@ def count_beams_fitz(pdf_path: str, page_index: int, marks: list[str]) -> dict[s
         page = doc[page_index]
         words = page.get_text("words")   # each entry: (x0,y0,x1,y1, word, ...)
         doc.close()
+        
+        # OCR Fallback for scanned/flattened PDFs
+        if len(words) < 10:
+            print(f"  [fitz] Page looks scanned (<10 text tokens). Falling back to OCR...", end='', flush=True)
+            img_pil = render_page(pdf_path, page_index, dpi=220)
+            img_cv = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
+            ocr_results = extract_all_text(img_cv, preprocess=True)
+            print(f" {len(ocr_results)} words found.")
+            words = [(0,0,0,0, item['text']) for item in ocr_results]
+
         for w in words:
-            token = w[4].strip().upper()
-            if token in counts:
-                counts[token] += 1
+            raw_token = w[4].strip().upper()
+            # Clean token from surrounding punctuation (e.g., "(C1)" or "B1,")
+            clean_token = re.sub(r'^[^\w]+|[^\w]+$', '', raw_token)
+            if clean_token in counts:
+                # Extra strictness to avoid matching general notes.
+                if re.fullmatch(r'[A-Z]+\d+[A-Z\d]*', clean_token):
+                    counts[clean_token] += 1
+                else:
+                    counts[clean_token] += 1
     except Exception as e:
         print(f"  [fitz count] ERROR on page {page_index}: {e}")
     return counts
@@ -295,9 +317,19 @@ for name, cfg in PAGES.items():
     w, h = img.size
     print(f"  Image: {w}×{h} px")
 
-    print(f"  Asking AI Vision...", end='', flush=True)
+    print(f"  Extracting tables to CSV...", end='', flush=True)
+    csv_text = extract_tables_as_csv(STR_PATH, pidx)
+    
+    prompt = cfg['prompt']
+    if csv_text:
+        print(f"  found CSV tables.", end='', flush=True)
+        prompt += f"\n\nCRITICAL INSTRUCTION: I have managed to extract the table grid deterministically as CSV. Do NOT hallucinate the dimensions from the image. Map the exact dimensions from this CSV to the JSON. \nCSV DATA:\n{csv_text}\n"
+    else:
+        print(f"  no CSV found.", end='', flush=True)
+
+    print(f"\n  Asking AI Vision...", end='', flush=True)
     try:
-        raw    = ask_ai(img, cfg['prompt'])
+        raw    = ask_ai(img, prompt)
         print(f"  done")
         parsed = parse_json(raw)
         results[name] = parsed

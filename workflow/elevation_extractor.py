@@ -22,8 +22,26 @@ Return ONLY this JSON (no markdown, no explanations):
 
 async def extract_elevation_data(image_path: str, key_manager: KeyManager = None) -> dict:
     from workflow.step3_extract import _ask_ai_with_retry
+    from pdf_engine.ocr_engine import extract_all_text, extract_dimensions
+    import cv2
+    
+    # 1. OCR Extraction of physical dimensions
+    img_cv = cv2.imread(image_path)
+    if img_cv is not None:
+        extracted_text = extract_all_text(img_cv, preprocess=True)
+        dims = extract_dimensions(extracted_text)
+        # Get unique dimension values
+        dim_values = list(set([str(d['value_meters']) for d in dims]))
+    else:
+        dim_values = []
+        
+    prompt = ELEVATION_PROMPT
+    if dim_values:
+        ocr_string = ", ".join(dim_values)
+        prompt += f"\n\nCRITICAL INSTRUCTION: I have mathematically extracted the following numeric dimensions (in meters) from the image using OCR: [{ocr_string}]. You MUST select the floor heights ONLY from these exact numbers. DO NOT hallucinate or invent any numbers that are not in this list."
+
     with open(image_path, "rb") as f:
         img_bytes = f.read()
-    raw = await _ask_ai_with_retry(img_bytes, ELEVATION_PROMPT, key_manager)
+    raw = await _ask_ai_with_retry(img_bytes, prompt, key_manager)
     from _pdf_utils import parse_json
     return parse_json(raw)
