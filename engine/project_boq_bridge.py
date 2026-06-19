@@ -213,9 +213,10 @@ def _columns_for_floor(project: dict, floor_key: str) -> list[dict]:
     """
     Column schedule → engine keys: length_m, width_m, count (height inside engine).
     """
-    cols = (project.get("schedules", {})
-                   .get("column_schedule", {})
-                   .get("columns", []))
+    scheds = project.get("schedules", {})
+    cols = scheds.get("column_schedule", {}).get("columns", [])
+    if not cols:
+        cols = scheds.get("superstructure", {}).get("columns", [])
                    
     # Check if schedule exists but has NO counts at all
     total_counts_in_schedule = 0
