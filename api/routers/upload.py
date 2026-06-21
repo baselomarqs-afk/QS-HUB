@@ -59,8 +59,10 @@ async def upload_drawings(
         if not fname.endswith(".pdf") and "pdf" not in ctype:
             raise HTTPException(status_code=400, detail=f"Only PDF drawings are accepted (got '{file_obj.filename}').")
         content = file_obj.file.read()
-        if len(content) > MAX_UPLOAD_BYTES:
-            raise HTTPException(status_code=413, detail=f"File too large (max {MAX_UPLOAD_BYTES // (1024 * 1024)} MB).")
+        from utils.usage import check_file_size
+        ok, msg = check_file_size(current_user, len(content))
+        if not ok:
+            raise HTTPException(status_code=413, detail=msg)
         
         # Save to permanent storage
         save_file(current_user["id"], file_obj.filename, content, "application/pdf", project_id)

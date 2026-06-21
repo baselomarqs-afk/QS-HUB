@@ -180,6 +180,11 @@ def validate_critical_inputs_for_export(state_data: dict):
 
 @router.get("/export/excel")
 async def export_excel(project_id: int, current_user: dict = Depends(get_current_user)):
+    from utils.usage import check_limit, EVENT_EXPORT
+    ok, msg = check_limit(current_user, EVENT_EXPORT)
+    if not ok:
+        raise HTTPException(status_code=403, detail=msg)
+
     df_project = safe_query("SELECT name, boq_data, state_data FROM qto_projects WHERE id=%s AND user_id=%s", (project_id, current_user["id"]))
     if df_project.empty:
         raise HTTPException(status_code=404, detail="Project not found.")
@@ -213,6 +218,11 @@ async def export_excel(project_id: int, current_user: dict = Depends(get_current
 
 @router.get("/export/pdf")
 async def export_pdf(project_id: int, current_user: dict = Depends(get_current_user)):
+    from utils.usage import check_limit, EVENT_EXPORT
+    ok, msg = check_limit(current_user, EVENT_EXPORT)
+    if not ok:
+        raise HTTPException(status_code=403, detail=msg)
+
     df_project = safe_query("SELECT name, boq_data, state_data FROM qto_projects WHERE id=%s AND user_id=%s", (project_id, current_user["id"]))
     if df_project.empty:
         raise HTTPException(status_code=404, detail="Project not found.")
