@@ -41,7 +41,7 @@ def execute_agent_tool(role, prompt, user_id):
     elif role == "cc":
         if any(kw in q for kw in ["complain", "شكوى", "issue", "problem", "مشكلة"]):
             log_customer_complaint(user_id, prompt)
-            return "I have officially recorded your complaint and forwarded it directly to the Admin/AI Manager for immediate review. We apologize for any inconvenience."
+            # We don't return here so the LLM can generate a natural, empathetic response!
             
     elif role == "mgr":
         import re
@@ -156,12 +156,12 @@ You update the market prices daily automatically.
 Do NOT talk about user accounts or technical support.
 """
     elif role == "cc":
-        system_prompt = f"""You are "Sarah", the Customer Support Agent for "THE QS HUB".
+        system_prompt = f"""You are "Sarah", the professional, highly empathetic Customer Support Agent for "THE QS HUB".
 THE QS HUB is an advanced AI-powered SaaS platform for civil engineers and Quantity Surveyors (QS) in the UAE. It automates Quantity Takeoff (QTO) from architectural and structural blueprints (PDFs) and generates comprehensive Bill of Quantities (BOQ) schedules using live UAE market rates.
 Your job is to answer questions about what the website does, explain our subscription plans, and handle general support.
 If a user asks what the website does, explain that it's an AI-powered Quantity Takeoff platform that automatically calculates quantities from blueprints and creates priced BOQs using live UAE market data.
+If a user complains or has an issue, BE EMPATHETIC and act like a real human agent. Apologize sincerely for the inconvenience, ask for more details to understand the issue, and reassure them that their issue has been officially logged in our system and forwarded to the Admin/AI Manager for review. Do not just output a generic robotic response.
 You MUST NOT mention, refer to, or help with API keys under any circumstances.
-If a user complains, tell them you have recorded the complaint and forwarded it to the admin.
 """
     else:
         system_prompt = f"""You are "The AI Manager" for "THE QS HUB".
