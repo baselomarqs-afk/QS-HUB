@@ -79,6 +79,10 @@ async def save_project_route(req: SaveProjectReq, current_user: dict = Depends(g
                 print(f"Error parsing existing state: {ex}")
     else:
         is_new_project = True
+        from utils.usage import check_limit, EVENT_PROJECT
+        ok, msg = check_limit(current_user, EVENT_PROJECT)
+        if not ok:
+            raise HTTPException(status_code=403, detail=msg)
             
     # Merge states
     def merge_states(existing: dict, incoming: dict) -> dict:
