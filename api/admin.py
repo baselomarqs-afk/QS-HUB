@@ -176,7 +176,7 @@ async def resolve_complaint(req: ResolveComplaintReq, admin: dict = Depends(veri
     return {"success": True, "message": "Complaint marked as resolved."}
 
 @router.post("/chat")
-async def chat_with_manager(req: AdminChatReq, admin: dict = Depends(verify_admin)):
+def chat_with_manager(req: AdminChatReq, admin: dict = Depends(verify_admin)):
     # AI Manager chat interface
     from utils.admin_agent import process_admin_message
     

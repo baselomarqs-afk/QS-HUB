@@ -158,7 +158,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
       console.error(err);
     }
   };
-  const limitReached = details && (details.usage.projects >= (details.project_limit + details.extra_projects));
+  const limitReached = details && (details.usage.projects >= details.project_limit);
 
   return (
     <div className="dashboard-content" style={{ padding: '30px', textAlign: isArabic ? 'right' : 'left', direction: isArabic ? 'rtl' : 'ltr' }}>
