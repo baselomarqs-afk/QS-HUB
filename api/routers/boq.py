@@ -1,7 +1,7 @@
 import os
 import json
 import io
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -27,6 +27,10 @@ class RunCalculationReq(BaseModel):
     solid_block_thickness: str = "200mm"
     thermal_block_thickness: str = "200mm"
     hollow_block_thickness: str = "100mm"
+    # Roof stair-room handling for the top floor (overrides auto-detection)
+    top_floor_is_stair_room: Optional[bool] = None
+    stair_room_area: Optional[float] = None
+    stair_room_perimeter: Optional[float] = None
 
 class SaveReviewReq(BaseModel):
     project_id: int
@@ -39,7 +43,18 @@ async def calculate_boq(req: RunCalculationReq, current_user: dict = Depends(get
         raise HTTPException(status_code=400, detail="No active project.")
         
     state_data = json.loads(df_state.iloc[0]["state_data"])
-    
+
+    # Apply the user's roof stair-room choice BEFORE reconstruct so the
+    # correction uses it (else the auto-detected floor_types value is used).
+    _cad = state_data.get("confirmed_auto_data") or {}
+    if req.top_floor_is_stair_room is not None:
+        _cad["top_floor_is_stair_room"] = req.top_floor_is_stair_room
+    if req.stair_room_area is not None:
+        _cad["stair_room_area"] = req.stair_room_area
+    if req.stair_room_perimeter is not None:
+        _cad["stair_room_perimeter"] = req.stair_room_perimeter
+    state_data["confirmed_auto_data"] = _cad
+
     # Heal and reconstruct missing fields from extraction_results
     reconstruct_project_inputs(state_data)
     

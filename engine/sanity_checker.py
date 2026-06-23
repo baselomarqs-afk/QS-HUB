@@ -145,8 +145,43 @@ def sanity_check(data: Dict[str, Any], custom_bounds: Dict[str, Any] = None) -> 
     # ── Openings ──────────────────────────────────────────────────────────────
     op_tot = data.get("openings", {}).get("totals", {})
     if int(op_tot.get("door_count", 0) or 0) == 0:
-        warns.append("No doors extracted")
-    if int(op_tot.get("window_count", 0) or 0) == 0 and float(op_tot.get("window_area", 0) or 0) == 0:
-        warns.append("No windows extracted")
+        warns.append("[CRITICAL] No doors extracted. Review Door Schedule.")
+    
+    win_count = int(op_tot.get("window_count", 0) or 0)
+    win_area = float(op_tot.get("window_area", 0) or 0)
+    if win_count == 0 and win_area == 0:
+        warns.append("[CRITICAL] Zero windows extracted! Please review the Window Schedule or Floor Plans.")
+        
+    # ── Identical Floors ──────────────────────────────────────────────────────
+    floors = data.get("floors", {})
+    gf = floors.get("gf", {})
+    f1 = floors.get("1f", {})
+    if gf and f1:
+        gf_wall = float(gf.get("wall_internal") or 0)
+        f1_wall = float(f1.get("wall_internal") or 0)
+        gf_per = float(gf.get("ext_perimeter") or 0)
+        f1_per = float(f1.get("ext_perimeter") or 0)
+        if gf_wall > 0 and gf_wall == f1_wall and gf_per == f1_per:
+            warns.append("[WARNING] First Floor blockwork and perimeter are exactly identical to Ground Floor. Likely a misclassification or duplication error.")
+            
+    # ── Roof Beams ────────────────────────────────────────────────────────────
+    roof_slab = data.get("schedules", {}).get("roof_slab", {})
+    if roof_slab and float(roof_slab.get("slab_thickness_mm", 0) or 0) > 0:
+        if not roof_slab.get("beams") and not roof_slab.get("_beams_estimated"):
+            warns.append("[WARNING] Roof slab detected, but no roof beams found. Are you missing a roof framing plan?")
+
+    # ── Cross-floor internal-wall ratio ───────────────────────────────────────
+    # An upper floor with far MORE internal wall than the ground floor is almost
+    # always an extraction error (the "2nd floor = 3× ground" bug).
+    walls = data.get("walls", {})
+    gf_iw = float((walls.get("gf") or {}).get("internal_total_m") or 0)
+    if gf_iw > 0:
+        for fk, label in (("1f", "First"), ("2f", "Second")):
+            fiw = float((walls.get(fk) or {}).get("internal_total_m") or 0)
+            if fiw > gf_iw * 1.5:
+                warns.append(
+                    f"[CRITICAL] {label}-floor internal walls ({fiw:.0f}m) exceed 1.5× the "
+                    f"ground floor ({gf_iw:.0f}m) — likely an over-read. Auto-capped; please verify."
+                )
 
     return warns

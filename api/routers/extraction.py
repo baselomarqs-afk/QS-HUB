@@ -288,9 +288,33 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
                                         
         state_data["extraction_results"] = results
         state_data["current_step"] = 4
-        
+
+        # ── Deterministic doors/windows take-off from the vector PDFs ──
+        # Reads W-/D- marks straight off the cached architectural PDFs; this is
+        # the authoritative opening quantity and overrides the AI estimate in
+        # reconstruct_project_inputs (fixes silent windows=0 on any villa).
+        try:
+            from workflow.openings_counter import extract_openings_for_project
+            vec_openings = extract_openings_for_project(project_cache)
+            if vec_openings and vec_openings.get("_ok"):
+                state_data["_vector_openings"] = vec_openings
+        except Exception as _ve:
+            print(f"[openings_counter] skipped: {_ve}")
+
+        # ── Per-floor TYPE detection (full floor vs roof stair-room) ──
+        # The top level of many UAE villas is just a staircase room on an open
+        # roof; it must not generate full-floor block/plaster/flooring. We detect
+        # it deterministically and let reconstruct_project_inputs correct it.
+        try:
+            from workflow.floor_classifier import classify_for_project
+            ftypes = classify_for_project(project_cache)
+            if ftypes:
+                state_data["floor_types"] = {fk: v["type"] for fk, v in ftypes.items()}
+        except Exception as _fe:
+            print(f"[floor_classifier] skipped: {_fe}")
+
         yield f'data: {json.dumps({"progress": 85, "status": "Running sanity checks..."})}\n\n'
-        
+
         reconstruct_project_inputs(state_data)
         confirmed = state_data.get("confirmed_auto_data") or {}
         warnings = sanity_check(confirmed, custom_settings)

@@ -434,6 +434,109 @@ export default function VerifyStep({
             </div>
           </div>
 
+          {/* Per-type Doors & Windows breakdown (count + area each) */}
+          {(confirmedData.openings?.windows?.length > 0 || confirmedData.openings?.doors?.length > 0) && (
+            <div style={{ marginTop: '10px', background: 'rgba(15,23,42,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '16px', textAlign: isArabic ? 'right' : 'left' }}>
+              <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                🪟 {isArabic ? 'تفصيل النوافذ والأبواب (لكل نوع)' : 'Windows & Doors Breakdown (per type)'}
+                {confirmedData.openings?._source === 'vector_text' && (
+                  <span style={{ fontSize: '0.7rem', background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>
+                    {isArabic ? '✓ قراءة دقيقة من المخطط' : '✓ Read from drawing'}
+                  </span>
+                )}
+                {confirmedData.openings?._needs_size_review && (
+                  <span style={{ fontSize: '0.7rem', background: '#fef3c7', color: '#b45309', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>
+                    {isArabic ? '⚠ بعض المقاسات تحتاج مراجعة' : '⚠ Some sizes need review'}
+                  </span>
+                )}
+              </h4>
+
+              {confirmedData.openings?.windows?.length > 0 && (
+                <div style={{ marginBottom: '18px', overflowX: 'auto' }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', color: 'var(--text-secondary)' }}>{isArabic ? 'النوافذ' : 'Windows'}</div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <th style={{ padding: '6px 4px' }}>{isArabic ? 'الرمز' : 'Mark'}</th>
+                        <th style={{ padding: '6px 4px' }}>{isArabic ? 'المقاس (عرض×ارتفاع)' : 'Size (W×H)'}</th>
+                        <th style={{ padding: '6px 4px' }}>{isArabic ? 'العدد' : 'Count'}</th>
+                        <th style={{ padding: '6px 4px' }}>{isArabic ? 'المساحة (م²)' : 'Area (m²)'}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {confirmedData.openings.windows.map((w, i) => {
+                        const wm = Number(w.width_m ?? w.width ?? 0);
+                        const hm = Number(w.height_m ?? w.height ?? 0);
+                        const c = Number(w.count ?? w.count_in_plans ?? 0);
+                        return (
+                          <tr key={i} style={{ borderBottom: '1px solid rgba(148,163,184,0.25)' }}>
+                            <td style={{ padding: '5px 4px', fontWeight: 600 }}>{w.mark || `W${i + 1}`}</td>
+                            <td style={{ padding: '5px 4px' }}>
+                              {(wm > 0 && hm > 0) ? `${wm.toFixed(2)} × ${hm.toFixed(2)}` : (isArabic ? '— أدخل المقاس' : '— enter size')}
+                              {(wm <= 0 || hm <= 0) && (
+                                <span title={isArabic ? 'تعذّر قراءة المقاس — يُرجى إدخاله' : 'size could not be read — please enter it'} style={{ color: '#d97706', marginInlineStart: '5px' }}>⚠</span>
+                              )}
+                              {w.size_source === 'vision' && wm > 0 && hm > 0 && (
+                                <span title={isArabic ? 'مقاس مقروء بصرياً من الجدول — يُفضّل التأكد' : 'size read visually from the schedule — best to verify'} style={{ color: '#3b82f6', marginInlineStart: '5px', fontSize: '0.7rem' }}>📷</span>
+                              )}
+                            </td>
+                            <td style={{ padding: '5px 4px' }}>{c}</td>
+                            <td style={{ padding: '5px 4px' }}>{(wm * hm * c).toFixed(2)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ borderTop: '2px solid var(--border-color)', fontWeight: 700 }}>
+                        <td colSpan={3} style={{ padding: '6px 4px' }}>{isArabic ? 'إجمالي مساحة النوافذ' : 'Total Window Area'}</td>
+                        <td style={{ padding: '6px 4px' }}>
+                          {confirmedData.openings.windows.reduce((s, w) => s + Number(w.width_m ?? w.width ?? 0) * Number(w.height_m ?? w.height ?? 0) * Number(w.count ?? w.count_in_plans ?? 0), 0).toFixed(2)} m²
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+
+              {confirmedData.openings?.doors?.length > 0 && (
+                <div style={{ overflowX: 'auto' }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', color: 'var(--text-secondary)' }}>{isArabic ? 'الأبواب' : 'Doors'}</div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <th style={{ padding: '6px 4px' }}>{isArabic ? 'الرمز' : 'Mark'}</th>
+                        <th style={{ padding: '6px 4px' }}>{isArabic ? 'المقاس (عرض×ارتفاع)' : 'Size (W×H)'}</th>
+                        <th style={{ padding: '6px 4px' }}>{isArabic ? 'العدد' : 'Count'}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {confirmedData.openings.doors.map((d, i) => {
+                        const wm = Number(d.width_m ?? d.width ?? 0);
+                        const hm = Number(d.height_m ?? d.height ?? 0);
+                        const c = Number(d.count ?? d.count_in_plans ?? 0);
+                        return (
+                          <tr key={i} style={{ borderBottom: '1px solid rgba(148,163,184,0.25)' }}>
+                            <td style={{ padding: '5px 4px', fontWeight: 600 }}>{d.mark || `D${i + 1}`}</td>
+                            <td style={{ padding: '5px 4px' }}>{wm > 0 ? `${wm.toFixed(2)} × ${hm.toFixed(2)}` : '—'}</td>
+                            <td style={{ padding: '5px 4px' }}>{c}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ borderTop: '2px solid var(--border-color)', fontWeight: 700 }}>
+                        <td colSpan={2} style={{ padding: '6px 4px' }}>{isArabic ? 'إجمالي عدد الأبواب' : 'Total Door Count'}</td>
+                        <td style={{ padding: '6px 4px' }}>
+                          {confirmedData.openings.doors.reduce((s, d) => s + Number(d.count ?? d.count_in_plans ?? 0), 0)} {isArabic ? 'باب' : 'Nr'}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Table Editor Button & Modal */}
           <div style={{ marginTop: '15px' }}>
             <button
@@ -748,6 +851,45 @@ export default function VerifyStep({
               </select>
             </div>
           </div>
+
+          {/* Roof stair-room control for the top floor (auto-detected, editable) */}
+          {calcParams.num_floors >= 2 && (
+            <div style={{ marginTop: '10px', background: 'rgba(15,23,42,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '14px', textAlign: isArabic ? 'right' : 'left' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 600 }}>
+                <input
+                  type="checkbox"
+                  checked={!!calcParams.top_floor_is_stair_room}
+                  onChange={(e) => setCalcParams({ ...calcParams, top_floor_is_stair_room: e.target.checked })}
+                  style={{ width: '18px', height: '18px' }}
+                />
+                {isArabic ? 'الدور العلوي غرفة درج سطح فقط (ليس دوراً كاملاً)' : 'Top floor is a roof stair-room only (not a full floor)'}
+                {calcParams.top_floor_is_stair_room && (
+                  <span style={{ fontSize: '0.7rem', background: '#dcfce7', color: '#166534', padding: '2px 8px', borderRadius: '10px' }}>
+                    {isArabic ? 'مكتشف تلقائياً' : 'auto-detected'}
+                  </span>
+                )}
+              </label>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '6px 26px 0' }}>
+                {isArabic
+                  ? 'فعّله إذا كان الدور العلوي سطحاً مفتوحاً بغرفة درج فقط — فتُحسب التشطيبات من الغرفة لا من المبنى كله (يصحّح تضخّم البلوك واللياسة).'
+                  : 'Enable if the top level is an open roof with only a staircase room — finishes are then computed from that small room, not the whole building.'}
+              </p>
+              {calcParams.top_floor_is_stair_room && (
+                <div className="grid-cols-2" style={{ gap: '12px', marginTop: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.82rem', fontWeight: 600 }}>{isArabic ? 'مساحة غرفة الدرج (م²)' : 'Stair-room area (m²)'}</label>
+                    <input type="number" step="0.1" className="form-input" placeholder={isArabic ? 'تلقائي' : 'auto'}
+                      value={calcParams.stair_room_area} onChange={(e) => setCalcParams({ ...calcParams, stair_room_area: e.target.value })} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.82rem', fontWeight: 600 }}>{isArabic ? 'محيط غرفة الدرج (م)' : 'Stair-room perimeter (m)'}</label>
+                    <input type="number" step="0.1" className="form-input" placeholder={isArabic ? 'تلقائي' : 'auto'}
+                      value={calcParams.stair_room_perimeter} onChange={(e) => setCalcParams({ ...calcParams, stair_room_perimeter: e.target.value })} />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div style={{ marginTop: '10px' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 600 }}>

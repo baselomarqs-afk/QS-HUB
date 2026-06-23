@@ -120,6 +120,27 @@ def reconstruct_project_inputs(state_data: dict):
                     try: openings["totals"]["window_area"] += float(windows)
                     except: pass
                 
+    # ── Deterministic vector take-off OVERRIDE ────────────────────────────────
+    # When the architectural PDF has a usable text layer, openings_counter reads
+    # door/window marks straight off the plans+schedule (100% deterministic) and
+    # supersedes the AI estimate — this is what fixes silent "windows = 0".
+    vec = state_data.get("_vector_openings")
+    if vec and vec.get("_ok"):
+        v_area = float(vec.get("totals", {}).get("window_area", 0) or 0)
+        v_doors = int(vec.get("totals", {}).get("door_count", 0) or 0)
+        # Trust the deterministic count whenever it found anything.
+        if vec.get("windows"):
+            openings["windows"] = vec["windows"]
+        if vec.get("doors"):
+            openings["doors"] = vec["doors"]
+        if v_area > 0:
+            openings["totals"]["window_area"] = v_area
+            openings["totals"]["window_count"] = int(vec["totals"].get("window_count", 0) or 0)
+        if v_doors > 0:
+            openings["totals"]["door_count"] = v_doors
+        openings["_source"] = "vector_text"
+        openings["_needs_size_review"] = bool(vec.get("_needs_size_review"))
+
     confirmed["openings"] = openings
 
     # Reconstruct floors and walls
@@ -158,7 +179,52 @@ def reconstruct_project_inputs(state_data: dict):
                 
     confirmed["floors"] = floors
     confirmed["walls"] = walls
-    
+
+    # ── Roof stair-room correction ────────────────────────────────────────────
+    # A floor detected as a roof stair-room (no rooms, no wet areas) is NOT a
+    # full floor: its block/plaster/flooring must come from the small stair room,
+    # not the building footprint. We override its area/perimeter (user-editable)
+    # and zero its internal walls. This fixes the "2F plaster = 1473 m²" class of
+    # error generically for any G/G+1/G+2 villa.
+    import math as _math
+    _sources = confirmed.get("sources") or {}
+    floor_types = (state_data.get("floor_types") or {})
+    # user override (set in the review/calc UI) wins over auto values
+    user_choice = confirmed.get("top_floor_is_stair_room")
+    top_finishes_floor = "2f" if "2f" in floors else ("1f" if "1f" in floors else None)
+    gf_area_ref = float((floors.get("gf") or {}).get("area") or confirmed.get("gf_area") or 0.0)
+    for fk in ("1f", "2f"):
+        if fk not in floors:
+            continue
+        is_stair = (floor_types.get(fk) == "stair_room")
+        if user_choice is not None and fk == top_finishes_floor:
+            is_stair = bool(user_choice)
+        if not is_stair:
+            continue
+        f = floors[fk]
+        extracted_area = float(f.get("area") or 0.0)
+        # default stair-room footprint: keep the extracted area only if it is
+        # already plausibly small, else fall back to a typical stair room.
+        default_area = min(max(gf_area_ref * 0.12, 14.0), 35.0) if gf_area_ref else 20.0
+        stair_area = float(confirmed.get("stair_room_area") or 0.0)
+        if stair_area <= 0:
+            stair_area = extracted_area if 0 < extracted_area < gf_area_ref * 0.45 else round(default_area, 2)
+        stair_perim = float(confirmed.get("stair_room_perimeter") or 0.0)
+        if stair_perim <= 0:
+            stair_perim = round(4.2 * _math.sqrt(stair_area), 1) if stair_area > 0 else 18.0
+        f["area"] = round(stair_area, 2)
+        f["ext_perimeter"] = round(stair_perim, 2)
+        f["wet_area"] = 0.0
+        f["wet_perimeter"] = 0.0
+        f["is_stair_room"] = True
+        floors[fk] = f
+        walls[fk] = {"internal_total_m": 0.0, "internal_10cm_m": 0.0, "internal_20cm_m": 0.0}
+        _sources[f"floor_{fk}_type"] = f"Roof stair-room ({stair_area:.0f} m²) — verify"
+    confirmed["floors"] = floors
+    confirmed["walls"] = walls
+    confirmed["floor_types"] = floor_types
+    confirmed["sources"] = _sources
+
     # Heal and sanitize flat fields if empty or overwritten
     sources = confirmed.get("sources") or {}
     for page_key, page in ext_res.items():
@@ -470,6 +536,43 @@ def reconstruct_project_inputs(state_data: dict):
             }
             sources["column_schedule"] = "Geometric Fallback"
             
+    # ── Cross-floor wall correction ───────────────────────────────────────────
+    # An upper floor can never carry materially more internal wall than the
+    # ground floor of the same villa. When the AI over-reads a floor (the classic
+    # "2nd floor = 3× ground" bug) we cap it to a sane multiple of GF and flag it.
+    _walls = confirmed.get("walls") or {}
+    _gf_wall = float((_walls.get("gf") or {}).get("internal_total_m") or 0.0)
+    if _gf_wall > 0:
+        _cap = _gf_wall * 1.5
+        for _fk in ("1f", "2f"):
+            _w = _walls.get(_fk) or {}
+            _v = float(_w.get("internal_total_m") or 0.0)
+            if _v > _cap:
+                _scale = _cap / _v
+                _w["internal_total_m"] = round(_cap, 2)
+                for _k in ("internal_10cm_m", "internal_20cm_m"):
+                    if _w.get(_k):
+                        _w[_k] = round(float(_w[_k]) * _scale, 2)
+                _walls[_fk] = _w
+                sources[f"walls_{_fk}"] = f"Corrected (capped from {_v:.0f}m to {_cap:.0f}m vs GF)"
+        confirmed["walls"] = _walls
+
+    # ── Roof beams estimate ───────────────────────────────────────────────────
+    # A roof slab always needs framing beams. If none were read, reuse the floor
+    # below's beams as an estimate (flagged) so the BOQ isn't silently missing
+    # roof beam concrete.
+    _scheds = confirmed.get("schedules") or {}
+    _roof = _scheds.get("roof_slab") or {}
+    if float(_roof.get("slab_thickness_mm", 0) or 0) > 0 and not _roof.get("beams"):
+        _src_beams = (_scheds.get("slab_2nd") or {}).get("beams") \
+            or (_scheds.get("slab_1st") or {}).get("beams")
+        if _src_beams:
+            _roof["beams"] = [dict(b) for b in _src_beams]
+            _roof["_beams_estimated"] = True
+            _scheds["roof_slab"] = _roof
+            confirmed["schedules"] = _scheds
+            sources["roof_beams"] = "Estimated (copied from floor below — verify)"
+
     confirmed["sources"] = sources
     state_data["confirmed_auto_data"] = confirmed
 

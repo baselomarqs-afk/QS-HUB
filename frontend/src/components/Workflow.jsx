@@ -62,7 +62,11 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
     concrete_grade: "C30/37",
     solid_block_thickness: "200mm",
     thermal_block_thickness: "200mm",
-    hollow_block_thickness: "100mm"
+    hollow_block_thickness: "100mm",
+    // Roof stair-room handling for the top floor (auto-detected, user-editable)
+    top_floor_is_stair_room: false,
+    stair_room_area: "",
+    stair_room_perimeter: ""
   });
   
   // Review / BOQ Items
@@ -184,6 +188,20 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
         }
         if (state.boq_items) setBoqItems(state.boq_items);
         if (state.boq_meta) setBoqMeta(state.boq_meta);
+        // Pre-fill the auto-detected roof stair-room flag for the top floor.
+        {
+          const ftypes = (state.confirmed_auto_data && state.confirmed_auto_data.floor_types) || state.floor_types || {};
+          const nf = state.num_floors || (state.confirmed_auto_data && state.confirmed_auto_data.structural_levels) || 2;
+          const topFk = nf >= 3 ? '2f' : '1f';
+          const topIsStair = ftypes[topFk] === 'stair_room';
+          const topFloor = ((state.confirmed_auto_data && state.confirmed_auto_data.floors) || {})[topFk] || {};
+          setCalcParams(prev => ({
+            ...prev,
+            top_floor_is_stair_room: topIsStair,
+            stair_room_area: (topIsStair && topFloor.is_stair_room) ? (topFloor.area ?? '') : prev.stair_room_area,
+            stair_room_perimeter: (topIsStair && topFloor.is_stair_room) ? (topFloor.ext_perimeter ?? '') : prev.stair_room_perimeter,
+          }));
+        }
         if (state.num_floors) setCalcParams(prev => ({
           ...prev,
           num_floors: state.num_floors,
@@ -484,6 +502,20 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
                   }
 
                   setConfirmedData(confirmedObj);
+                  // Pre-fill the auto-detected roof stair-room flag for the top floor
+                  {
+                    const ftypes = confirmedObj.floor_types || {};
+                    const nf = calcParams.num_floors || confirmedObj.structural_levels || 2;
+                    const topFk = nf >= 3 ? '2f' : '1f';
+                    const topIsStair = ftypes[topFk] === 'stair_room';
+                    const topFloor = (confirmedObj.floors || {})[topFk] || {};
+                    setCalcParams(prev => ({
+                      ...prev,
+                      top_floor_is_stair_room: topIsStair,
+                      stair_room_area: (topIsStair && topFloor.is_stair_room) ? (topFloor.area ?? '') : prev.stair_room_area,
+                      stair_room_perimeter: (topIsStair && topFloor.is_stair_room) ? (topFloor.ext_perimeter ?? '') : prev.stair_room_perimeter,
+                    }));
+                  }
                   setCurrentStep(4);
                   await saveActiveState(4, { extraction_results: data.extraction_results, confirmed_auto_data: confirmedObj });
                   
@@ -549,7 +581,12 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
         },
         body: JSON.stringify({
           project_id: project.id,
-          ...calcParams
+          ...calcParams,
+          // Send null (not "") for blank stair-room dims so the backend uses its
+          // auto value; pydantic floats reject empty strings.
+          stair_room_area: calcParams.stair_room_area === "" || calcParams.stair_room_area == null ? null : parseFloat(calcParams.stair_room_area),
+          stair_room_perimeter: calcParams.stair_room_perimeter === "" || calcParams.stair_room_perimeter == null ? null : parseFloat(calcParams.stair_room_perimeter),
+          top_floor_is_stair_room: !!calcParams.top_floor_is_stair_room
         })
       });
       const data = await res.json();
