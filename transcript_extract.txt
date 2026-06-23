@@ -1,0 +1,26 @@
+<USER_REQUEST>
+ db.py يستورد من ui المحذوف
+📁 utils/db.py:331 — from ui.page_market_prices import DEFAULT_MATERIALS
+
+الأثر: محدود — الاستيراد داخل try، فيفشل بصمت ولا يُعبّئ الأسعار الافتراضية في الوضع المحلي فقط (لا يكسر الإنتاج).
+الحل: غيّره إلى from utils.market_prices_logic import DEFAULT_MATERIALS.
+(6) workflow/step1_upload.py يستورد Streamlit في أعلى الملف
+📁 workflow/step1_upload.py:4 — import streamlit as st
+
+الأثر: كامن فقط — Streamlit حُذف من المتطلبات، فلو استورد الـAPI هذا الملف يوماً سينهار. حالياً الـAPI لا يستورده (يستورد step3_extract التي تستورد Streamlit داخل دالة فقط، فلا تنكسر).
+الحل: اجعل استيراد Streamlit داخل الدوال (كما في step3) أو احذف ملفات الـrender_* غير المستخدمة.
+(7) قاعدة البيانات تُعاد تهيئتها في كل عملية (محلي فقط)
+📁 utils/db.py:392 — لم يُضَف الحارس بعد. (حل الـ3 أسطر الذي اقترحته ما زال قائماً.)
+لمخططات الممسوحة ضوئياً ما زالت بدقّة منخفضة
+📁 workflow/vector_measure.py
+
+القياس الدقيق يعمل فقط للـPDF المتجهي؛ المصوّر يُترك لتخمين الـAI.
+الحل: خطوة "معايرة المقياس" اليدوية (شرحتها سابقاً
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-22T19:47:54+04:00.
+</ADDITIONAL_METADATA>
+<USER_SETTINGS_CHANGE>
+The user changed setting `Model Selection` from None to Gemini 3.1 Pro (High). No need to comment on this change if the user doesn't ask about it. If reporting what model you are, please use a human readable name instead of the exact string.
+</USER_SETTINGS_CHANGE>
+---

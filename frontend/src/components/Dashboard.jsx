@@ -165,7 +165,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
       {/* Welcome Banner */}
       <div style={{ marginBottom: '35px' }}>
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-          {isArabic ? 'أهلاً بك باشمهندس باسل! 🏗️' : 'Welcome Eng. Basel! 🏗️'}
+          {isArabic ? 'أهلاً بك! 🏗️' : 'Welcome! 🏗️'}
         </h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginTop: '6px' }}>
           {isArabic ? 'منصة حصر الكميات الذكية وتوليد جداول BOQ المعتمدة على الذكاء الاصطناعي.' : 'Your smart Quantity Takeoff and automated BOQ generation platform.'}

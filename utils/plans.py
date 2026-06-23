@@ -19,6 +19,10 @@ def ttl_cache(ttl_seconds: int = 300):
             val = func(*args, **kwargs)
             cache[key] = (val, now)
             return val
+        
+        def clear():
+            cache.clear()
+        wrapped.clear = clear
         return wrapped
     return decorator
 

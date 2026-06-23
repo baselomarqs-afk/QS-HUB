@@ -16,8 +16,12 @@ def calculate_item(item_key: str, inputs: Dict[str, Any]) -> Optional[float]:
         "foundation_pcc":       _calc_foundation_pcc,
         "foundation_concrete":  _calc_foundation_concrete,
         "foundation_bitumen":   _calc_foundation_bitumen,
+        "foundation_rebar":     _calc_foundation_rebar,
+        "foundation_formwork":  _calc_foundation_formwork,
         "neck_column_concrete": _calc_neck_col_concrete,
         "neck_column_bitumen":  _calc_neck_col_bitumen,
+        "neck_column_rebar":    _calc_neck_col_rebar,
+        "neck_column_formwork": _calc_neck_col_formwork,
         "anti_termite_found":   _calc_anti_termite_found,
         "polyethylene_found":   _calc_poly_found,
         "road_base":            _calc_road_base,
@@ -26,7 +30,11 @@ def calculate_item(item_key: str, inputs: Dict[str, Any]) -> Optional[float]:
         "tie_beam_concrete":    _calc_tb_concrete,
         "tie_beam_pcc":         _calc_tb_pcc,
         "tie_beam_bitumen":     _calc_tb_bitumen,
+        "tie_beam_rebar":       _calc_tb_rebar,
+        "tie_beam_formwork":    _calc_tb_formwork,
         "slab_on_grade":        _calc_sog,
+        "sog_rebar":            _calc_sog_rebar,
+        "sog_formwork":         _calc_sog_formwork,
         "solid_block_work":     _calc_solid_bw,
         "block_work_bitumen":   _calc_bw_bitumen,
         "anti_termite_tb":      _calc_anti_tb,
@@ -34,6 +42,8 @@ def calculate_item(item_key: str, inputs: Dict[str, Any]) -> Optional[float]:
         # ── Super-structure ─────────────────────────────────────────────────
         "parapet_block_work":   _calc_parapet_block,
         "parapet_concrete":     _calc_parapet_conc,
+        "parapet_rebar":        _calc_parapet_rebar,
+        "parapet_formwork":     _calc_parapet_formwork,
         # ── External ────────────────────────────────────────────────────────
         "roof_waterproofing":   _calc_roof_wp,
         "external_plaster":     _calc_ext_plaster,
@@ -50,8 +60,10 @@ def calculate_item(item_key: str, inputs: Dict[str, Any]) -> Optional[float]:
         "thermal_block_", "internal_block_", "dry_floor_", "wet_floor_",
         "wall_tiles_", "skirting_", "int_paint_", "int_plaster_",
         "dry_ceiling_", "wet_ceiling_", "balcony_wp_", "wet_wp_",
-        "beam_concrete_", "slab_concrete_", "col_gf_", "col_1st_",
-        "col_2nd_", "col_roof", "staircase_",
+        "beam_concrete_", "beam_rebar_", "beam_formwork_",
+        "slab_concrete_", "slab_rebar_", "slab_formwork_",
+        "col_gf_", "col_1st_", "col_2nd_", "col_roof_", "col_rebar_", "col_formwork_",
+        "staircase_",
     )
     for prefix in _FLOOR_PREFIXES:
         if item_key.startswith(prefix):
@@ -137,6 +149,24 @@ def _calc_foundation_bitumen(i):
     return round(total, 2)
 
 
+def _calc_foundation_rebar(i):
+    """
+    100 kg/m3 average for foundations
+    """
+    return round(_calc_foundation_concrete(i) * 0.100, 2)
+
+def _calc_foundation_formwork(i):
+    """
+    Lateral surface area of the footings = perimeter * depth
+    """
+    return round(sum(
+        2.0 * (float(f.get("length_m") or 0) + float(f.get("width_m") or 0))
+        * float(f.get("depth_m") or 0)
+        * float(f.get("count") or 0)
+        for f in _lst(i, "foundations_schedule")
+    ), 2)
+
+
 def _calc_neck_col_concrete(i):
     """
     Spec: width * length * height * count  — per neck column type
@@ -164,6 +194,12 @@ def _calc_neck_col_bitumen(i):
         * float(nc.get("count") or 0)
         for nc in _lst(i, "neck_columns_schedule")
     ), 2)
+
+def _calc_neck_col_rebar(i):
+    return round(_calc_neck_col_concrete(i) * 0.180, 2)
+
+def _calc_neck_col_formwork(i):
+    return _calc_neck_col_bitumen(i)
 
 
 def _calc_anti_termite_found(i):
@@ -230,6 +266,12 @@ def _calc_tb_bitumen(i):
     """
     return round(_g(i, "tb_total_length") * _g(i, "tb_depth") * 2.0, 2)
 
+def _calc_tb_rebar(i):
+    return round(_calc_tb_concrete(i) * 0.150, 2)
+
+def _calc_tb_formwork(i):
+    return _calc_tb_bitumen(i)
+
 
 def _calc_sog(i):
     """
@@ -238,6 +280,13 @@ def _calc_sog(i):
     """
     t = _g(i, "sog_thickness", 0.10)
     return round(_g(i, "gf_area") * 1.1 * t, 2)
+
+def _calc_sog_rebar(i):
+    return round(_calc_sog(i) * 0.090, 2)
+
+def _calc_sog_formwork(i):
+    t = _g(i, "sog_thickness", 0.10)
+    return round(_g(i, "external_perimeter") * t, 2)
 
 
 def _calc_solid_bw(i):
@@ -294,6 +343,12 @@ def _calc_parapet_conc(i):
     200 × 200 mm coping beam.
     """
     return round(_g(i, "roof_perimeter") * 0.20 * 0.20, 2)
+
+def _calc_parapet_rebar(i):
+    return round(_calc_parapet_conc(i) * 0.090, 2)
+
+def _calc_parapet_formwork(i):
+    return round(_g(i, "roof_perimeter") * 0.20 * 2.0, 2)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -418,6 +473,12 @@ def _calc_generic_floor_item(item_key: str, inputs: Dict) -> float:
         return round(
             _g(inputs, "slab_area") * max(_g(inputs, "slab_thickness") or 0.25, 0.25), 2
         )
+    if "slab_rebar" in item_key:
+        return round(
+            _g(inputs, "slab_area") * max(_g(inputs, "slab_thickness") or 0.25, 0.25) * 0.090, 2
+        )
+    if "slab_formwork" in item_key:
+        return round(_g(inputs, "slab_area"), 2)
 
     # Beam concrete: length × width × depth × count  (spec: count matters)
     if "beam_concrete" in item_key:
@@ -428,9 +489,21 @@ def _calc_generic_floor_item(item_key: str, inputs: Dict) -> float:
             * float(b.get("count")    or 1)   # ← spec requires × count
             for b in _lst(inputs, "beams_schedule")
         ), 2)
+    if "beam_rebar" in item_key:
+        vol = sum(
+            float(b.get("length_m") or 0) * float(b.get("width_m") or 0) * float(b.get("depth_m") or 0) * float(b.get("count") or 1)
+            for b in _lst(inputs, "beams_schedule")
+        )
+        return round(vol * 0.150, 2)
+    if "beam_formwork" in item_key:
+        # Lateral faces: (depth * length * 2) + (width * length) -> soffit might be included with slab, but let's do 2 * depth * length
+        return round(sum(
+            2.0 * float(b.get("depth_m") or 0) * float(b.get("length_m") or 0) * float(b.get("count") or 1)
+            for b in _lst(inputs, "beams_schedule")
+        ), 2)
 
     # Columns: length × width × height × count
-    if "col_" in item_key:
+    if "col_" in item_key and not ("rebar" in item_key or "formwork" in item_key):
         # Use the dynamic floor height instead of hardcoded values
         h = fh if not "roof" in item_key else max(fh - 0.5, 3.0) # Roof is usually slightly shorter, but we base it on fh
         return round(sum(
@@ -438,6 +511,21 @@ def _calc_generic_floor_item(item_key: str, inputs: Dict) -> float:
             * float(c.get("width_m")  or 0)
             * h
             * float(c.get("count")  or 0)
+            for c in _lst(inputs, "columns_schedule")
+        ), 2)
+    
+    if "col_rebar" in item_key:
+        h = fh if not "roof" in item_key else max(fh - 0.5, 3.0)
+        vol = sum(
+            float(c.get("length_m") or 0) * float(c.get("width_m") or 0) * h * float(c.get("count") or 0)
+            for c in _lst(inputs, "columns_schedule")
+        )
+        return round(vol * 0.180, 2)
+        
+    if "col_formwork" in item_key:
+        h = fh if not "roof" in item_key else max(fh - 0.5, 3.0)
+        return round(sum(
+            2.0 * (float(c.get("length_m") or 0) + float(c.get("width_m") or 0)) * h * float(c.get("count") or 0)
             for c in _lst(inputs, "columns_schedule")
         ), 2)
 

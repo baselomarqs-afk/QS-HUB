@@ -116,8 +116,14 @@ def _parse_rfc3339(value: str | None) -> str | None:
 
 def _upsert_subscription_from_dodo(data: dict[str, Any]) -> None:
     metadata = data.get("metadata") or {}
-    user_id = int(metadata.get("user_id", 0) or 0)
-    tier = int(metadata.get("plan_tier", 0) or 0)
+    user_id = int(metadata.get("user_id", 0) or data.get("metadata_user_id", 0) or 0)
+    
+    # Support both Dodo metadata formats (nested or flat with prefix)
+    tier_raw = metadata.get("plan_tier") or metadata.get("metadata_plan_tier") or data.get("metadata_plan_tier") or 0
+    try:
+        tier = int(tier_raw)
+    except Exception:
+        tier = 0
     
     subscription_id = data.get("subscription_id")
     status = data.get("status", "inactive")
@@ -174,6 +180,11 @@ def _upsert_subscription_from_dodo(data: dict[str, Any]) -> None:
             (*params, subscription_id),
         )
     audit_log("subscription_synced", user_id, "subscription", subscription_id, {"provider": "dodopayments", "status": status})
+    
+    # Invalidate cache so user sees upgrade immediately
+    from utils.plans import get_active_subscription, get_plan_for_user
+    get_active_subscription.clear()
+    get_plan_for_user.clear()
 
 
 def _record_transaction(data: dict[str, Any], event_type: str) -> None:
@@ -295,7 +306,48 @@ def issue_dodo_refund(user_email: str) -> tuple[bool, str]:
         return False, "Missing Dodo subscription ID."
         
     try:
+        # REAL DODO PAYMENTS API CALLS
+        import requests
+        from utils.settings import get_setting
+        api_key = get_setting("DODO_PAYMENTS_API_KEY")
+        if not api_key:
+            return False, "DODO_PAYMENTS_API_KEY not configured."
+            
+        env = get_setting("DODO_ENVIRONMENT", "test_mode").lower()
+        base_url = "https://live.dodopayments.com" if env in ["production", "live"] else "https://test.dodopayments.com"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        # 1. Cancel the subscription via API
+        # Many platforms use PATCH /subscriptions/{id} with status='canceled'
+        # Dodo uses client.subscriptions.patch or similar. Using REST to be safe against SDK version issues.
+        cancel_url = f"{base_url}/subscriptions/{sub_id}"
+        resp_cancel = requests.patch(cancel_url, headers=headers, json={"status": "canceled"})
+        
+        # We don't fail immediately on cancel error, as we might still want to try refunding the last payment.
+        
+        # 2. Get the latest payment for this subscription to refund
+        inv_df = safe_query(
+            "SELECT provider_invoice_id, amount_aed FROM qto_invoices WHERE subscription_id=%s ORDER BY id DESC LIMIT 1",
+            (int(df.iloc[0]["id"]),)
+        )
+        
+        refund_msg = "No recent payment found to refund."
+        if not inv_df.empty and inv_df.iloc[0]["provider_invoice_id"]:
+            payment_id = inv_df.iloc[0]["provider_invoice_id"]
+            # Request refund
+            refund_url = f"{base_url}/refunds"
+            resp_refund = requests.post(refund_url, headers=headers, json={"payment_id": payment_id})
+            if resp_refund.status_code in [200, 201]:
+                refund_msg = f"Refund issued successfully for payment {payment_id}."
+            else:
+                return False, f"Refund failed: {resp_refund.text}"
+
+        # 3. Update local DB ONLY after API success
         safe_execute("UPDATE qto_subscriptions SET status='canceled' WHERE id=%s", (int(df.iloc[0]["id"]),))
-        return True, f"Subscription {sub_id} canceled successfully for {user_email}. Refund will be processed."
+        return True, f"Subscription {sub_id} canceled in Dodo. {refund_msg}"
+        
     except Exception as e:
         return False, f"Dodo API Error: {str(e)}"

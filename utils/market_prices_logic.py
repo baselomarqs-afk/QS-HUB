@@ -362,8 +362,8 @@ def lt(key):
 def fetch_prices():
     return safe_query("SELECT item_name, unit, rate_aed, last_updated FROM qto_market_prices ORDER BY item_name ASC")
 
-def update_db_prices(fluctuate=True):
-    """Updates the tidb cloud database with the 24-item material prices list, optionally adding small fluctuations."""
+def update_db_prices():
+    """Updates the tidb cloud database with the 24-item material prices list without fake fluctuations."""
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
@@ -374,10 +374,7 @@ def update_db_prices(fluctuate=True):
                 for m in DEFAULT_MATERIALS:
                     for em in ["dubai", "abudhabi", "sharjah", "ajman"]:
                         rate = m[em]
-                        if fluctuate:
-                            # Fluctuate rate by up to +/- 2%
-                            factor = 1.0 + random.uniform(-0.02, 0.02)
-                            rate = round(rate * factor, 2)
+                        # Removed fake fluctuation logic
                         
                         em_name = "Abu Dhabi" if em == "abudhabi" else em.capitalize()
                         item_name = f"{m['name_en']} ({em_name})"
@@ -403,10 +400,7 @@ def auto_daily_update():
                 needs_update = False
         
         if needs_update:
-            update_db_prices(fluctuate=True)
+            update_db_prices()
     except Exception:
         pass
-
-def render_market_prices():
-    pass
 

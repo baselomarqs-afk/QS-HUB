@@ -131,6 +131,9 @@ class SQLiteConnectionWrapper:
 
 def initialize_sqlite_db(conn):
     cur = conn.cursor()
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='qto_users'")
+    if cur.fetchone():
+        return
     
     # 1. qto_users
     cur.execute("""
@@ -328,7 +331,7 @@ def initialize_sqlite_db(conn):
         
         # Seed default prices
         try:
-            from ui.page_market_prices import DEFAULT_MATERIALS
+            from utils.market_prices_logic import DEFAULT_MATERIALS
             for m in DEFAULT_MATERIALS:
                 for em in ["dubai", "abudhabi", "sharjah", "ajman"]:
                     rate = m[em]
@@ -363,6 +366,8 @@ def get_pool():
         )
     return _POOL
 
+_SQLITE_INITIALIZED = False
+
 @contextmanager
 def get_connection():
     """
@@ -374,6 +379,7 @@ def get_connection():
             with conn.cursor() as cur:
                 cur.execute(...)
     """
+    global _SQLITE_INITIALIZED
     # SQLite Fallback check
     try:
         settings = DbSettings.from_env()
@@ -385,7 +391,9 @@ def get_connection():
         import sqlite3
         db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "qto_local.db")
         conn = sqlite3.connect(db_path)
-        initialize_sqlite_db(conn)
+        if not _SQLITE_INITIALIZED:
+            initialize_sqlite_db(conn)
+            _SQLITE_INITIALIZED = True
         wrapper = SQLiteConnectionWrapper(conn)
         try:
             yield wrapper

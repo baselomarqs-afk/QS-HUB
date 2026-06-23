@@ -14,6 +14,10 @@ class SaveProjectReq(BaseModel):
     boq_data: Optional[Dict[str, Any]] = None
     current_step: int = 1
 
+class ScaleCalibrationReq(BaseModel):
+    pixel_distance: float
+    real_distance: float
+
 @router.get("")
 @router.get("/")
 async def list_projects(current_user: dict = Depends(get_current_user)):
@@ -176,3 +180,36 @@ async def delete_project(project_id: int, current_user: dict = Depends(get_curre
     if not success:
         raise HTTPException(status_code=500, detail=f"Database delete failed: {err}")
     return {"message": "Project deleted successfully."}
+
+@router.post("/{project_id}/calibrate_scale")
+async def calibrate_scale(project_id: int, req: ScaleCalibrationReq, current_user: dict = Depends(get_current_user)):
+    if req.pixel_distance <= 0:
+        raise HTTPException(status_code=400, detail="Pixel distance must be greater than zero.")
+    
+    scale_factor = req.real_distance / req.pixel_distance
+    
+    # Update qto_active_projects state_data
+    df = safe_query("SELECT state_data FROM qto_active_projects WHERE user_id=%s AND project_id=%s", (current_user["id"], project_id))
+    if not df.empty:
+        import json
+        raw = df.iloc[0]["state_data"]
+        state_data = json.loads(raw) if isinstance(raw, str) else (raw or {})
+        state_data["scale_factor"] = scale_factor
+        safe_execute(
+            "UPDATE qto_active_projects SET state_data=%s WHERE user_id=%s AND project_id=%s",
+            (json.dumps(state_data, ensure_ascii=False, default=str), current_user["id"], project_id)
+        )
+        
+    # Also update qto_projects state_data
+    df_proj = safe_query("SELECT state_data FROM qto_projects WHERE user_id=%s AND id=%s", (current_user["id"], project_id))
+    if not df_proj.empty:
+        import json
+        raw = df_proj.iloc[0]["state_data"]
+        state_data = json.loads(raw) if isinstance(raw, str) else (raw or {})
+        state_data["scale_factor"] = scale_factor
+        safe_execute(
+            "UPDATE qto_projects SET state_data=%s WHERE user_id=%s AND id=%s",
+            (json.dumps(state_data, ensure_ascii=False, default=str), current_user["id"], project_id)
+        )
+        
+    return {"message": "Scale calibrated successfully.", "scale_factor": scale_factor}

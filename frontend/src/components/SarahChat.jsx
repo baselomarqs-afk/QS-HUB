@@ -30,8 +30,8 @@ export default function SarahChat({ token, isArabic }) {
             {
               sender: 'assistant',
               message: isArabic 
-                ? "أهلاً بك باشمهندس باسل! أنا سارة من فريق خدمة العملاء. كيف يمكنني مساعدتك اليوم؟" 
-                : "Welcome Eng. Basel! I am Sarah from Customer Support. How can I assist you today?"
+                ? "أهلاً بك! أنا سارة من فريق خدمة العملاء. كيف يمكنني مساعدتك اليوم؟" 
+                : "Welcome! I am Sarah from Customer Support. How can I assist you today?"
             }
           ]);
         } else {

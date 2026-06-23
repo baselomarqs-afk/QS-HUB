@@ -34,8 +34,8 @@ export default function QsAssistant({ token, isArabic }) {
             {
               role: 'assistant',
               content: isArabic
-                ? 'مرحباً بك باشمهندس باسل! أنا مساعد حصر الكميات الذكي (QS Assistant).\nيمكنك سؤالي عن معادلات الحصر وصيغ الكميات، أو طلب تحديث أسعار مواد البناء بالامارات.'
-                : 'Hello Eng. Basel! I am your Quantity Surveyor Assistant. Ask me about villa takeoff formulas, structural components, or request UAE market rates update!'
+                ? 'مرحباً بك! أنا مساعد حصر الكميات الذكي (QS Assistant).\nيمكنك سؤالي عن معادلات الحصر وصيغ الكميات، أو طلب تحديث أسعار مواد البناء بالامارات.'
+                : 'Welcome! I am your AI QS Assistant.\nYou can ask me about takeoff formulas or request UAE market price updates.'
             }
           ]);
         }
@@ -179,7 +179,7 @@ export default function QsAssistant({ token, isArabic }) {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
                 {msg.role === 'user' ? <User size={12} /> : <Bot size={12} />}
-                {msg.role === 'user' ? (isArabic ? 'المهندس باسل' : 'Eng. Basel') : (isArabic ? 'مستشار الحصر' : 'QS Engineer')}
+                {msg.role === 'user' ? (isArabic ? 'المستخدم' : 'User') : (isArabic ? 'مستشار الحصر' : 'QS Engineer')}
               </div>
               {msg.content}
             </div>

@@ -4,7 +4,7 @@ from typing import Optional, List
 from api.auth import get_current_user
 from utils.db import safe_query
 from utils.usage import EVENT_AI_CALL, check_limit, log_usage
-from ui.page_ai_agents import generate_agent_response, log_agent_conversation
+from utils.agents_logic import generate_agent_response, log_agent_conversation
 
 router = APIRouter()
 

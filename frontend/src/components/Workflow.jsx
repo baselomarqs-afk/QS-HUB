@@ -758,6 +758,8 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
         {(currentStep === 4 || currentStep === 5) && (
           <VerifyStep
             currentStep={currentStep}
+            projectId={project.id}
+            token={token}
             confirmedData={confirmedData}
             sanityWarnings={sanityWarnings}
             updateConfirmedField={updateConfirmedField}

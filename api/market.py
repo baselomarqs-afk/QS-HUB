@@ -3,7 +3,7 @@ from typing import Optional, List, Dict
 import pandas as pd
 from api.auth import get_current_user
 from utils.db import safe_query
-from ui.page_market_prices import DEFAULT_MATERIALS, EMIRATES, CATEGORIES, update_db_prices, auto_daily_update
+from utils.market_prices_logic import DEFAULT_MATERIALS, EMIRATES, CATEGORIES, update_db_prices, auto_daily_update
 
 router = APIRouter()
 
@@ -88,5 +88,5 @@ async def get_market_prices(
 async def trigger_prices_update(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
         return {"ok": False, "message": "Only admins can force price updates."}
-    ok, msg = update_db_prices(fluctuate=True)
+    ok, msg = update_db_prices()
     return {"ok": ok, "message": msg}

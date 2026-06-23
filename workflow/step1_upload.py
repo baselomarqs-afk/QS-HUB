@@ -1,7 +1,6 @@
 """
 STEP 1 — Upload Drawings
 """
-import streamlit as st
 from pdf_engine.pdf_loader import load_pdf_pages, extract_page_text
 from workflow.workflow_state import mark_step_done
 from utils.i18n import t
@@ -9,6 +8,7 @@ from utils.storage import save_file
 from utils.usage import check_file_size
 
 def render_step1() -> bool:
+    import streamlit as st
     st.markdown(t("upload_title"))
     st.caption(t("upload_caption"))
 

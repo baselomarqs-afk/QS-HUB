@@ -107,15 +107,18 @@ app.mount("/cache", StaticFiles(directory=cache_dir), name="cache")
 
 SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user_settings.json")
 
+from fastapi import Depends
+from api.admin import verify_admin
+
 @app.get("/api/settings")
-def get_settings():
+def get_settings(admin: dict = Depends(verify_admin)):
     if os.path.exists(SETTINGS_FILE):
         with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
 
 @app.post("/api/settings")
-async def save_settings(request: Request):
+async def save_settings(request: Request, admin: dict = Depends(verify_admin)):
     data = await request.json()
     with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)

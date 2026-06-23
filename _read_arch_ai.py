@@ -164,10 +164,46 @@ def extract_page(pdf_path: str, page_index: int, page_type: str,
     prompt = _PROMPTS.get(page_type)
     if prompt is None:
         return {"_error": f"No prompt for page type {page_type}"}
+        
+    # --- DETERMINISTIC OVERRIDE (FIX FOR AI HALLUCINATIONS) ---
+    import fitz, re
+    regex_overrides = {}
+    try:
+        with fitz.open(pdf_path) as doc:
+            if page_index < len(doc):
+                text = doc[page_index].get_text("text")
+                
+                if page_type == "arch_site":
+                    m = re.search(r"(?i)(?:PLOT\s*AREA|SITE\s*AREA|AREA)\s*[:=]?\s*([\d\.,]+)", text)
+                    if m:
+                        val = float(m.group(1).replace(",", ""))
+                        regex_overrides["plot_area_m2"] = val
+                
+                elif page_type == "arch_gf":
+                    m = re.search(r"(?i)(?:BUA|BUILT\s*UP\s*AREA|G\.F\s*AREA|GROUND\s*FLOOR\s*AREA)\s*[:=]?\s*([\d\.,]+)", text)
+                    if m:
+                        val = float(m.group(1).replace(",", ""))
+                        regex_overrides["gf_area_m2"] = val
+                        
+                elif page_type == "arch_1f":
+                    m = re.search(r"(?i)(?:FIRST\s*FLOOR\s*AREA|1\.F\s*AREA|1ST\s*FLOOR\s*AREA)\s*[:=]?\s*([\d\.,]+)", text)
+                    if m:
+                        val = float(m.group(1).replace(",", ""))
+                        regex_overrides["floor_area_m2"] = val
+    except Exception as e:
+        print(f"Regex extraction failed: {e}")
+    # ----------------------------------------------------------
+
     img = render_page(pdf_path, page_index, dpi=dpi)
     raw = ask_ai(img, prompt, api_key=api_key)
     try:
-        return parse_json(raw)
+        parsed = parse_json(raw)
+        # Apply deterministic regex overrides if found
+        for k, v in regex_overrides.items():
+            parsed[k] = v
+            parsed["_regex_matched"] = True
+            print(f"    [REGEX OVERRIDE] {k} = {v}")
+        return parsed
     except Exception as e:
         return {"_error": str(e), "_raw": raw[:500]}
 
@@ -283,6 +319,17 @@ def extract_arch(arch_pdf: str, classification: dict,
         d = extract_page(arch_pdf, pi, "arch_gf", api_key=api_key)
         d = _finishes_from_rooms(d)
         
+        # --- DETERMINISTIC OVERRIDE: VECTOR BOUNDS ---
+        try:
+            from workflow.vector_area_measure import measure_architectural_bounds
+            vec_bounds = measure_architectural_bounds(arch_pdf, pi)
+            if vec_bounds:
+                d.update(vec_bounds)
+                print(f"    [VECTOR OVERRIDE] Extracted geometric bounds: {vec_bounds}")
+        except Exception as e:
+            print(f"    [VECTOR OVERRIDE] Failed: {e}")
+        # ---------------------------------------------
+
         # If the prompt's explicit gf_area_m2 wasn't found, try our calculated area from rooms
         gf_area = _coalesce(d.get("gf_area_m2"), d.get("calculated_area"))
         out["gf_area"]            = gf_area

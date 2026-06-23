@@ -136,7 +136,7 @@ def local_fallback_takeoff(page_array: np.ndarray, floor_name: str, pixels_per_m
         "floor_height_m": 3.2,
         "notes": "Calculated locally using OpenCV/EasyOCR local algorithms (AI Offline Fallback).",
         "confidence": "medium",
-        "_api_success": True,
+        "_api_success": False,
         "_local_fallback": True
     }
 
@@ -226,7 +226,7 @@ def analyze_drawing_page(
         err = str(e)
         print(f"[AI Exception] {err}. Falling back to local takeoff.")
         if "429" in err or "quota" in err.lower() or "RESOURCE_EXHAUSTED" in err:
-            get_key_manager().mark_rate_limited(api_key)
+            get_key_manager().mark_rate_limited(api_key, model_name)
         return local_fallback_takeoff(page_array, floor_name, pixels_per_meter)
 
 
