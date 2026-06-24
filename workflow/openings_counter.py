@@ -18,8 +18,8 @@ import re
 import fitz
 from collections import defaultdict
 
-# A drawing mark: optional sep between the letter and the number  (W-01 / W 01 / W01)
-_MARK_RE = re.compile(r"\b([WD])[\-\s]?0*(\d{1,2})\b", re.IGNORECASE)
+# A drawing mark: e.g. W1, D1, CW1, KW, V1, DW1, SD1, FD1, AD1, GD1, MD1
+_MARK_RE = re.compile(r"\b([A-Z]{0,2}[WDV])[\-\s]?0*(\d{0,2})\b", re.IGNORECASE)
 # A size pair like  4.20 X 3.60   /   2.50x2.60   /   3.60 × 1.20
 _SIZE_RE = re.compile(r"(\d{1,2}\.\d{1,2})\s*[xX×\*]\s*(\d{1,2}\.\d{1,2})")
 _ROOM_KW = ("BED", "MAJLIS", "KITCHEN", "TOILET", "LIVING", "DINING",
@@ -27,8 +27,8 @@ _ROOM_KW = ("BED", "MAJLIS", "KITCHEN", "TOILET", "LIVING", "DINING",
 
 
 def _norm(letter: str, number: str) -> str:
-    """W-01 / W 1 / W01  ->  canonical 'W1'."""
-    return f"{letter.upper()}{int(number)}"
+    """W-01 / W 1 / W01  ->  canonical 'W1'. KW -> 'KW'."""
+    return f"{letter.upper()}{int(number)}" if number else letter.upper()
 
 
 def _page_text(page) -> str:
