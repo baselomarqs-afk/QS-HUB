@@ -163,6 +163,9 @@ Also read the overall dimension lines:
 - "balcony_terrace_area_m2": open balcony + terrace area if shown (else null)
 - "floor_height_m": floor-to-floor or floor-to-ceiling height if shown anywhere on the plan or in a note/section (e.g. 3.2, 4.0, 4.6) — in METRES. null if not found.
 
+CRITICAL RULE ABOUT AREA STATEMENTS:
+If the drawing contains a "CALCULATION SHEET", "AREA STATEMENT", or "BUILT-UP AREA" table, you MUST extract the exact Gross Floor Area for THIS specific floor and return it in the root "area_m2" field. Do not sum rooms for this field; read the explicit printed number.
+
 - "int_walls_10cm_m" / "int_walls_20cm_m": total length (METRES) of the INTERNAL walls
   BY THICKNESS, read from the plan. 10 cm (100 mm) = thin partitions (around
   bathrooms/WCs, closets/dressing, light dividers); 20 cm (200 mm) = the main internal
@@ -174,6 +177,7 @@ Return ONLY this JSON (no markdown):
 {"rooms":[{"name":"Living","length_m":5.0,"width_m":4.0,"area_m2":null,"doors_count":2,"windows_count":1}],
  "overall_length_m":null,"overall_width_m":null,"balcony_terrace_area_m2":null,
  "floor_height_m":null,
+ "area_m2": null,
  "int_walls_10cm_m":0.0,"int_walls_20cm_m":0.0,
  "confidence":"high|medium|low","notes":""}"""
 
@@ -266,12 +270,20 @@ def _finishes_from_rooms(data: dict) -> dict:
     
     summed_rooms_area = total_area
     
-    # The AI frequently misses corridors and unmarked spaces.
-    # If L and W are present, L * W is a much safer upper bound for area.
-    # We assume ~85% of the bounding box is the actual floor plate.
-    if L and W:
-        bounding_area = L * W * 0.85
-        total_area = max(summed_rooms_area, bounding_area)
+    # Priority: If an explicit floor area was found in a Calculation Sheet, use it.
+    explicit_area = data.get("area_m2")
+    if explicit_area is not None:
+        try:
+            total_area = float(explicit_area)
+        except (TypeError, ValueError):
+            pass
+    else:
+        # The AI frequently misses corridors and unmarked spaces.
+        # If L and W are present, L * W is a much safer upper bound for area.
+        # We assume ~85% of the bounding box is the actual floor plate.
+        if L and W:
+            bounding_area = L * W * 0.85
+            total_area = max(summed_rooms_area, bounding_area)
 
     # --> Consistency: a floor's external perimeter must match its built area <--
     # Only override perimeter if we DON'T have explicit L and W from dimension lines.
