@@ -41,8 +41,6 @@ DRAWING_ITEMS_MAP = {
                 "inputs_needed": ["foundations_schedule"],
                 "ai_question":   "List all footing types with length (m), width (m), depth (m), and count.",
             },
-            ,
-            ,
             {
                 "key":           "foundation_bitumen",
                 "name_en":       "Foundation Bitumen",
@@ -61,8 +59,6 @@ DRAWING_ITEMS_MAP = {
                 "inputs_needed": ["neck_columns_schedule"],
                 "ai_question":   "List all neck column types (between footing and tie beam) with width (m), length (m), and count.",
             },
-            ,
-            ,
             {
                 "key":           "neck_column_bitumen",
                 "name_en":       "Neck Column Bitumen",
@@ -125,8 +121,6 @@ DRAWING_ITEMS_MAP = {
                 "inputs_needed": ["tb_width", "tb_depth", "tb_total_length"],
                 "ai_question":   "What is the tie beam width (m), depth (m), and total length (m)?",
             },
-            ,
-            ,
             {
                 "key":           "tie_beam_pcc",
                 "name_en":       "Tie Beam PCC (Blinding)",
@@ -154,8 +148,6 @@ DRAWING_ITEMS_MAP = {
                 "inputs_needed": ["gf_area"],
                 "ai_question":   "What is the total ground floor area (m²)?",
             },
-            ,
-            ,
             {
                 "key":           "solid_block_work",
                 "name_en":       "Solid Block Work (Sub-Grade)",
@@ -209,8 +201,6 @@ DRAWING_ITEMS_MAP = {
                 "inputs_needed": ["columns_schedule_gf"],
                 "ai_question":   "List all column types for ground floor with length (m), width (m), and count.",
             },
-            ,
-            ,
             {
                 "key":           "col_1st_to_2nd",
                 "name_en":       "Column Concrete (1st → 2nd Floor)",
@@ -220,8 +210,6 @@ DRAWING_ITEMS_MAP = {
                 "inputs_needed": ["columns_schedule_1f"],
                 "ai_question":   "List all column types for 1st floor with length (m), width (m), and count.",
             },
-            ,
-            ,
             {
                 "key":           "col_roof",
                 "name_en":       "Column Concrete (Roof)",
@@ -231,8 +219,6 @@ DRAWING_ITEMS_MAP = {
                 "inputs_needed": ["columns_schedule_roof"],
                 "ai_question":   "List all column types for roof level with length (m), width (m), and count.",
             },
-            ,
-            ,
         ],
     },
 
@@ -250,8 +236,6 @@ DRAWING_ITEMS_MAP = {
                 "inputs_needed": ["beams_schedule_1f"],
                 "ai_question":   "List all beam types for 1st floor slab with length (m), width (m), and depth (m).",
             },
-            ,
-            ,
             {
                 "key":           "slab_concrete_1st",
                 "name_en":       "Slab Concrete (1st Floor)",
@@ -261,9 +245,6 @@ DRAWING_ITEMS_MAP = {
                 "inputs_needed": ["slab_area_1f", "slab_thickness_1f"],
                 "ai_question":   "What is the 1st floor slab area (m²) and thickness (m)?",
             },
-            ,
-            ,
-            ,
         ],
     },
 
@@ -281,8 +262,6 @@ DRAWING_ITEMS_MAP = {
                 "inputs_needed": ["beams_schedule_2f"],
                 "ai_question":   "List all beam types for 2nd floor slab with length (m), width (m), depth (m).",
             },
-            ,
-            ,
             {
                 "key":           "slab_concrete_2nd",
                 "name_en":       "Slab Concrete (2nd Floor)",
@@ -292,8 +271,6 @@ DRAWING_ITEMS_MAP = {
                 "inputs_needed": ["slab_area_2f", "slab_thickness_2f"],
                 "ai_question":   "What is the 2nd floor slab area (m²) and thickness (m)?",
             },
-            ,
-            ,
         ],
     },
 
@@ -311,8 +288,6 @@ DRAWING_ITEMS_MAP = {
                 "inputs_needed": ["slab_area_roof", "slab_thickness_roof"],
                 "ai_question":   "What is the roof slab area (m²) and thickness (m)?",
             },
-            ,
-            ,
             {
                 "key":           "beam_concrete_roof",
                 "name_en":       "Beam Concrete (Roof)",
@@ -322,8 +297,6 @@ DRAWING_ITEMS_MAP = {
                 "inputs_needed": ["beams_schedule_roof"],
                 "ai_question":   "List all roof beam types with length (m), width (m), depth (m).",
             },
-            ,
-            ,
             {
                 "key":           "parapet_block_work",
                 "name_en":       "Parapet Block Work",
@@ -342,8 +315,6 @@ DRAWING_ITEMS_MAP = {
                 "inputs_needed": ["roof_perimeter"],
                 "ai_question":   "What is the roof slab perimeter (m)?",
             },
-            ,
-            ,
         ],
     },
 
