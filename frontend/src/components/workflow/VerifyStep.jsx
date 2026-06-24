@@ -240,52 +240,6 @@ export default function VerifyStep({
           </div>
         )}
 
-        {/* Issue #19: Scanned PDF warning and Calibration */}
-        {confirmedData && !confirmedData._vector_measured && (
-          <div style={{ backgroundColor: '#fffbeb', borderLeft: '4px solid #f59e0b', padding: '15px', marginBottom: '20px', borderRadius: '4px', boxShadow: 'var(--shadow-sm)' }}>
-            <h4 style={{ color: '#b45309', fontSize: '1rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              ⚠️ {isArabic ? 'هذا مخطط مصوّر — راجع الأبعاد يدوياً' : 'This is a scanned drawing - review dimensions manually'}
-            </h4>
-            <p style={{ margin: '8px 0 15px 0', color: '#92400e', fontSize: '0.9rem' }}>
-              {isArabic 
-                ? 'تعذر قراءة المقاسات الهندسية الدقيقة من المتجهات لأن الملف صورة وليس مخطط أوتوكاد. يرجى التحقق من الطول والعرض أدناه يدوياً.'
-                : 'Exact vector measurements could not be read because the file is an image/scanned PDF, not a vector CAD export. Please verify the Length and Width below manually.'}
-            </p>
-            
-            <div style={{ backgroundColor: '#fef3c7', padding: '15px', borderRadius: '6px', border: '1px solid #fde68a' }}>
-              <h5 style={{ margin: '0 0 10px 0', color: '#b45309' }}>
-                {isArabic ? 'معايرة مقياس الرسم (اختياري)' : 'Scale Calibration (Optional)'}
-              </h5>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', color: '#92400e', marginBottom: '4px' }}>
-                    {isArabic ? 'المسافة بالبكسل (من أداة القياس)' : 'Pixel Distance (from measure tool)'}
-                  </label>
-                  <input type="number" step="any" value={calibPixel} onChange={e => setCalibPixel(e.target.value)} style={{ padding: '6px', border: '1px solid #fcd34d', borderRadius: '4px', width: '200px' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', color: '#92400e', marginBottom: '4px' }}>
-                    {isArabic ? 'المسافة الحقيقية (بالمتر)' : 'Real Distance (m)'}
-                  </label>
-                  <input type="number" step="any" value={calibReal} onChange={e => setCalibReal(e.target.value)} style={{ padding: '6px', border: '1px solid #fcd34d', borderRadius: '4px', width: '200px' }} />
-                </div>
-                <button 
-                  type="button" 
-                  onClick={handleCalibrate}
-                  disabled={calibLoading || !calibPixel || !calibReal}
-                  style={{ background: '#d97706', color: 'white', border: 'none', padding: '7px 16px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                  {calibLoading ? (isArabic ? 'جاري...' : 'Loading...') : (isArabic ? 'تطبيق المعايرة' : 'Apply Calibration')}
-                </button>
-              </div>
-              {calibStatus && (
-                <p style={{ margin: '10px 0 0 0', fontSize: '0.85rem', color: calibStatus.includes(isArabic ? 'نجاح' : 'successfully') ? '#15803d' : '#dc2626' }}>
-                  {calibStatus}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
 
         {sanityWarnings && sanityWarnings.length > 0 && (
           <div style={{ backgroundColor: '#fee2e2', borderLeft: '4px solid #ef4444', padding: '15px', marginBottom: '20px', borderRadius: '4px' }}>
