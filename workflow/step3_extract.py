@@ -333,6 +333,18 @@ def _normalize_units(data: dict) -> dict:
                    ("int_walls_length", 500)):
         if data.get(k) is not None:
             data[k] = _to_m(data[k], thr)
+            
+    # CRITICAL: A villa building footprint can NEVER be < 5 meters.
+    # If the AI hallucinates a footing size (e.g. 1.28m) as the overall length, nuke it.
+    for k in ["longest_length", "longest_width", "overall_length_m", "overall_width_m"]:
+        if data.get(k) is not None:
+            try:
+                val = float(data[k])
+                if val > 0 and val < 5.0:
+                    data[k] = 0.0
+            except:
+                pass
+                
     for f in data.get("footings", []) or []:
         f["width"]  = _to_m(f.get("width"),  20)
         f["length"] = _to_m(f.get("length"), 20)

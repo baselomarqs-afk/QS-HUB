@@ -18,7 +18,11 @@ def get_ocr_reader():
     يحمل نموذج OCR مرة واحدة فقط (cache)
     يدعم العربي والإنجليزي
     """
-    return easyocr.Reader(['en', 'ar'], gpu=False)
+    try:
+        import easyocr
+        return easyocr.Reader(['en', 'ar'], gpu=False)
+    except ImportError:
+        return None
 
 
 def _preprocess_for_ocr(img: np.ndarray) -> np.ndarray:
