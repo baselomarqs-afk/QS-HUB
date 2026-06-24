@@ -396,8 +396,8 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
         "tb_total_length":   tb_len,
         "doors_schedule":    _doors(project),
         "windows_schedule":  _windows(project),
-        "total_windows_area": (project.get("openings") or {}).get("totals", {}).get("window_area") or 0.0,
-        "total_doors_count":  (project.get("openings") or {}).get("totals", {}).get("door_count") or 0.0,
+        "total_windows_area": project.get("total_windows_area") or (project.get("openings") or {}).get("totals", {}).get("window_area") or 0.0,
+        "total_doors_count":  project.get("total_doors_count") or (project.get("openings") or {}).get("totals", {}).get("door_count") or 0.0,
         "concrete_grade":    project.get("concrete_grade") or "C30/37",
         "block_thickness":   project.get("block_thickness") or "200mm",
     }

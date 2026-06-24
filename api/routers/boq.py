@@ -115,7 +115,9 @@ async def calculate_boq(req: RunCalculationReq, current_user: dict = Depends(get
         "schedules": state_data["confirmed_auto_data"].get("schedules") or {},
         "floors": state_data["confirmed_auto_data"].get("floors") or {},
         "walls": state_data["confirmed_auto_data"].get("walls") or {},
-        "openings": state_data["confirmed_auto_data"].get("openings") or {}
+        "openings": state_data["confirmed_auto_data"].get("openings") or {},
+        "total_windows_area": state_data["confirmed_auto_data"].get("total_windows_area") or 0.0,
+        "total_doors_count": state_data["confirmed_auto_data"].get("total_doors_count") or 0.0
     }
     
     df, meta = build_boq_dataframe_from_project(project_payload)

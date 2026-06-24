@@ -404,6 +404,88 @@ def export_boq_to_excel(df: pd.DataFrame, project_name: str,
         ws_ass.row_dimensions[ass_row_idx].height = 18
         ass_row_idx += 1
 
+    # ── Doors and Windows Schedules ───────────────────────────────────────────
+    if project_meta:
+        openings = project_meta.get("confirmed_auto_data", {}).get("openings", {})
+        doors = openings.get("doors", [])
+        windows = openings.get("windows", [])
+        
+        def write_schedule(sheet_title, items):
+            ws_sched = wb.create_sheet(sheet_title)
+            
+            ws_sched.merge_cells("A1:F1")
+            ws_sched["A1"] = f"{sheet_title} — {project_name}"
+            ws_sched["A1"].font = Font(bold=True, size=14, color="1A3C5E", name="Calibri")
+            ws_sched["A1"].alignment = CENTER
+            ws_sched.row_dimensions[1].height = 28
+            
+            headers = ["#", "Mark", "Width (m)", "Height (m)", "Count", "Total Area (m²)"]
+            col_widths = [8, 20, 15, 15, 12, 18]
+            for i, w in enumerate(col_widths, 1):
+                ws_sched.column_dimensions[get_column_letter(i)].width = w
+                
+            for c, h in enumerate(headers, 1):
+                cell = ws_sched.cell(row=3, column=c, value=h)
+                cell.fill, cell.font, cell.alignment, cell.border = HEADER_FILL, HEADER_FONT, CENTER, BORDER
+            ws_sched.row_dimensions[3].height = 22
+            
+            row_idx = 4
+            grand_total_area = 0.0
+            grand_total_count = 0
+            for idx, item in enumerate(items, 1):
+                mark = item.get("mark") or f"Type {idx}"
+                width = item.get("width_m") or item.get("width") or item.get("width_mm") or 0.0
+                height = item.get("height_m") or item.get("height") or item.get("height_mm") or 0.0
+                count = item.get("count_in_plans") or item.get("count") or 0
+                
+                try:
+                    w_val = float(str(width).strip() or 0)
+                    h_val = float(str(height).strip() or 0)
+                    if width == item.get("width_mm") and w_val > 100: w_val /= 1000.0
+                    if height == item.get("height_mm") and h_val > 100: h_val /= 1000.0
+                    c_val = int(float(str(count).strip() or 0))
+                except:
+                    w_val, h_val, c_val = 0.0, 0.0, 0
+                
+                area = w_val * h_val * c_val
+                grand_total_area += area
+                grand_total_count += c_val
+                
+                ws_sched.cell(row=row_idx, column=1, value=idx).alignment = CENTER
+                ws_sched.cell(row=row_idx, column=2, value=mark).alignment = CENTER
+                ws_sched.cell(row=row_idx, column=3, value=w_val).alignment = CENTER
+                ws_sched.cell(row=row_idx, column=4, value=h_val).alignment = CENTER
+                ws_sched.cell(row=row_idx, column=5, value=c_val).alignment = CENTER
+                ws_sched.cell(row=row_idx, column=6, value=round(area, 2)).alignment = RIGHT
+                
+                for c in range(1, 7):
+                    ws_sched.cell(row=row_idx, column=c).border = BORDER
+                
+                row_idx += 1
+                
+            ws_sched.merge_cells(f"A{row_idx}:D{row_idx}")
+            ws_sched.cell(row=row_idx, column=1, value="GRAND TOTAL").alignment = RIGHT
+            ws_sched.cell(row=row_idx, column=1).font = TOTAL_FONT
+            ws_sched.cell(row=row_idx, column=1).fill = TOTAL_FILL
+            for c in range(1, 5):
+                ws_sched.cell(row=row_idx, column=c).border = BORDER
+                ws_sched.cell(row=row_idx, column=c).fill = TOTAL_FILL
+                
+            ws_sched.cell(row=row_idx, column=5, value=grand_total_count).alignment = CENTER
+            ws_sched.cell(row=row_idx, column=5).font = TOTAL_FONT
+            ws_sched.cell(row=row_idx, column=5).fill = TOTAL_FILL
+            ws_sched.cell(row=row_idx, column=5).border = BORDER
+            
+            ws_sched.cell(row=row_idx, column=6, value=round(grand_total_area, 2)).alignment = RIGHT
+            ws_sched.cell(row=row_idx, column=6).font = TOTAL_FONT
+            ws_sched.cell(row=row_idx, column=6).fill = TOTAL_FILL
+            ws_sched.cell(row=row_idx, column=6).border = BORDER
+
+        if windows:
+            write_schedule("Windows Schedule", windows)
+        if doors:
+            write_schedule("Doors Schedule", doors)
+
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
