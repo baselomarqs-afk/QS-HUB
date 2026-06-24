@@ -51,6 +51,9 @@ def extract_all_text(page_array: np.ndarray, preprocess: bool = True) -> List[Di
     bbox format: [[x1,y1],[x2,y1],[x2,y2],[x1,y2]]
     """
     reader = get_ocr_reader()
+    if reader is None:
+        return []
+        
     img = _preprocess_for_ocr(page_array) if preprocess else page_array
     results = reader.readtext(img)
 
