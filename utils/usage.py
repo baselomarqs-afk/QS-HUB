@@ -71,18 +71,17 @@ def check_limit(user: dict, event_type: str, amount: int = 1) -> tuple[bool, str
     plan = get_plan_for_user(user_id, role)
     
     extra_projects = 0
-    if event_type == EVENT_PROJECT:
-        try:
-            df_extra = safe_query("SELECT extra_projects_allowance FROM qto_users WHERE id=%s", (user_id,))
-            if not df_extra.empty:
-                extra_projects = int(df_extra.iloc[0]["extra_projects_allowance"] or 0)
-        except Exception as e:
-            print(f"Error fetching extra projects: {e}")
+    try:
+        df_extra = safe_query("SELECT extra_projects_allowance FROM qto_users WHERE id=%s", (user_id,))
+        if not df_extra.empty:
+            extra_projects = int(df_extra.iloc[0]["extra_projects_allowance"] or 0)
+    except Exception as e:
+        print(f"Error fetching extra projects: {e}")
 
     limits = {
         EVENT_PROJECT: plan.projects + extra_projects,
-        EVENT_AI_CALL: plan.ai_calls,
-        EVENT_EXPORT: plan.exports,
+        EVENT_AI_CALL: plan.ai_calls + (extra_projects * 20),
+        EVENT_EXPORT: plan.exports + (extra_projects * 5),
     }
     limit = limits.get(event_type)
     if limit is None:
