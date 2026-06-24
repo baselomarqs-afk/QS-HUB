@@ -258,13 +258,47 @@ def _columns_for_floor(project: dict, floor_key: str) -> list[dict]:
         if width_val is None:
             width_val = (c.get("width_mm") or c.get("short_mm") or 0) / 1000
             
-        if safe_float(length_val) == 0: length_val = default_len
-        if safe_float(width_val) == 0: width_val = default_wid
+        # If dimensions are provided as strings like "200x600" or "0.2x0.6"
+        def parse_dim(v):
+            if isinstance(v, str) and "x" in v.lower():
+                parts = v.lower().split("x")
+                try: return float(parts[0].strip()), float(parts[1].strip())
+                except: pass
+            return None, None
+            
+        l_x, w_x = parse_dim(length_val)
+        if l_x is not None:
+            length_val, width_val = max(l_x, w_x), min(l_x, w_x)
+            if length_val > 50: # Probably mm
+                length_val /= 1000.0
+                width_val /= 1000.0
+                
+        l_x, w_x = parse_dim(width_val)
+        if l_x is not None:
+            length_val, width_val = max(l_x, w_x), min(l_x, w_x)
+            if length_val > 50:
+                length_val /= 1000.0
+                width_val /= 1000.0
+
+        length_f = safe_float(length_val)
+        width_f = safe_float(width_val)
+        
+        # If still 0, check if mm conversion is needed
+        if length_f > 50: length_f /= 1000.0
+        if width_f > 50: width_f /= 1000.0
+
+        if length_f == 0: length_f = default_len
+        if width_f == 0: width_f = default_wid
+            
+        # Ensure n is at least 1 if we are assuming fallback
+        n_int = safe_int(n)
+        if total_counts_in_schedule == 0 and n_int == 0:
+            n_int = fallback_count_per_col
             
         out.append({
-            "length_m": safe_float(length_val),
-            "width_m":  safe_float(width_val),
-            "count":    safe_int(n),
+            "length_m": length_f,
+            "width_m":  width_f,
+            "count":    max(1, n_int) if fallback_count_per_col > 0 and n_int == 0 else n_int,
         })
     return out
 
@@ -429,6 +463,15 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
         area = f.get("area") or (project.get("roof_slab_area") if fk == "roof" else 0.0) or 0.0
 
         slab_key  = slab_keys[fk]
+        # Check if slab plan extracted an area
+        if slab_key and area == 0.0:
+            alt_keys = {"slab_1f": ["slab_1st", "slab_1f"], "slab_2f": ["slab_2nd", "slab_2f"], "slab_roof": ["roof_slab", "slab_roof"]}
+            for k in alt_keys.get(slab_key, [slab_key]):
+                sa = (project.get("schedules", {}).get(k, {}).get("slab_area"))
+                if sa:
+                    area = safe_float(sa)
+                    break
+
         # Suspended slabs (1F/2F/roof): thickness READ FROM THE DRAWING, with a
         # 0.25 m (25 cm) minimum per the QS spec. (Slab-on-grade is 10 cm, handled
         # separately by _calc_sog.)
