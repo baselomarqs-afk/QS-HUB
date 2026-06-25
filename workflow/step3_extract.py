@@ -607,7 +607,7 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
                     if total_tb_m > 0:
                         merged["tb_total_length"] = total_tb_m
                         merged["_tb_vector_data"] = v_res
-                        merged["notes"] = (merged.get("notes", "") + f" [100% Precision: Tie Beam lengths computed geometrically from CAD vectors ({total_tb_m}m)]").strip()
+                        merged["notes"] = (merged.get("notes", "") + f" [Vector Engine Computed: Tie Beam lengths computed geometrically from CAD vectors ({total_tb_m}m)]").strip()
                 except Exception as ve:
                     print(f"  [Vector Engine Error] {ve}")
                     
@@ -683,7 +683,7 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
                                 b["_vector_measured"] = True
                                 replaced_count += 1
                         if replaced_count > 0:
-                            merged["notes"] = (merged.get("notes", "") + f" [100% Precision: {replaced_count} beam lengths computed geometrically from CAD vectors]").strip()
+                            merged["notes"] = (merged.get("notes", "") + f" [Vector Engine Computed: {replaced_count} beam lengths computed geometrically from CAD vectors]").strip()
                 except Exception as ve:
                     print(f"  [Vector Engine Error] {ve}")
                     
@@ -795,6 +795,21 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             return merged
             
         data = asyncio.run(run_dedicated_extractors())
+        
+        # --- VECTOR MEASUREMENT OVERRIDES ---
+        if pdf_path and internal_page_idx is not None:
+            try:
+                from workflow.vector_arch_measure import extract_arch_vectors
+                print(f"  [Vector Engine] Computing Architectual Walls geometrically for page {internal_page_idx}...")
+                v_res = extract_arch_vectors(pdf_path, internal_page_idx)
+                if v_res and v_res.get("math_ext_perimeter_m", 0) > 0:
+                    data["ext_perimeter"] = v_res["math_ext_perimeter_m"]
+                    data["int_walls_20cm_m"] = v_res["math_int_walls_20cm_m"]
+                    data["int_walls_10cm_m"] = v_res.get("math_int_walls_10cm_m", 0.0)
+                    data["notes"] = (data.get("notes", "") + f" [Vector Bounding Box Perimeter: {v_res['math_ext_perimeter_m']}m | Parallel Walls: 20cm={v_res['math_int_walls_20cm_m']}m, 10cm={data['int_walls_10cm_m']}m]").strip()
+            except Exception as ve:
+                print(f"  [Vector Engine Error] {ve}")
+                
         data = _finishes_from_rooms(data)
         
         # --- BULLSHIT FILTER ---
@@ -803,6 +818,8 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             width = float(data.get("overall_width_m") or 0.0)
             bbox_area = length * width
             
+            is_vector_measured = "Vector Bounding Box Perimeter" in data.get("notes", "")
+            
             if bbox_area > 0:
                 area = float(data.get("total_floor_area") or 0.0)
                 if area <= 0 or area > bbox_area * 1.1 or area < bbox_area * 0.3:
@@ -810,7 +827,7 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
                     data["notes"] = (data.get("notes", "") + " [BULLSHIT FILTER: AI Area rejected. Geometric fallback used.]").strip()
                     
                 perim = float(data.get("ext_perimeter") or 0.0)
-                if perim <= 0 or perim > (length + width) * 4 or perim < (length + width) * 1.5:
+                if not is_vector_measured and (perim <= 0 or perim > (length + width) * 4 or perim < (length + width) * 1.5):
                     data["ext_perimeter"] = round((length + width) * 2, 2)
                     data["notes"] = (data.get("notes", "") + " [BULLSHIT FILTER: AI Perimeter rejected. Geometric fallback used.]").strip()
         except Exception as e:

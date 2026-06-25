@@ -70,7 +70,29 @@ def _process_ai_extraction(payload: dict) -> dict:
     page_arr = np.array(pil_img)[:, :, ::-1].copy()
 
     try:
-        extracted = extract_page(page_arr, dtype, page_text, user_id)
+        import os, json
+        # img_path is like _qto_cache/PROJ/arch_page_1.png
+        cache_dir = os.path.dirname(img_path)
+        filename = os.path.basename(img_path)
+        # extract prefix and page index from filename (e.g. arch_page_1.png)
+        parts = filename.split("_")
+        prefix = parts[0]
+        page_idx = int(parts[2].split(".")[0])
+        
+        state_path = os.path.join(cache_dir, "state_data.json")
+        original_pdf_path = None
+        internal_page_idx = page_idx
+        if os.path.exists(state_path):
+            with open(state_path, "r") as f:
+                state_data = json.load(f)
+            boundaries = state_data.get(f"{prefix}_boundaries", [])
+            for b in boundaries:
+                if b["start"] <= page_idx <= b["end"]:
+                    original_pdf_path = os.path.join(cache_dir, b["pdf_path"])
+                    internal_page_idx = page_idx - b["start"]
+                    break
+
+        extracted = extract_page(page_arr, dtype, page_text, user_id, pdf_path=original_pdf_path, internal_page_idx=internal_page_idx)
     except Exception as e:
         _log.exception("Worker AI extraction failed")
         extracted = {"_ok": False, "_error": str(e), "drawing_type": dtype}
@@ -139,7 +161,20 @@ def _process_full_pipeline(payload: dict) -> dict:
             page_text = page_info.get("page_text", "")
 
             try:
-                extracted = extract_page(page_arr, dtype, page_text, user_id)
+                state_path = os.path.join(cache_dir, "state_data.json")
+                original_pdf_path = None
+                internal_page_idx = page_info['page_index']
+                if os.path.exists(state_path):
+                    with open(state_path, "r") as f:
+                        state_data = json.load(f)
+                    boundaries = state_data.get(f"{page_info['pdf']}_boundaries", [])
+                    for b in boundaries:
+                        if b["start"] <= page_info['page_index'] <= b["end"]:
+                            original_pdf_path = os.path.join(cache_dir, b["pdf_path"])
+                            internal_page_idx = page_info['page_index'] - b["start"]
+                            break
+                            
+                extracted = extract_page(page_arr, dtype, page_text, user_id, pdf_path=original_pdf_path, internal_page_idx=internal_page_idx)
             except Exception as e:
                 _log.exception("Worker AI extraction failed for page %s", page_info.get("page_num"))
                 extracted = {"_ok": False, "_error": str(e), "drawing_type": dtype}
