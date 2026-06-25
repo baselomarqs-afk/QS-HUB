@@ -100,6 +100,41 @@ async def get_system_stats(admin: dict = Depends(verify_admin)):
     except:
         pass
 
+    # 6. User and Project Analytics
+    from datetime import datetime, timedelta
+    now = datetime.utcnow()
+    t_12h = (now - timedelta(hours=12)).strftime('%Y-%m-%d %H:%M:%S')
+    today = now.strftime('%Y-%m-%d')
+
+    logins_today = 0
+    regs_today = 0
+    projects_12h = 0
+    recent_projects = []
+
+    try:
+        df_logins = safe_query(f"SELECT id FROM qto_users WHERE DATE(last_login_at) = '{today}'")
+        logins_today = len(df_logins) if not df_logins.empty else 0
+
+        df_regs = safe_query(f"SELECT id FROM qto_users WHERE DATE(created_at) = '{today}'")
+        regs_today = len(df_regs) if not df_regs.empty else 0
+
+        df_projs = safe_query(f"SELECT id FROM qto_projects WHERE created_at >= '{t_12h}'")
+        projects_12h = len(df_projs) if not df_projs.empty else 0
+
+        df_recent = safe_query(
+            """
+            SELECT p.id, p.name, p.status, p.current_step, p.created_at, u.email as user_email
+            FROM qto_projects p
+            JOIN qto_users u ON p.user_id = u.id
+            ORDER BY p.id DESC
+            LIMIT 15
+            """
+        )
+        if not df_recent.empty:
+            recent_projects = df_recent.to_dict("records")
+    except Exception as e:
+        print(f"Error fetching analytics: {e}")
+
     return {
         "db_ok": db_ok,
         "db_error": db_err,
@@ -111,7 +146,13 @@ async def get_system_stats(admin: dict = Depends(verify_admin)):
         },
         "ocr_ready": ocr_ok,
         "pdf_ready": pdf_ok,
-        "system_perfect": db_ok and all(env_status.values()) and ocr_ok and pdf_ok
+        "system_perfect": db_ok and all(env_status.values()) and ocr_ok and pdf_ok,
+        "analytics": {
+            "logins_today": logins_today,
+            "regs_today": regs_today,
+            "projects_12h": projects_12h,
+            "recent_projects": recent_projects
+        }
     }
 
 @router.get("/memory-rules")

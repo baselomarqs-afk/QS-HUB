@@ -318,6 +318,64 @@ export default function Admin({ token, isArabic }) {
                   )}
                 </div>
 
+                {systemStats.analytics && (
+                  <div style={{ marginBottom: '35px' }}>
+                    <h4 style={{ fontWeight: 700, marginBottom: '15px' }}>📊 {isArabic ? 'إحصائيات النشاط (اليوم)' : 'Daily Activity Analytics'}</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                      <div style={{ padding: '20px', background: 'var(--bg-secondary)', borderRadius: '12px', textAlign: 'center', borderTop: '3px solid var(--primary)' }}>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '5px' }}>{isArabic ? 'تسجيلات الدخول اليوم' : 'Logins Today'}</p>
+                        <h3 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{systemStats.analytics.logins_today}</h3>
+                      </div>
+                      <div style={{ padding: '20px', background: 'var(--bg-secondary)', borderRadius: '12px', textAlign: 'center', borderTop: '3px solid var(--success)' }}>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '5px' }}>{isArabic ? 'المستخدمين الجدد اليوم' : 'New Registrations Today'}</p>
+                        <h3 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{systemStats.analytics.regs_today}</h3>
+                      </div>
+                      <div style={{ padding: '20px', background: 'var(--bg-secondary)', borderRadius: '12px', textAlign: 'center', borderTop: '3px solid var(--warning)' }}>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '5px' }}>{isArabic ? 'مشاريع آخر 12 ساعة' : 'Projects Last 12h'}</p>
+                        <h3 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{systemStats.analytics.projects_12h}</h3>
+                      </div>
+                    </div>
+
+                    <h5 style={{ fontWeight: 700, marginBottom: '10px' }}>{isArabic ? 'أحدث المشاريع المعالجة' : 'Recent Projects'}</h5>
+                    {systemStats.analytics.recent_projects && systemStats.analytics.recent_projects.length > 0 ? (
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: isArabic ? 'right' : 'left' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
+                              <th style={{ padding: '10px 8px', fontWeight: 700 }}>ID</th>
+                              <th style={{ padding: '10px 8px', fontWeight: 700 }}>{isArabic ? 'المستخدم' : 'User'}</th>
+                              <th style={{ padding: '10px 8px', fontWeight: 700 }}>{isArabic ? 'المشروع' : 'Project'}</th>
+                              <th style={{ padding: '10px 8px', fontWeight: 700 }}>{isArabic ? 'الحالة' : 'Status'}</th>
+                              <th style={{ padding: '10px 8px', fontWeight: 700 }}>{isArabic ? 'تاريخ الإنشاء' : 'Created At'}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {systemStats.analytics.recent_projects.map(p => (
+                              <tr key={p.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                <td style={{ padding: '10px 8px' }}>#{p.id}</td>
+                                <td style={{ padding: '10px 8px', fontWeight: 600 }}>{p.user_email}</td>
+                                <td style={{ padding: '10px 8px' }}>{p.name}</td>
+                                <td style={{ padding: '10px 8px' }}>
+                                  <span style={{
+                                    padding: '3px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700,
+                                    background: p.status === 'completed' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+                                    color: p.status === 'completed' ? 'var(--success)' : 'var(--warning)'
+                                  }}>{p.status}</span>
+                                </td>
+                                <td style={{ padding: '10px 8px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                  {new Date(p.created_at).toLocaleString()}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p style={{ color: 'var(--text-secondary)' }}>{isArabic ? 'لا توجد مشاريع حديثة.' : 'No recent projects.'}</p>
+                    )}
+                  </div>
+                )}
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginBottom: '30px' }}>
                   <div>
                     <h4 style={{ fontWeight: 700, marginBottom: '15px' }}>🔑 {isArabic ? 'المتغيرات البيئية' : 'Environment Settings'}</h4>
