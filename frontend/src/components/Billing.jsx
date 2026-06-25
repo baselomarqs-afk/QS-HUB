@@ -166,7 +166,7 @@ export default function Billing({ token, isArabic }) {
           </div>
 
           {/* Add-on Extra Project Option */}
-          {details.plan_tier > 0 && (
+          {details.plan_tier >= 0 && (
             <div className="glass-panel" style={{
               padding: '20px',
               backgroundColor: 'rgba(16, 185, 129, 0.04)',
