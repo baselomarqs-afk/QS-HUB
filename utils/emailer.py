@@ -23,7 +23,7 @@ def send_email(to_email: str, subject: str, body: str) -> bool:
     host = get_setting("SMTP_HOST", required=True)
     port = get_int_setting("SMTP_PORT", 587)
     username = get_setting("SMTP_USER")
-    password = get_setting("SMTP_PASSWORD")
+    password = get_setting("SMTP_PASS", get_setting("SMTP_PASSWORD"))
 
     with smtplib.SMTP(host, port, timeout=20) as smtp:
         smtp.starttls()
