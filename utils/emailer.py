@@ -25,11 +25,17 @@ def send_email(to_email: str, subject: str, body: str) -> bool:
     username = get_setting("SMTP_USER")
     password = get_setting("SMTP_PASS", get_setting("SMTP_PASSWORD"))
 
-    with smtplib.SMTP(host, port, timeout=20) as smtp:
-        smtp.starttls()
-        if username:
-            smtp.login(username, password)
-        smtp.send_message(msg)
+    if port == 465:
+        with smtplib.SMTP_SSL(host, port, timeout=20) as smtp:
+            if username:
+                smtp.login(username, password)
+            smtp.send_message(msg)
+    else:
+        with smtplib.SMTP(host, port, timeout=20) as smtp:
+            smtp.starttls()
+            if username:
+                smtp.login(username, password)
+            smtp.send_message(msg)
     return True
 
 
