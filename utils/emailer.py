@@ -40,3 +40,27 @@ def send_password_reset(to_email: str, token: str) -> bool:
         "Reset your THE QS HUB password",
         f"Use this secure link to reset your password:\n\n{reset_url}\n\nThis link expires in 1 hour.",
     )
+
+def send_project_followup_email(to_email: str) -> bool:
+    subject = "كيف كانت تجربتك؟ | How was your experience with THE QS HUB? 🎁"
+    body = f"""مرحباً،
+يسعدنا أنك أنهيت مشروعك المجاني بنجاح! 
+نتمنى أن يكون الذكاء الاصطناعي قد وفر عليك الوقت في استخراج الكميات. رأيك يهمنا جداً لتطوير المنصة، ما هو تقييمك للتجربة؟
+
+🎁 هدية ترحيبية: يمكنك الآن الحصول على خصم 50% على اشتراكاتنا الشهرية باستخدام الكود: QTO2026.
+إذا كان لديك مشروع واحد إضافي، يمكنك الآن شراءه بـ 50 درهم فقط (Pay-as-you-go).
+
+لترقية حسابك: {app_base_url()}
+-----------------------------
+Hi,
+We noticed you successfully completed your free project! 
+We hope our AI saved you valuable time. Your feedback means everything to us, how was your experience?
+
+🎁 Welcome Gift: Enjoy 50% OFF our monthly plans with code: QTO2026.
+Or, if you just have one upcoming project, you can now buy a single project allowance for 50 AED (Pay-as-you-go).
+
+To upgrade your account: {app_base_url()}
+
+THE QS HUB Team
+"""
+    return send_email(to_email, subject, body)

@@ -2,7 +2,7 @@ import os
 import json
 import io
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -196,7 +196,7 @@ def validate_critical_inputs_for_export(state_data: dict):
         )
 
 @router.get("/export/excel")
-async def export_excel(project_id: int, current_user: dict = Depends(get_current_user)):
+async def export_excel(project_id: int, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     from utils.usage import check_limit, EVENT_EXPORT
     ok, msg = check_limit(current_user, EVENT_EXPORT)
     if not ok:
@@ -227,6 +227,20 @@ async def export_excel(project_id: int, current_user: dict = Depends(get_current
     from utils.usage import EVENT_EXPORT, log_usage
     log_usage(current_user["id"], EVENT_EXPORT, project_id=project_id)
     
+    # Check if this is the user's FIRST export and they are on a free plan, and trigger follow-up email
+    try:
+        from utils.plans import get_plan_for_user
+        plan = get_plan_for_user(current_user["id"], current_user.get("role", "user"))
+        if plan.tier == 0:
+            df_exports = safe_query("SELECT COUNT(*) as c FROM qto_usage_logs WHERE user_id=%s AND event_type=%s", (current_user["id"], EVENT_EXPORT))
+            export_count = df_exports.iloc[0]["c"]
+            # Since we just logged the export, it should be 1 if it's the very first time
+            if export_count == 1:
+                from utils.emailer import send_project_followup_email
+                background_tasks.add_task(send_project_followup_email, current_user["email"])
+    except Exception as e:
+        print(f"Error scheduling followup email: {e}")
+    
     return StreamingResponse(
         io.BytesIO(excel_bytes),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -234,7 +248,7 @@ async def export_excel(project_id: int, current_user: dict = Depends(get_current
     )
 
 @router.get("/export/pdf")
-async def export_pdf(project_id: int, current_user: dict = Depends(get_current_user)):
+async def export_pdf(project_id: int, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     from utils.usage import check_limit, EVENT_EXPORT
     ok, msg = check_limit(current_user, EVENT_EXPORT)
     if not ok:
@@ -293,6 +307,20 @@ async def export_pdf(project_id: int, current_user: dict = Depends(get_current_u
     # Log export
     from utils.usage import EVENT_EXPORT, log_usage
     log_usage(current_user["id"], EVENT_EXPORT, project_id=project_id)
+    
+    # Check if this is the user's FIRST export and they are on a free plan, and trigger follow-up email
+    try:
+        from utils.plans import get_plan_for_user
+        plan = get_plan_for_user(current_user["id"], current_user.get("role", "user"))
+        if plan.tier == 0:
+            df_exports = safe_query("SELECT COUNT(*) as c FROM qto_usage_logs WHERE user_id=%s AND event_type=%s", (current_user["id"], EVENT_EXPORT))
+            export_count = df_exports.iloc[0]["c"]
+            # Since we just logged the export, it should be 1 if it's the very first time
+            if export_count == 1:
+                from utils.emailer import send_project_followup_email
+                background_tasks.add_task(send_project_followup_email, current_user["email"])
+    except Exception as e:
+        print(f"Error scheduling followup email: {e}")
     
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
