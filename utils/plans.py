@@ -48,19 +48,19 @@ PLANS: dict[int, PlanLimits] = {
 
 
 @ttl_cache(ttl_seconds=300)
-def get_active_subscription(user_id: int) -> dict | None:
+def get_active_subscription(user_id: int, feature: str = "qto") -> dict | None:
     df = safe_query(
         """
-        SELECT id, user_id, plan_tier, provider, provider_customer_id,
+        SELECT id, user_id, feature, plan_tier, provider, provider_customer_id,
                provider_subscription_id, status,
                current_period_start, current_period_end, cancel_at_period_end,
                projects_used, ai_calls_used, exports_used, created_at, updated_at
         FROM qto_subscriptions
-        WHERE user_id=%s AND status IN ('active', 'trialing')
+        WHERE user_id=%s AND feature=%s AND status IN ('active', 'trialing')
         ORDER BY id DESC
         LIMIT 1
         """,
-        (user_id,),
+        (user_id, feature),
     )
     if df.empty:
         return None
@@ -68,8 +68,8 @@ def get_active_subscription(user_id: int) -> dict | None:
 
 
 @ttl_cache(ttl_seconds=300)
-def get_plan_for_user(user_id: int, role: str | None = None) -> PlanLimits:
+def get_plan_for_user(user_id: int, role: str | None = None, feature: str = "qto") -> PlanLimits:
     if role == "admin":
         return PlanLimits(99, "Admin", 0, 999999, 999999, 999999, 500)
-    sub = get_active_subscription(user_id)
+    sub = get_active_subscription(user_id, feature)
     return PLANS.get(int(sub.get("plan_tier", 0)), PLANS[0]) if sub else PLANS[0]

@@ -159,6 +159,7 @@ def initialize_sqlite_db(conn):
     CREATE TABLE IF NOT EXISTS qto_subscriptions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
+        feature TEXT DEFAULT 'qto',
         plan_tier INTEGER DEFAULT 0,
         provider TEXT DEFAULT 'manual',
         provider_customer_id TEXT,
@@ -248,6 +249,15 @@ def initialize_sqlite_db(conn):
         target_id TEXT,
         metadata TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+    
+    # 8. qto_deleted_accounts
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS qto_deleted_accounts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL,
+        deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
     

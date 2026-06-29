@@ -73,6 +73,35 @@ export default function Projects({ token, isArabic, onSelectProject, onNavigate,
     } catch (err) { console.error(err); }
   };
 
+  const handleExportModuleExcel = async (feature, id, e) => {
+    e.stopPropagation();
+    // Default configs for fallback
+    const DEFAULT_CFG = {
+      buaPerFloor: 400, complexityFactor: 1.0, hasPool: false, hasDemolition: false,
+      contractValueAed: 1500000, advancePaymentPct: 10, retentionPct: 10, retentionReleaseAtCompletionPct: 50,
+      vatPct: 5, certificationPeriodDays: 30, paymentPeriodDays: 30, defectsLiabilityMonths: 12, contractorCostRatio: 0.85
+    };
+    try {
+      const res = await fetch(`/api/modules/${feature}/item/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        const cfg = { ...DEFAULT_CFG, ...data.config };
+        const { buildActivityList, runScheduler } = await import('../engine/scheduler');
+        const acts = buildActivityList(cfg);
+        const out = runScheduler(cfg, acts);
+        if (feature === 'programme') {
+          const mod = await import('../engine/programmeExcel');
+          mod.exportProgrammeToExcel(cfg, out, cfg.projectName || 'Project');
+        } else {
+          const { computeCashFlow } = await import('../engine/cashflow');
+          const resObj = computeCashFlow(cfg, out.monthly);
+          const mod = await import('../engine/cashflowExcel');
+          mod.exportCashFlowToExcel(cfg, resObj, cfg.projectName || 'Project');
+        }
+      }
+    } catch (err) { console.error(err); }
+  };
+
   const renderQto = () => (
     loading && qtoProjects.length === 0 ? (
       <div style={{ textAlign: 'center', padding: '40px' }}>
@@ -149,6 +178,9 @@ export default function Projects({ token, isArabic, onSelectProject, onNavigate,
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <button className="btn btn-secondary" onClick={(e) => handleExportModuleExcel(feature, proj.id, e)} style={{ padding: '8px', borderRadius: '50%', color: 'var(--success)', borderColor: 'transparent' }} title={isArabic ? "تحميل إكسل" : "Download Excel"}>
+                <FileSpreadsheet size={18} />
+              </button>
               <button className="btn btn-secondary" onClick={(e) => handleDeleteModule(feature, proj.id, e)} style={{ padding: '8px', borderRadius: '50%', color: 'var(--error)', borderColor: 'transparent' }}>
                 <Trash2 size={16} />
               </button>

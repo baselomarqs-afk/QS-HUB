@@ -48,22 +48,19 @@ async def save(feature: str, req: SaveModuleReq, current_user: dict = Depends(ge
     is_new = not req.project_id
     user_id = current_user["id"]
     
-    total_projects = 0
     if is_new and not is_admin:
-        total_projects = count_projects(user_id, feature)
-        # 1st project is free trial (total_projects == 0). Subsequent projects need credits.
-        if total_projects >= 1:
-            if get_credits(user_id, feature) <= 0:
-                raise HTTPException(status_code=403, detail="No credits. Please purchase a project credit (50 AED) to create another project.")
+        from utils.usage import check_limit, EVENT_PROJECT
+        ok, msg = check_limit(current_user, EVENT_PROJECT)
+        if not ok:
+            raise HTTPException(status_code=403, detail=msg)
                 
     pid = save_module_project(user_id, feature, req.name, req.config, req.summary, req.project_id)
     if pid is None:
         raise HTTPException(status_code=500, detail="Failed to save.")
         
     if is_new and not is_admin:
-        # Only consume a credit if this is NOT their 1st project (free trial)
-        if total_projects >= 1:
-            consume_credit(user_id, feature, 1)
+        from utils.usage import log_usage, EVENT_PROJECT
+        log_usage(user_id, EVENT_PROJECT, metadata={"feature": feature, "project_id": pid, "project_name": req.name})
             
     return {"message": "Saved.", "project_id": pid}
 

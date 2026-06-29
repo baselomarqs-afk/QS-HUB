@@ -68,6 +68,76 @@ def verify_session_token(token: str) -> dict:
 
 def get_current_user(request: Request, authorization: Optional[str] = Header(None)) -> dict:
     if not authorization:
+from fastapi import APIRouter, HTTPException, Depends, Header, Request
+from pydantic import BaseModel, EmailStr
+import hmac
+import hashlib
+import time
+import os
+from typing import Optional
+from utils.db import safe_query, safe_execute
+from utils.security import password_hash, password_ok, login_rate_limited, touch_login
+
+router = APIRouter()
+
+# Session-signing secret. MUST come from env in production — no hardcoded fallback
+# (a known constant would let anyone forge valid session tokens).
+SECRET_KEY = os.environ.get("JWT_SECRET")
+
+if not SECRET_KEY:
+    # Ephemeral random secret (all sessions invalidate on restart).
+    import secrets as _secrets
+    SECRET_KEY = _secrets.token_hex(32)
+
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class ResetPasswordReq(BaseModel):
+    email: EmailStr
+
+class UpdatePasswordReq(BaseModel):
+    token: str
+    password: str
+
+def generate_session_token(user_id: int, role: str, token_version: int = 0) -> str:
+    expiry = int(time.time()) + 8 * 3600  # 8 hours session
+    msg = f"{user_id}:{role}:{token_version}:{expiry}"
+    sig = hmac.new(SECRET_KEY.encode(), msg.encode(), hashlib.sha256).hexdigest()
+    return f"{msg}:{sig}"
+
+def verify_session_token(token: str) -> dict:
+    try:
+        parts = token.split(":")
+        if len(parts) != 5:
+            raise HTTPException(status_code=401, detail="Invalid session token format")
+        user_id, role, token_version, expiry, sig = parts
+        msg = f"{user_id}:{role}:{token_version}:{expiry}"
+        expected_sig = hmac.new(SECRET_KEY.encode(), msg.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig, expected_sig):
+            raise HTTPException(status_code=401, detail="Session signature mismatch")
+        if int(expiry) < time.time():
+            raise HTTPException(status_code=401, detail="Session expired")
+        # Check token_version against DB to allow instant revocation
+        df = safe_query("SELECT email, COALESCE(token_version, 0) as tv FROM qto_users WHERE id=%s", (user_id,))
+        if df.empty:
+            raise HTTPException(status_code=401, detail="User not found")
+        db_version = int(df.iloc[0]["tv"])
+        if int(token_version) != db_version:
+            raise HTTPException(status_code=401, detail="Session revoked — please log in again")
+        email = df.iloc[0]["email"]
+        return {"id": int(user_id), "role": role, "email": email}
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+def get_current_user(request: Request, authorization: Optional[str] = Header(None)) -> dict:
+    if not authorization:
         authorization = request.query_params.get("Authorization")
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
@@ -84,6 +154,25 @@ async def register(req: UserRegister):
     df = safe_query("SELECT id FROM qto_users WHERE email=%s", (email,))
     if not df.empty:
         raise HTTPException(status_code=400, detail="User with this email already exists.")
+        
+    # Check if account was deleted in the last 90 days
+    import pandas as pd
+    from datetime import datetime, timedelta
+    df_del = safe_query("SELECT deleted_at FROM qto_deleted_accounts WHERE email=%s ORDER BY id DESC LIMIT 1", (email,))
+    if not df_del.empty:
+        deleted_at = df_del.iloc[0]["deleted_at"]
+        if pd.notna(deleted_at):
+            if isinstance(deleted_at, str):
+                try:
+                    deleted_at = datetime.fromisoformat(deleted_at.replace("Z", ""))
+                except Exception:
+                    deleted_at = datetime.utcnow()
+            
+            # Since deleted_at might be pandas Timestamp or datetime
+            now = datetime.utcnow()
+            diff = (now - deleted_at).days if hasattr(now - deleted_at, 'days') else 0
+            if diff < 90:
+                raise HTTPException(status_code=400, detail="This email is restricted from registering for 90 days after account deletion.")
     
     hashed = password_hash(req.password)
     success, err = safe_execute(
@@ -200,6 +289,10 @@ async def update_profile(req: UserProfileUpdate, current_user: dict = Depends(ge
 @router.delete("/account")
 async def delete_account(current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
+    email = current_user["email"]
+    
+    safe_execute("INSERT INTO qto_deleted_accounts (email) VALUES (%s)", (email,))
+    
     success, err = safe_execute("DELETE FROM qto_users WHERE id=%s", (user_id,))
     if not success:
         raise HTTPException(status_code=500, detail=f"Database deletion failed: {err}")

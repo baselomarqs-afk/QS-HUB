@@ -206,7 +206,7 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
               {loadingPct}% {t('Complete', 'مكتمل')}
             </p>
           </div>
-        ) : (
+        ) : !processed && (
           <button className="btn btn-primary" disabled={!canProcess} onClick={process} style={{ marginTop: 16, padding: '12px 20px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Rocket size={16} /> {t('Process — Build Cash Flow', 'معالجة — إنشاء التدفق النقدي')}
           </button>

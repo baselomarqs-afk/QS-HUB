@@ -231,7 +231,7 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
               {loadingPct}% {t('Complete', 'مكتمل')}
             </p>
           </div>
-        ) : (
+        ) : !out && (
           <button className="btn btn-primary" disabled={!canProcess} onClick={process} style={{ marginTop: 16, padding: '12px 20px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Rocket size={16} /> {t('Process — Build CPM Schedule', 'معالجة — إنشاء برنامج الأعمال')}
           </button>
@@ -288,6 +288,14 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
                  'تُحجَّم المدد بحيث يتسع البرنامج تماماً بين تاريخي البدء والتسليم. الفلل بدون أعمال حريق. 🔴 = المسار الحرج.')}
             </p>
           </div>
+          
+          <FeedbackModal 
+            isOpen={true} 
+            inline={true}
+            toolName="Work Programme" 
+            projectName={cfg.projectName} 
+            isArabic={isArabic} 
+          />
         </>
       )}
     </div>

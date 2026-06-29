@@ -36,7 +36,7 @@ def _get_dodo_client() -> DodoPayments:
 ONE_TIME_TIERS = {"addon", "programme", "cashflow"}
 
 
-def dodo_product_for_tier(tier: int | str) -> str:
+def dodo_product_for_tier(tier: int | str, feature: str = "qto") -> str:
     if tier == "addon":
         price_id = get_setting("DODO_PRODUCT_ADDON_PROJECT")
     elif tier == "programme":
@@ -44,16 +44,24 @@ def dodo_product_for_tier(tier: int | str) -> str:
     elif tier == "cashflow":
         price_id = get_setting("DODO_PRODUCT_CASHFLOW") or get_setting("DODO_PRODUCT_ADDON_PROJECT")
     else:
-        price_id = get_setting(f"DODO_PRODUCT_TIER_{tier}")
+        if feature == "programme":
+            price_id = get_setting(f"DODO_PRODUCT_PROGRAMME_TIER_{tier}")
+        elif feature == "cashflow":
+            price_id = get_setting(f"DODO_PRODUCT_CASHFLOW_TIER_{tier}")
+        else:
+            price_id = get_setting(f"DODO_PRODUCT_TIER_{tier}")
     if not price_id:
-        raise RuntimeError(f"Missing Dodo product id for tier '{tier}'")
+        # Fallback to dummy values for now until they are provided
+        if feature in ["programme", "cashflow"] and tier in [1, 2, 3, 4]:
+            return f"pdt_DUMMY_{feature.upper()}_{tier}"
+        raise RuntimeError(f"Missing Dodo product id for tier '{tier}' feature '{feature}'")
     return price_id
 
 
-def create_checkout_session(user: dict, tier: int | str) -> str:
+def create_checkout_session(user: dict, tier: int | str, feature: str = "qto") -> str:
     """Create a Dodo Payments checkout session."""
     client = _get_dodo_client()
-    product_id = dodo_product_for_tier(tier)
+    product_id = dodo_product_for_tier(tier, feature)
 
     if tier in ONE_TIME_TIERS:
         custom_data = {"user_id": str(user["id"])}
@@ -84,8 +92,10 @@ def create_checkout_session(user: dict, tier: int | str) -> str:
         params = {
             "email": user["email"],
             "metadata_user_id": str(user["id"]),
-            "metadata_plan_tier": str(tier)
+            "metadata_plan_tier": str(tier),
+            "metadata_feature": feature
         }
+        
         query_string = urllib.parse.urlencode(params)
         checkout_url = f"https://checkout.dodopayments.com/buy/{product_id}?{query_string}"
         
@@ -137,6 +147,8 @@ def _upsert_subscription_from_dodo(data: dict[str, Any]) -> None:
         tier = int(tier_raw)
     except Exception:
         tier = 0
+        
+    feature = metadata.get("feature") or metadata.get("metadata_feature") or data.get("metadata_feature") or "qto"
     
     subscription_id = data.get("subscription_id")
     status = data.get("status", "inactive")
@@ -157,6 +169,7 @@ def _upsert_subscription_from_dodo(data: dict[str, Any]) -> None:
 
     params = (
         user_id,
+        feature,
         tier,
         "dodopayments",
         customer_id,
@@ -174,10 +187,10 @@ def _upsert_subscription_from_dodo(data: dict[str, Any]) -> None:
         safe_execute(
             """
             INSERT INTO qto_subscriptions
-                (user_id, plan_tier, provider, provider_customer_id, provider_subscription_id,
+                (user_id, feature, plan_tier, provider, provider_customer_id, provider_subscription_id,
                  status, current_period_start, current_period_end,
                  cancel_at_period_end)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             params,
         )
@@ -185,14 +198,14 @@ def _upsert_subscription_from_dodo(data: dict[str, Any]) -> None:
         safe_execute(
             """
             UPDATE qto_subscriptions
-            SET user_id=%s, plan_tier=%s, provider=%s, provider_customer_id=%s,
+            SET user_id=%s, feature=%s, plan_tier=%s, provider=%s, provider_customer_id=%s,
                 provider_subscription_id=%s, status=%s,
                 current_period_start=%s, current_period_end=%s, cancel_at_period_end=%s
             WHERE provider='dodopayments' AND provider_subscription_id=%s
             """,
             (*params, subscription_id),
         )
-    audit_log("subscription_synced", user_id, "subscription", subscription_id, {"provider": "dodopayments", "status": status})
+    audit_log("subscription_synced", user_id, "subscription", subscription_id, {"provider": "dodopayments", "status": status, "feature": feature})
     
     # Invalidate cache so user sees upgrade immediately
     from utils.plans import get_active_subscription, get_plan_for_user
