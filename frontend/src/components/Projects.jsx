@@ -114,10 +114,12 @@ export default function Projects({ token, isArabic, onSelectProject, onNavigate,
       </div>
     ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        {qtoProjects.map((proj) => (
+        {qtoProjects.map((proj) => {
+          const isDone = proj.current_step >= 7;
+          return (
           <div 
-            key={proj.id} className="glass-card" onClick={() => { onSelectProject(proj); onNavigate('workflow'); }}
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+            key={proj.id} className="glass-card" onClick={isDone ? undefined : () => { onSelectProject(proj); onNavigate('workflow'); }}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: isDone ? 'default' : 'pointer' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
               <div style={{ width: '45px', height: '45px', borderRadius: '10px', backgroundColor: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
@@ -133,7 +135,7 @@ export default function Projects({ token, isArabic, onSelectProject, onNavigate,
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-              {proj.current_step >= 7 && (
+              {isDone && (
                 <button className="btn btn-secondary" onClick={(e) => { e.stopPropagation(); window.open(`/api/workflow/export/excel?project_id=${proj.id}&Authorization=Bearer ${token}`); }} style={{ padding: '8px', borderRadius: '50%', color: 'var(--success)', borderColor: 'transparent' }} title={isArabic ? "تحميل إكسل" : "Download Excel"}>
                   <FileSpreadsheet size={18} />
                 </button>
@@ -141,10 +143,11 @@ export default function Projects({ token, isArabic, onSelectProject, onNavigate,
               <button className="btn btn-secondary" onClick={(e) => handleDeleteQto(proj.id, e)} style={{ padding: '8px', borderRadius: '50%', color: 'var(--error)', borderColor: 'transparent' }}>
                 <Trash2 size={16} />
               </button>
-              <ArrowRight size={18} color="var(--text-muted)" style={{ transform: isArabic ? 'rotate(180deg)' : 'none' }} />
+              {!isDone && <ArrowRight size={18} color="var(--text-muted)" style={{ transform: isArabic ? 'rotate(180deg)' : 'none' }} />}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     )
   );
@@ -163,8 +166,8 @@ export default function Projects({ token, isArabic, onSelectProject, onNavigate,
       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
         {items.map((proj) => (
           <div 
-            key={proj.id} className="glass-card" onClick={() => handleLoadModule(feature, proj.id)}
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+            key={proj.id} className="glass-card"
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
               <div style={{ width: '45px', height: '45px', borderRadius: '10px', backgroundColor: feature === 'programme' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: feature === 'programme' ? 'var(--success)' : 'var(--warning)' }}>
@@ -184,7 +187,6 @@ export default function Projects({ token, isArabic, onSelectProject, onNavigate,
               <button className="btn btn-secondary" onClick={(e) => handleDeleteModule(feature, proj.id, e)} style={{ padding: '8px', borderRadius: '50%', color: 'var(--error)', borderColor: 'transparent' }}>
                 <Trash2 size={16} />
               </button>
-              <ArrowRight size={18} color="var(--text-muted)" style={{ transform: isArabic ? 'rotate(180deg)' : 'none' }} />
             </div>
           </div>
         ))}
