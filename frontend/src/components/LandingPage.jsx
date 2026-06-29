@@ -108,8 +108,8 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
           fontWeight: 500
         }}>
           {isArabic 
-            ? 'مساعد ذكي مدعوم بالذكاء الاصطناعي لحصر كميات مشاريع الفلل في الإمارات وأكثر.'
-            : 'AI powered assistant for quantity taking-off for villas project in the UAE & more.'}
+            ? 'مساعد ذكي مدعوم بالذكاء الاصطناعي لحصر الكميات، والتدفق النقدي، والجداول الزمنية لمشاريع الفلل في الإمارات.'
+            : 'AI powered assistant for quantity taking-off , cash flow . work programs for villas project in the UAE..'}
         </p>
 
         <button className="btn btn-primary" onClick={onGetStarted} style={{ padding: '12px 35px', fontSize: '1.05rem', fontWeight: 700 }}>
