@@ -40,9 +40,9 @@ def dodo_product_for_tier(tier: int | str) -> str:
     if tier == "addon":
         price_id = get_setting("DODO_PRODUCT_ADDON_PROJECT")
     elif tier == "programme":
-        price_id = get_setting("DODO_PRODUCT_PROGRAMME")
+        price_id = get_setting("DODO_PRODUCT_PROGRAMME") or get_setting("DODO_PRODUCT_ADDON_PROJECT")
     elif tier == "cashflow":
-        price_id = get_setting("DODO_PRODUCT_CASHFLOW")
+        price_id = get_setting("DODO_PRODUCT_CASHFLOW") or get_setting("DODO_PRODUCT_ADDON_PROJECT")
     else:
         price_id = get_setting(f"DODO_PRODUCT_TIER_{tier}")
     if not price_id:
