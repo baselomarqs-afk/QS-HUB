@@ -140,10 +140,11 @@ const FeedbackModal = ({ isOpen, onClose, toolName, projectName, isArabic, inlin
                 onClick={handleSubmit}
                 disabled={rating === 0 || submitting}
               >
-                {submitting ? (isArabic ? 'جاري الإرسال...' : 'Submitting...') : (isArabic ? 'إرسال' : 'Submit')}
+              </button>
+            </div>
+          </>
         )}
       </div>
-    </div>
   );
 
   if (inline) return cardContent;
