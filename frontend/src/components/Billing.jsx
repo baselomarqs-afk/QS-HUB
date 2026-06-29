@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, Check, AlertCircle, Sparkles } from 'lucide-react';
 
-export default function Billing({ token, isArabic }) {
+export default function Billing({ token, isArabic, user, onLogout }) {
   const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [message, setMessage] = useState('');
+  
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState(user?.name || '');
 
   useEffect(() => {
     fetchSubscriptionDetails();
@@ -47,6 +51,32 @@ export default function Billing({ token, isArabic }) {
     }
   };
 
+  const handleSaveName = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: editedName })
+      });
+      if (res.ok) {
+        setIsEditingName(false);
+        // Refresh page to get new user object globally
+        window.location.reload();
+      } else {
+        const data = await res.json();
+        setMessage(data.detail || 'Failed to update name');
+      }
+    } catch (err) {
+      setMessage(`Error: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handlePortal = async () => {
     setLoading(true);
     setMessage('');
@@ -64,6 +94,28 @@ export default function Billing({ token, isArabic }) {
       setMessage(`Error: ${err.message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!confirm(isArabic ? 'هل أنت متأكد من رغبتك في حذف الحساب نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.' : 'Are you sure you want to delete your account permanently? This action cannot be undone.')) return;
+    
+    setDeleting(true);
+    setMessage('');
+    try {
+      const res = await fetch(`/api/auth/account`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        if (onLogout) onLogout();
+      } else {
+        const data = await res.json();
+        throw new Error(data.detail || 'Could not delete account.');
+      }
+    } catch (err) {
+      setMessage(`Error: ${err.message}`);
+      setDeleting(false);
     }
   };
 
@@ -96,103 +148,90 @@ export default function Billing({ token, isArabic }) {
 
       {details && (
         <>
-          {/* Current Plan & Usage Metrics */}
-          <div className="glass-panel" style={{ padding: '25px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '35px' }}>
-            <div className="glass-card" style={{ borderLeft: '4px solid var(--primary)' }}>
-              <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>
-                {isArabic ? 'الباقة الحالية' : 'Current Plan'}
-              </span>
-              <h3 style={{ fontSize: '1.4rem', fontWeight: 800, marginTop: '5px' }}>{details.plan_name}</h3>
-              {details.subscription_status === 'active' ? (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}>
-                  <span style={{ color: 'var(--success)', fontSize: '0.8rem', fontWeight: 700 }}>✓ Active</span>
-                  <button 
-                    className="btn btn-secondary" 
-                    onClick={handlePortal} 
-                    style={{ fontSize: '0.75rem', padding: '4px 10px', borderRadius: '6px' }}
-                  >
-                    {isArabic ? 'إدارة الاشتراك' : 'Manage Subscription'}
-                  </button>
-                </div>
-              ) : (
-                <div style={{ marginTop: '12px', padding: '10px', backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: '6px' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>
-                    {isArabic ? 'الحالة: غير نشط' : 'Status: Inactive'}
+          {/* User Profile Overview */}
+          <div className="glass-panel" style={{ padding: '25px', marginBottom: '35px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+              <div className="glass-card" style={{ borderLeft: '4px solid var(--primary)', position: 'relative' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>
+                    {isArabic ? 'اسم المستخدم' : 'User Name'}
                   </span>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.4' }}>
-                    {isArabic ? 'أنت غير مشترك حالياً في أي باقة. يرجى اختيار باقة من الأسفل لترقية حسابك.' : 'You are not subscribed to any plan. Please choose a package below to upgrade your account.'}
-                  </p>
+                  {!isEditingName && (
+                    <button onClick={() => setIsEditingName(true)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.8rem' }}>
+                      {isArabic ? 'تعديل' : 'Edit'}
+                    </button>
+                  )}
                 </div>
-              )}
-            </div>
-
-            <div className="glass-card">
-              <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>
-                {isArabic ? 'حصر المشاريع' : 'Projects Takeoffs'}
-              </span>
-              <h3 style={{ fontSize: '1.4rem', fontWeight: 800, marginTop: '5px' }}>
-                {details.usage.projects} / {details.project_limit}
-              </h3>
-              {details.extra_projects > 0 && (
-                <span style={{ color: 'var(--primary)', fontSize: '0.78rem', fontWeight: 600 }}>
-                  (+{details.extra_projects} Add-ons)
+                {isEditingName ? (
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                    <input 
+                      type="text" 
+                      value={editedName} 
+                      onChange={(e) => setEditedName(e.target.value)} 
+                      style={{ flex: 1, padding: '6px 10px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                    />
+                    <button onClick={handleSaveName} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
+                      {isArabic ? 'حفظ' : 'Save'}
+                    </button>
+                    <button onClick={() => setIsEditingName(false)} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
+                      {isArabic ? 'إلغاء' : 'Cancel'}
+                    </button>
+                  </div>
+                ) : (
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginTop: '5px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {user?.name ? user.name : (user?.email ? (user.email.startsWith('eng.') ? user.email.split('@')[0] : `eng.${user.email.split('@')[0]}`) : 'eng.user')}
+                  </h3>
+                )}
+              </div>
+              <div className="glass-card" style={{ borderLeft: '4px solid var(--success)' }}>
+                <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>
+                  {isArabic ? 'البريد الإلكتروني' : 'Email'}
                 </span>
-              )}
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginTop: '5px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {user ? user.email : '...'}
+                </h3>
+              </div>
+              <div className="glass-card" style={{ borderLeft: '4px solid var(--warning)' }}>
+                <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>
+                  {isArabic ? 'الباقة الحالية' : 'Current Plan'}
+                </span>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginTop: '5px' }}>
+                  {details.plan_name}
+                </h3>
+              </div>
             </div>
 
-            <div className="glass-card">
-              <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>
-                {isArabic ? 'استدعاءات الذكاء الاصطناعي' : 'AI Analysis Calls'}
-              </span>
-              <h3 style={{ fontSize: '1.4rem', fontWeight: 800, marginTop: '5px' }}>
-                {details.usage.ai_calls}
-              </h3>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                {isArabic ? 'استهلاك هذا الشهر' : 'Usage this month'}
-              </span>
-            </div>
-
-            <div className="glass-card">
-              <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>
-                {isArabic ? 'تصدير التقارير' : 'Reports Exports'}
-              </span>
-              <h3 style={{ fontSize: '1.4rem', fontWeight: 800, marginTop: '5px' }}>
-                {details.usage.exports}
-              </h3>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                {isArabic ? 'ملفات Excel و PDF' : 'Excel & PDF files'}
-              </span>
+            {/* Account Actions */}
+            <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', marginTop: '10px' }}>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => {
+                  document.getElementById('subscription-catalog').scrollIntoView({ behavior: 'smooth' });
+                }}
+                style={{ padding: '10px 20px', borderRadius: '8px', fontWeight: 600 }}
+              >
+                {isArabic ? 'ترقية الباقة' : 'Upgrade Plan'}
+              </button>
+              <button 
+                className="btn btn-secondary" 
+                onClick={handlePortal}
+                style={{ padding: '10px 20px', borderRadius: '8px', fontWeight: 600, color: 'var(--warning)', borderColor: 'rgba(245, 158, 11, 0.3)' }}
+              >
+                {isArabic ? 'إلغاء الاشتراك' : 'Cancel Subscription'}
+              </button>
+              <button 
+                className="btn btn-secondary" 
+                onClick={handleDeleteAccount}
+                disabled={deleting}
+                style={{ padding: '10px 20px', borderRadius: '8px', fontWeight: 600, color: 'var(--error)', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+              >
+                {deleting ? (isArabic ? 'جاري الحذف...' : 'Deleting...') : (isArabic ? 'حذف الحساب' : 'Delete Account')}
+              </button>
             </div>
           </div>
 
-          {/* Add-on Extra Project Option */}
-          {details.plan_tier >= 0 && (
-            <div className="glass-panel" style={{
-              padding: '20px',
-              backgroundColor: 'rgba(16, 185, 129, 0.04)',
-              border: '1px solid rgba(16, 185, 129, 0.2)',
-              marginBottom: '35px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              borderRadius: '12px'
-            }}>
-              <div>
-                <h4 style={{ fontWeight: 700, color: 'var(--success)' }}>
-                  {isArabic ? 'تحتاج لمشروع إضافي؟' : 'Need an extra project?'}
-                </h4>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  {isArabic ? 'يمكنك شراء مشروع حصر واحد إضافي لا تنتهي صلاحيته مقابل 50 درهم.' : 'Buy a single project allowance that never expires for 50 AED.'}
-                </p>
-              </div>
-              <button className="btn btn-success" onClick={() => handleCheckout('addon')}>
-                {isArabic ? 'شراء مشروع إضافي (+50 درهم)' : 'Buy +1 Project (50 AED)'}
-              </button>
-            </div>
-          )}
-
           {/* Subscription Catalog */}
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '20px' }}>
+          <h3 id="subscription-catalog" style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '20px', paddingTop: '20px' }}>
             {isArabic ? 'باقات الاشتراك المتاحة' : 'Available Subscription Packages'}
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>

@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Folder, Calendar, ArrowRight, Trash2, ShieldAlert } from 'lucide-react';
+import { Plus, Folder, Calendar, ArrowRight, Trash2, ShieldAlert, Play, CalendarDays, Wallet } from 'lucide-react';
 
-export default function Dashboard({ token, isArabic, onSelectProject, onNavigate }) {
+export default function Dashboard({ token, isArabic, onSelectProject, onNavigate, onStartModuleProject, user }) {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [newProjName, setNewProjName] = useState('');
+  const [qtoProjName, setQtoProjName] = useState('');
+  const [programmeProjName, setProgrammeProjName] = useState('');
+  const [cashflowProjName, setCashflowProjName] = useState('');
   const [creating, setCreating] = useState(false);
   const [activeProject, setActiveProject] = useState(null);
   const [details, setDetails] = useState(null);
+  const [programmeAccess, setProgrammeAccess] = useState(null);
+  const [cashflowAccess, setCashflowAccess] = useState(null);
 
   useEffect(() => {
     fetchProjects();
     fetchActiveProjectState();
     fetchSubscriptionDetails();
+    fetchModuleAccess();
   }, []);
 
   const fetchSubscriptionDetails = async () => {
@@ -29,9 +34,31 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
     }
   };
 
-  const handleCheckoutAddon = async () => {
+  const fetchModuleAccess = async () => {
     try {
-      const res = await fetch(`/api/billing/checkout?tier=addon`, {
+      const pRes = await fetch("/api/billing/feature-access?feature=programme", {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (pRes.ok) {
+        const pData = await pRes.json();
+        setProgrammeAccess(pData);
+      }
+      
+      const cRes = await fetch("/api/billing/feature-access?feature=cashflow", {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (cRes.ok) {
+        const cData = await cRes.json();
+        setCashflowAccess(cData);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCheckout = async (tier) => {
+    try {
+      const res = await fetch(`/api/billing/checkout?tier=${tier}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -43,6 +70,10 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
     } catch (err) {
       alert(`Error: ${err.message}`);
     }
+  };
+
+  const handleCheckoutAddon = async () => {
+    await handleCheckout('addon');
   };
 
   const fetchProjects = async () => {
@@ -86,7 +117,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
-    if (!newProjName.trim() || creating) return;
+    if (!qtoProjName.trim() || creating) return;
 
     setCreating(true);
     try {
@@ -97,20 +128,20 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          project_name: newProjName.trim(),
+          project_name: qtoProjName.trim(),
           current_step: 1
         })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Failed to create project.');
       
-      onSelectProject({ id: data.project_id, name: newProjName.trim(), current_step: 1 });
+      onSelectProject({ id: data.project_id, name: qtoProjName.trim(), current_step: 1 });
       onNavigate('workflow');
     } catch (err) {
       alert(err.message);
     } finally {
       setCreating(false);
-      setNewProjName('');
+      setQtoProjName('');
     }
   };
 
@@ -159,21 +190,31 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
     }
   };
   const limitReached = details && (details.usage.projects >= details.project_limit);
+  const isAdmin = user && user.role === 'admin';
+
+  const userName = user && user.email ? user.email.split('@')[0] : '';
+  const displayUserName = userName.charAt(0).toUpperCase() + userName.slice(1);
 
   return (
     <div className="dashboard-content" style={{ padding: '30px', textAlign: isArabic ? 'right' : 'left', direction: isArabic ? 'rtl' : 'ltr' }}>
       {/* Welcome Banner */}
       <div style={{ marginBottom: '35px' }}>
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-          {isArabic ? 'أهلاً بك! 🏗️' : 'Welcome! 🏗️'}
+          {isArabic ? `أهلاً بك! م. ${displayUserName} 🏗️` : `Welcome! Eng. ${displayUserName} 🏗️`}
         </h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginTop: '6px' }}>
-          {isArabic ? 'منصة حصر الكميات الذكية وتوليد جداول BOQ المعتمدة على الذكاء الاصطناعي.' : 'Your smart Quantity Takeoff and automated BOQ generation platform.'}
+          {isArabic ? 'منصة حصر الكميات الذكية وتوليد جداول BOQ المعتمدة على الذكاء الاصطناعي.' : 'AI powered assistant for quantity taking-off , cash flow . work programs for villas project in the UAE..'}
         </p>
       </div>
 
       <div className="glass-panel" style={{ padding: '25px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '35px' }}>
-        <div className="glass-card" style={{ borderLeft: '4px solid var(--primary)' }}>
+        <div 
+          className="glass-card" 
+          style={{ borderLeft: '4px solid var(--primary)', cursor: 'pointer', transition: 'all 0.2s ease' }}
+          onClick={() => onNavigate('billing')}
+          onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+          onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
+        >
           <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>
             {isArabic ? 'الباقة الحالية' : 'Current Plan'}
           </span>
@@ -189,12 +230,18 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
           )}
         </div>
 
-        <div className="glass-card">
+        <div 
+          className="glass-card"
+          style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+          onClick={() => onNavigate('projects', { tab: 'qto' })}
+          onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+          onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
+        >
           <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>
             {isArabic ? 'حصر المشاريع' : 'Projects Takeoffs'}
           </span>
           <h3 style={{ fontSize: '1.4rem', fontWeight: 800, marginTop: '5px' }}>
-            {details ? `${details.usage.projects} / ${details.project_limit}` : '...'}
+            {details ? details.usage.projects : '...'}
           </h3>
           {details && details.extra_projects > 0 && (
             <span style={{ color: 'var(--primary)', fontSize: '0.78rem', fontWeight: 600 }}>
@@ -203,162 +250,531 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
           )}
         </div>
 
-        <div className="glass-card">
+        <div 
+          className="glass-card"
+          style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+          onClick={() => onNavigate('projects', { tab: 'programme' })}
+          onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+          onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
+        >
           <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>
-            {isArabic ? 'تصدير التقارير' : 'REPORTS EXPORTS'}
+            {isArabic ? 'برامج الأعمال المنجزة' : 'WORK PROGMS CREATED'}
           </span>
           <h3 style={{ fontSize: '1.4rem', fontWeight: 800, marginTop: '5px' }}>
-            {details ? details.usage.exports : '...'}
+            {programmeAccess ? programmeAccess.projects : '...'}
           </h3>
-          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            {isArabic ? 'ملفات Excel و PDF' : 'Excel & PDF files'}
-          </span>
+          {programmeAccess && programmeAccess.credits > 0 && (
+            <span style={{ color: 'var(--success)', fontSize: '0.78rem', fontWeight: 600 }}>
+              (+{programmeAccess.credits} Add-ons)
+            </span>
+          )}
         </div>
 
-        {/* 4th Box: Green Add Extra Project Box */}
+        {/* 4th Box: Cash Flows Done */}
         <div 
-          className="glass-card" 
-          style={{ 
-            backgroundColor: 'rgba(16, 185, 129, 0.05)', 
-            border: '1px solid rgba(16, 185, 129, 0.3)', 
-            cursor: details ? 'pointer' : 'default',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            textAlign: 'center',
-            transition: 'all 0.2s ease',
-            opacity: details ? 1 : 0.6
-          }}
-          onClick={details ? handleCheckoutAddon : undefined}
-          onMouseOver={(e) => { if(details) e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)' }}
-          onMouseOut={(e) => { if(details) e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.05)' }}
+          className="glass-card"
+          style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+          onClick={() => onNavigate('projects', { tab: 'cashflow' })}
+          onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+          onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
         >
-          <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            backgroundColor: 'rgba(16, 185, 129, 0.15)',
-            color: 'var(--success)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: '8px'
-          }}>
-            <Plus size={20} />
-          </div>
-          <h4 style={{ fontWeight: 700, color: 'var(--success)' }}>
-            {isArabic ? 'إضافة مشروع' : 'Add Extra Project'}
-          </h4>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            {isArabic ? '+50 درهم' : '+50 AED'}
+          <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>
+            {isArabic ? 'التدفقات النقدية المنجزة' : 'CASH FLOWS DONE'}
           </span>
+          <h3 style={{ fontSize: '1.4rem', fontWeight: 800, marginTop: '5px' }}>
+            {cashflowAccess ? cashflowAccess.projects : '...'}
+          </h3>
+          {cashflowAccess && cashflowAccess.credits > 0 && (
+            <span style={{ color: 'var(--warning)', fontSize: '0.78rem', fontWeight: 600 }}>
+              (+{cashflowAccess.credits} Add-ons)
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Create New Project Section */}
-      <div className="glass-panel" style={{ 
-        padding: '30px', 
-        marginBottom: '35px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '20px',
-        background: 'linear-gradient(145deg, rgba(59, 130, 246, 0.05) 0%, rgba(15, 23, 42, 0) 100%)',
-        border: '1px solid rgba(59, 130, 246, 0.15)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ padding: '10px', background: 'var(--primary-glow)', borderRadius: '12px', color: 'var(--primary)' }}>
-            <Plus size={24} />
+      {/* QTO System Tools Section */}
+      <div style={{ marginBottom: '35px' }}>
+        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '15px' }}>
+          {isArabic ? 'أدوات النظام' : 'Q.S Tools'}
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '25px' }}>
+          
+          {/* Tile 1: QTO Workflow */}
+          <div 
+            className="glass-card" 
+            style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              justifyContent: 'space-between',
+              padding: '25px',
+              border: '1px solid rgba(59, 130, 246, 0.15)',
+              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, transparent 100%), var(--bg-secondary)',
+              gap: '15px',
+              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 8px 20px -5px rgba(59, 130, 246, 0.2)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'none';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
+            {/* Top Interactive Info Area */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+              <div style={{
+                width: '50px',
+                height: '50px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                color: 'var(--primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <Play size={24} fill="var(--primary)" />
+              </div>
+              <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                {isArabic ? 'مسار حصر الكميات' : 'QTO Workflow'}
+              </h4>
+              <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
+                {isArabic 
+                  ? 'رفع المخططات الهندسية، حصر الكميات، وتوليد جداول كميات (BOQ) معتمدة على الذكاء الاصطناعي.'
+                  : 'Upload engineering drawings, extract quantities, and generate standard BOQs powered by AI.'}
+              </p>
+            </div>
+
+            {/* Divider */}
+            <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', margin: '5px 0' }} />
+
+            {/* Stats / Project Counter */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
+                  {isArabic ? 'المشاريع:' : 'Projects Counter:'}
+                </span>
+                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {isAdmin ? (isArabic ? 'غير محدود' : 'Infinite') : (details ? `${details.usage.projects} / ${details.project_limit}` : '...')}
+                </span>
+              </div>
+              {!isAdmin && details && (
+                <div style={{ width: '100%', height: '6px', backgroundColor: 'rgba(255, 255, 255, 0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{
+                    width: `${Math.min(100, (details.usage.projects / details.project_limit) * 100)}%`,
+                    height: '100%',
+                    backgroundColor: (details.usage.projects >= details.project_limit) ? 'var(--error)' : 'var(--primary)',
+                    borderRadius: '3px',
+                    transition: 'width 0.4s ease'
+                  }} />
+                </div>
+              )}
+            </div>
+
+            {/* Start Project Bar */}
+            <div style={{ marginTop: '5px' }}>
+              {(!isAdmin && details && details.usage.projects >= details.project_limit) ? (
+                <div style={{
+                  padding: '10px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  borderRadius: '6px',
+                  color: 'var(--error)',
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span>⚠️</span>
+                  <span>{isArabic ? 'تم الوصول للحد! يرجى الشراء.' : 'Limit reached! Please purchase.'}</span>
+                </div>
+              ) : (
+                <form 
+                  onSubmit={handleCreateProject}
+                  style={{ display: 'flex', gap: '8px' }}
+                >
+                  <input
+                    type="text"
+                    className="form-input"
+                    style={{ 
+                      flex: 1, 
+                      minWidth: '0',
+                      fontSize: '0.85rem',
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-primary)',
+                      color: 'var(--text-primary)'
+                    }}
+                    placeholder={isArabic ? 'اسم المشروع...' : 'Project name...'}
+                    value={qtoProjName}
+                    onChange={e => setQtoProjName(e.target.value)}
+                    disabled={creating}
+                  />
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary" 
+                    style={{ padding: '8px 14px', fontSize: '0.85rem', borderRadius: '6px', whiteSpace: 'nowrap' }}
+                    disabled={creating || !qtoProjName.trim()}
+                  >
+                    {creating ? (isArabic ? 'جاري...' : 'Starting...') : (isArabic ? 'بدء 🚀' : 'Start 🚀')}
+                  </button>
+                </form>
+              )}
+            </div>
+
+            {/* Add Project Green Box */}
+            {!isAdmin && (
+              <div 
+                style={{ 
+                  backgroundColor: 'rgba(16, 185, 129, 0.05)', 
+                  border: '1px solid rgba(16, 185, 129, 0.3)', 
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  transition: 'all 0.2s ease',
+                  marginTop: '5px'
+                }}
+                onClick={() => handleCheckout('addon')}
+                onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)' }}
+                onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.05)' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Plus size={14} style={{ color: 'var(--success)' }} />
+                  <span style={{ fontWeight: 700, color: 'var(--success)', fontSize: '0.8rem' }}>
+                    {isArabic ? 'إضافة مشروع' : 'Add Project'}
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  {isArabic ? '50 درهم' : '50 AED'}
+                </span>
+              </div>
+            )}
           </div>
-          <div>
-            <h3 style={{ fontSize: '1.3rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-              {isArabic ? 'بدء مشروع جديد' : 'Start a New Project'}
-            </h3>
-            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-              {isArabic ? 'قم بإنشاء مساحة عمل جديدة لحصر الكميات' : 'Create a new workspace for quantity takeoff'}
-            </p>
+
+          {/* Tile 2: Work Programme */}
+          <div 
+            className="glass-card" 
+            style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              justifyContent: 'space-between',
+              padding: '25px',
+              border: '1px solid rgba(16, 185, 129, 0.15)',
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, transparent 100%), var(--bg-secondary)',
+              gap: '15px',
+              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 8px 20px -5px rgba(16, 185, 129, 0.2)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'none';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
+            {/* Top Interactive Info Area */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+              <div style={{
+                width: '50px',
+                height: '50px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                color: 'var(--success)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <CalendarDays size={24} />
+              </div>
+              <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                {isArabic ? 'جدول زمني' : 'Work Programme'}
+              </h4>
+              <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
+                {isArabic 
+                  ? 'توليد جداول زمنية للعمل ومخططات غانت والمراحل الرئيسية للمشروع استناداً إلى الكميات المقاسة.'
+                  : 'Generate work schedules, Gantt charts, and milestones automatically derived from measured quantities.'}
+              </p>
+            </div>
+
+            {/* Divider */}
+            <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', margin: '5px 0' }} />
+
+            {/* Stats / Project Counter */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
+                  {isArabic ? 'المشاريع:' : 'Projects Counter:'}
+                </span>
+                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {isAdmin ? (isArabic ? 'غير محدود' : 'Infinite') : (programmeAccess ? `${programmeAccess.projects} / ${programmeAccess.limit}` : '...')}
+                </span>
+              </div>
+              {!isAdmin && programmeAccess && (
+                <div style={{ width: '100%', height: '6px', backgroundColor: 'rgba(255, 255, 255, 0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{
+                    width: `${Math.min(100, (programmeAccess.projects / programmeAccess.limit) * 100)}%`,
+                    height: '100%',
+                    backgroundColor: (programmeAccess.projects >= programmeAccess.limit) ? 'var(--error)' : 'var(--success)',
+                    borderRadius: '3px',
+                    transition: 'width 0.4s ease'
+                  }} />
+                </div>
+              )}
+            </div>
+
+            {/* Start Project Bar */}
+            <div style={{ marginTop: '5px' }}>
+              {(!isAdmin && programmeAccess && !programmeAccess.can_create) ? (
+                <div style={{
+                  padding: '10px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  borderRadius: '6px',
+                  color: 'var(--error)',
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span>⚠️</span>
+                  <span>{isArabic ? 'تم الوصول للحد! يرجى الشراء.' : 'Limit reached! Please purchase.'}</span>
+                </div>
+              ) : (
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!programmeProjName.trim()) return;
+                    onStartModuleProject('programme', programmeProjName.trim());
+                    setProgrammeProjName('');
+                  }}
+                  style={{ display: 'flex', gap: '8px' }}
+                >
+                  <input
+                    type="text"
+                    className="form-input"
+                    style={{ 
+                      flex: 1, 
+                      minWidth: '0',
+                      fontSize: '0.85rem',
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-primary)',
+                      color: 'var(--text-primary)'
+                    }}
+                    placeholder={isArabic ? 'اسم المشروع...' : 'Project name...'}
+                    value={programmeProjName}
+                    onChange={e => setProgrammeProjName(e.target.value)}
+                  />
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary" 
+                    style={{ padding: '8px 14px', fontSize: '0.85rem', borderRadius: '6px', whiteSpace: 'nowrap' }}
+                    disabled={!programmeProjName.trim()}
+                  >
+                    {isArabic ? 'بدء 🚀' : 'Start 🚀'}
+                  </button>
+                </form>
+              )}
+            </div>
+
+            {/* Add Project Green Box */}
+            {!isAdmin && (
+              <div 
+                style={{ 
+                  backgroundColor: 'rgba(16, 185, 129, 0.05)', 
+                  border: '1px solid rgba(16, 185, 129, 0.3)', 
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  transition: 'all 0.2s ease',
+                  marginTop: '5px'
+                }}
+                onClick={() => handleCheckout('programme')}
+                onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)' }}
+                onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.05)' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Plus size={14} style={{ color: 'var(--success)' }} />
+                  <span style={{ fontWeight: 700, color: 'var(--success)', fontSize: '0.8rem' }}>
+                    {isArabic ? 'إضافة مشروع' : 'Add Project'}
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  {isArabic ? '50 درهم' : '50 AED'}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Tile 3: Cash Flow */}
+          <div 
+            className="glass-card" 
+            style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              justifyContent: 'space-between',
+              padding: '25px',
+              border: '1px solid rgba(245, 158, 11, 0.15)',
+              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, transparent 100%), var(--bg-secondary)',
+              gap: '15px',
+              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 8px 20px -5px rgba(245, 158, 11, 0.2)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'none';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
+            {/* Top Interactive Info Area */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+              <div style={{
+                width: '50px',
+                height: '50px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                color: 'var(--warning)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <Wallet size={24} />
+              </div>
+              <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                {isArabic ? 'التدفق النقدي' : 'Cash Flow'}
+              </h4>
+              <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
+                {isArabic 
+                  ? 'توقعات التدفقات النقدية الداخلة والخارجة، وجداول الدفعات، ومنحنيات S-Curve المالية للمشروع.'
+                  : 'Forecast project cash flows, payment schedules, and generate financial S-curves for budget planning.'}
+              </p>
+            </div>
+
+            {/* Divider */}
+            <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', margin: '5px 0' }} />
+
+            {/* Stats / Project Counter */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
+                  {isArabic ? 'المشاريع:' : 'Projects Counter:'}
+                </span>
+                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {isAdmin ? (isArabic ? 'غير محدود' : 'Infinite') : (cashflowAccess ? `${cashflowAccess.projects} / ${cashflowAccess.limit}` : '...')}
+                </span>
+              </div>
+              {!isAdmin && cashflowAccess && (
+                <div style={{ width: '100%', height: '6px', backgroundColor: 'rgba(255, 255, 255, 0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{
+                    width: `${Math.min(100, (cashflowAccess.projects / cashflowAccess.limit) * 100)}%`,
+                    height: '100%',
+                    backgroundColor: (cashflowAccess.projects >= cashflowAccess.limit) ? 'var(--error)' : 'var(--warning)',
+                    borderRadius: '3px',
+                    transition: 'width 0.4s ease'
+                  }} />
+                </div>
+              )}
+            </div>
+
+            {/* Start Project Bar */}
+            <div style={{ marginTop: '5px' }}>
+              {(!isAdmin && cashflowAccess && !cashflowAccess.can_create) ? (
+                <div style={{
+                  padding: '10px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  borderRadius: '6px',
+                  color: 'var(--error)',
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span>⚠️</span>
+                  <span>{isArabic ? 'تم الوصول للحد! يرجى الشراء.' : 'Limit reached! Please purchase.'}</span>
+                </div>
+              ) : (
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!cashflowProjName.trim()) return;
+                    onStartModuleProject('cashflow', cashflowProjName.trim());
+                    setCashflowProjName('');
+                  }}
+                  style={{ display: 'flex', gap: '8px' }}
+                >
+                  <input
+                    type="text"
+                    className="form-input"
+                    style={{ 
+                      flex: 1, 
+                      minWidth: '0',
+                      fontSize: '0.85rem',
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-primary)',
+                      color: 'var(--text-primary)'
+                    }}
+                    placeholder={isArabic ? 'اسم المشروع...' : 'Project name...'}
+                    value={cashflowProjName}
+                    onChange={e => setCashflowProjName(e.target.value)}
+                  />
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary" 
+                    style={{ padding: '8px 14px', fontSize: '0.85rem', borderRadius: '6px', whiteSpace: 'nowrap' }}
+                    disabled={!cashflowProjName.trim()}
+                  >
+                    {isArabic ? 'بدء 🚀' : 'Start 🚀'}
+                  </button>
+                </form>
+              )}
+            </div>
+
+            {/* Add Project Green Box */}
+            {!isAdmin && (
+              <div 
+                style={{ 
+                  backgroundColor: 'rgba(16, 185, 129, 0.05)', 
+                  border: '1px solid rgba(16, 185, 129, 0.3)', 
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  transition: 'all 0.2s ease',
+                  marginTop: '5px'
+                }}
+                onClick={() => handleCheckout('cashflow')}
+                onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)' }}
+                onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.05)' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Plus size={14} style={{ color: 'var(--success)' }} />
+                  <span style={{ fontWeight: 700, color: 'var(--success)', fontSize: '0.8rem' }}>
+                    {isArabic ? 'إضافة مشروع' : 'Add Project'}
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  {isArabic ? '50 درهم' : '50 AED'}
+                </span>
+              </div>
+            )}
           </div>
         </div>
-        
-        {limitReached ? (
-          <div style={{
-            padding: '20px',
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: '8px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-start',
-            gap: '12px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--error)' }}>
-              <ShieldAlert size={20} />
-              <span style={{ fontWeight: 700, fontSize: '1rem' }}>
-                {isArabic ? 'لقد استنفدت رصيد المشاريع المتاحة لك!' : 'You have reached your projects limit!'}
-              </span>
-            </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
-              {isArabic 
-                ? 'لا يمكنك إنشاء المزيد من المشاريع حالياً. يرجى الاشتراك في باقة أعلى أو شراء إضافات لمتابعة إنشاء المشاريع.'
-                : 'You cannot create more projects. Please subscribe to a higher plan or purchase add-ons to continue.'}
-            </p>
-            <button 
-              onClick={() => onNavigate('billing')}
-              className="btn btn-primary"
-              style={{
-                marginTop: '5px',
-                padding: '10px 20px',
-                backgroundColor: 'var(--error)',
-                border: 'none',
-                fontWeight: 700
-              }}
-            >
-              {isArabic ? 'اشترك لمزيد من المشاريع' : 'Subscribe for more projects'}
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={handleCreateProject} style={{ 
-            display: 'flex', 
-            gap: '12px', 
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            backgroundColor: 'var(--bg-secondary)',
-            padding: '8px',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--border-color)',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <input
-              type="text"
-              className="form-input"
-              style={{ 
-                flex: 1, 
-                minWidth: '250px',
-                border: 'none',
-                boxShadow: 'none',
-                background: 'transparent',
-                fontSize: '1rem',
-                padding: '8px 12px'
-              }}
-              placeholder={isArabic ? 'اسم المشروع (مثال: فيلا رقم 12)' : 'Enter project name (e.g. Villa 12)...'}
-              value={newProjName}
-              onChange={e => setNewProjName(e.target.value)}
-              disabled={creating}
-            />
-            <button 
-              type="submit" 
-              className="btn btn-primary" 
-              style={{ 
-                padding: '12px 24px', 
-                fontSize: '1rem',
-                borderRadius: '8px'
-              }} 
-              disabled={creating || !newProjName.trim()}
-            >
-              {creating ? (isArabic ? 'جاري الإنشاء...' : 'Creating...') : (isArabic ? 'بدء المشروع 🚀' : 'Start Project 🚀')}
-            </button>
-          </form>
-        )}
       </div>
 
       {/* Active Project State Recovery Banner */}
@@ -402,20 +818,20 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
         <div style={{
           width: '100%',
           maxWidth: '600px',
-          backgroundColor: 'rgba(15, 23, 42, 0.9)',
-          border: '1px solid rgba(59, 130, 246, 0.2)',
+          backgroundColor: 'rgba(245, 158, 11, 0.08)',
+          border: '1px solid rgba(245, 158, 11, 0.3)',
           borderRadius: '8px',
           padding: '20px 25px',
-          color: '#e2e8f0',
+          color: 'var(--text-primary)',
           display: 'flex',
           flexDirection: 'column',
           gap: '15px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#3b82f6', fontWeight: 700 }}>
-            <span style={{ color: '#f59e0b', display: 'flex', alignItems: 'center' }}>⚠️</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--warning)', fontWeight: 800 }}>
+            <span style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center' }}>⚠️</span>
             {isArabic ? 'تنبيه:' : 'Attention:'}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.9rem', color: '#60a5fa', lineHeight: '1.6' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.95rem', color: 'var(--text-secondary)', lineHeight: '1.6', fontWeight: 500 }}>
             <p>
               1- {isArabic 
                 ? 'تم تصميم النظام لتوفير الوقت والجهد. لضمان النتائج، مراجعة المهندس ضرورية ولا غنى عنها.'

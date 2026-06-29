@@ -9,8 +9,8 @@ export default defineConfig({
   // FastAPI on the same origin, so these relative URLs resolve with no proxy.
   server: {
     proxy: {
-      '/api': 'http://localhost:8090',
-      '/cache': 'http://localhost:8090',
+      '/api': 'http://localhost:8095',
+      '/cache': 'http://localhost:8095',
     },
   },
 })

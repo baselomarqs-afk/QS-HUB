@@ -17,6 +17,8 @@ from api.market import router as market_router
 from api.agents import router as agents_router
 from api.billing import router as billing_router
 from api.admin import router as admin_router
+from api.modules import router as modules_router
+from api.routers.feedback import router as feedback_router
 from utils.garbage_collection import cache_cleanup_task
 
 # ── RENDER PROXY MODE ──
@@ -89,6 +91,8 @@ app.include_router(market_router, prefix="/api/market", tags=["Market Prices"])
 app.include_router(agents_router, prefix="/api/agents", tags=["AI Agents"])
 app.include_router(billing_router, prefix="/api/billing", tags=["Billing"])
 app.include_router(admin_router, prefix="/api/admin", tags=["Admin Dashboard"])
+app.include_router(modules_router, prefix="/api/modules", tags=["Programme & Cash Flow"])
+app.include_router(feedback_router, prefix="/api/feedback", tags=["Feedback"])
 
 @app.post("/webhooks/dodopayments")
 async def dodo_webhook(request: Request):

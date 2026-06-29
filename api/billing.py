@@ -5,8 +5,32 @@ from utils.plans import PLANS, get_active_subscription, get_plan_for_user
 from utils.usage import monthly_usage, EVENT_AI_CALL, EVENT_EXPORT, EVENT_PROJECT
 from utils.settings import get_setting
 from utils.db import safe_query
+from utils.features import FEATURES, get_credits, count_projects
 
 router = APIRouter()
+
+
+@router.get("/feature-access")
+async def feature_access(feature: str = Query(...), current_user: dict = Depends(get_current_user)):
+    """Whether the user can use a per-project tool (programme / cashflow)."""
+    if feature not in FEATURES:
+        raise HTTPException(status_code=404, detail="Unknown feature.")
+    is_admin = current_user["role"] == "admin"
+    credits = get_credits(current_user["id"], feature)
+    projects = count_projects(current_user["id"], feature)
+    
+    # 1st project is free trial (projects < 1). Subsequent require credits.
+    can_create = bool(is_admin or credits > 0 or projects < 1)
+    limit = 999999 if is_admin else (1 + credits + max(0, projects - 1))
+    
+    return {
+        "feature": feature,
+        "access": bool(is_admin or credits > 0 or projects > 0 or projects < 1),
+        "credits": credits,
+        "projects": projects,
+        "limit": limit,
+        "can_create": can_create,
+    }
 
 @router.get("/subscription")
 async def get_subscription_details(current_user: dict = Depends(get_current_user)):

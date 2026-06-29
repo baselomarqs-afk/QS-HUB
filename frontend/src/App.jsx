@@ -11,19 +11,24 @@ import logoImg from './assets/logo.png';
 import Admin from './components/Admin';
 import QsAssistant from './components/QsAssistant';
 import Projects from './components/Projects';
-import { 
-  LayoutDashboard, Folder, Play, BarChart2, Eye, LogOut, Globe, Moon, Sun, CreditCard, Shield, Bot, Menu, X
+import Programme from './components/Programme';
+import CashFlow from './components/CashFlow';
+import {
+  LayoutDashboard, Folder, Play, BarChart2, Eye, LogOut, Globe, Moon, Sun, CreditCard, Shield, Bot, Menu, X, CalendarDays, Wallet
 } from 'lucide-react';
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('qto_token') || '');
   const [user, setUser] = useState(null);
   const [page, setPage] = useState('dashboard');
+  const [pageParams, setPageParams] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
   const [isArabic, setIsArabic] = useState(false); // Default to English as requested
   const [isDark, setIsDark] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [moduleProjectName, setModuleProjectName] = useState({ programme: '', cashflow: '' });
+  const [activeModules, setActiveModules] = useState({ programme: false, cashflow: false });
 
   useEffect(() => {
     if (token) {
@@ -60,7 +65,7 @@ export default function App() {
   const handleLoginSuccess = (authToken, userData) => {
     setToken(authToken);
     setUser(userData);
-    setPage('dashboard');
+    handleNavigate('dashboard');
   };
 
   const handleLogout = () => {
@@ -69,8 +74,24 @@ export default function App() {
     setToken('');
     setUser(null);
     setSelectedProject(null);
-    setPage('dashboard');
+    handleNavigate('dashboard');
   };
+
+  const handleNavigate = (newPage, params = null) => {
+    setPage(newPage);
+    setPageParams(params);
+  };
+
+  const handleStartModuleProject = (module, name) => {
+    setModuleProjectName(prev => ({ ...prev, [module]: name }));
+    setActiveModules(prev => ({ ...prev, [module]: true }));
+    handleNavigate(module);
+  };
+
+  const isQtoLimitZero = user && user.role !== 'admin' && (!user.plan || user.plan.projects === 0);
+  const isWorkflowActive = selectedProject !== null && !isQtoLimitZero;
+  const isProgrammeActive = activeModules.programme && !isQtoLimitZero;
+  const isCashflowActive = activeModules.cashflow && !isQtoLimitZero;
 
   if (!token) {
     if (!showAuth) {
@@ -121,7 +142,8 @@ export default function App() {
         padding: '25px 20px',
         height: '100vh',
         position: 'sticky',
-        top: 0
+        top: 0,
+        overflowY: 'auto'
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
           {/* Logo Brand */}
@@ -204,10 +226,14 @@ export default function App() {
               {isArabic ? 'المشاريع' : 'Projects'}
             </button>
 
-            {/* Workflow Link (Disabled if no project selected) */}
+            {/* Workflow Link */}
             <button 
-              onClick={() => { if(selectedProject) { setPage('workflow'); setMobileMenuOpen(false); } }}
-              disabled={!selectedProject}
+              onClick={() => {
+                if (isWorkflowActive) {
+                  setPage('workflow');
+                  setMobileMenuOpen(false);
+                }
+              }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -217,17 +243,90 @@ export default function App() {
                 borderRadius: '8px',
                 border: 'none',
                 background: page === 'workflow' ? 'var(--primary-glow)' : 'transparent',
-                color: page === 'workflow' ? 'var(--primary)' : selectedProject ? 'var(--text-secondary)' : 'var(--text-muted)',
+                color: page === 'workflow' ? 'var(--primary)' : 'var(--text-secondary)',
                 fontWeight: page === 'workflow' ? 700 : 500,
                 fontSize: '0.92rem',
-                cursor: selectedProject ? 'pointer' : 'not-allowed',
+                cursor: isWorkflowActive ? 'pointer' : 'not-allowed',
+                opacity: isWorkflowActive ? 1 : 0.5,
                 textAlign: isArabic ? 'right' : 'left',
-                opacity: selectedProject ? 1 : 0.5,
                 transition: 'all 0.2s ease',
               }}
+              disabled={!isWorkflowActive}
             >
               <Play size={18} />
               {isArabic ? 'مسار حصر الكميات' : 'QTO Workflow'}
+            </button>
+
+            {/* Work Programme Link */}
+            <button
+              onClick={() => {
+                if (isProgrammeActive) {
+                  setPage('programme');
+                  setMobileMenuOpen(false);
+                }
+              }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '12px 15px',
+                borderRadius: '8px', border: 'none',
+                background: page === 'programme' ? 'var(--primary-glow)' : 'transparent',
+                color: page === 'programme' ? 'var(--primary)' : 'var(--text-secondary)',
+                fontWeight: page === 'programme' ? 700 : 500, fontSize: '0.92rem',
+                cursor: isProgrammeActive ? 'pointer' : 'not-allowed',
+                opacity: isProgrammeActive ? 1 : 0.5,
+                textAlign: isArabic ? 'right' : 'left', transition: 'all 0.2s ease',
+              }}
+              disabled={!isProgrammeActive}
+            >
+              <CalendarDays size={18} />
+              {isArabic ? 'جدول زمني' : 'Work Programme'}
+            </button>
+
+            {/* Cash Flow Link */}
+            <button
+              onClick={() => {
+                if (isCashflowActive) {
+                  setPage('cashflow');
+                  setMobileMenuOpen(false);
+                }
+              }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '12px 15px',
+                borderRadius: '8px', border: 'none',
+                background: page === 'cashflow' ? 'var(--primary-glow)' : 'transparent',
+                color: page === 'cashflow' ? 'var(--primary)' : 'var(--text-secondary)',
+                fontWeight: page === 'cashflow' ? 700 : 500, fontSize: '0.92rem',
+                cursor: isCashflowActive ? 'pointer' : 'not-allowed',
+                opacity: isCashflowActive ? 1 : 0.5,
+                textAlign: isArabic ? 'right' : 'left', transition: 'all 0.2s ease',
+              }}
+              disabled={!isCashflowActive}
+            >
+              <Wallet size={18} />
+              {isArabic ? 'التدفق النقدي' : 'Cash Flow'}
+            </button>
+
+            {/* Drawing Compare Link */}
+            <button
+              onClick={() => { setPage('compare'); setMobileMenuOpen(false); }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                width: '100%',
+                padding: '12px 15px',
+                borderRadius: '8px',
+                border: 'none',
+                background: page === 'compare' ? 'var(--primary-glow)' : 'transparent',
+                color: page === 'compare' ? 'var(--primary)' : 'var(--text-secondary)',
+                fontWeight: page === 'compare' ? 700 : 500,
+                fontSize: '0.92rem',
+                cursor: 'pointer',
+                textAlign: isArabic ? 'right' : 'left',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <Eye size={18} />
+              {isArabic ? 'مقارنة المخططات' : 'Plan Comparison'}
             </button>
 
             {/* Market Prices Link */}
@@ -252,30 +351,6 @@ export default function App() {
             >
               <BarChart2 size={18} />
               {isArabic ? 'أسعار السوق' : 'Market Prices'}
-            </button>
-
-            {/* Drawing Compare Link */}
-            <button 
-              onClick={() => { setPage('compare'); setMobileMenuOpen(false); }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                width: '100%',
-                padding: '12px 15px',
-                borderRadius: '8px',
-                border: 'none',
-                background: page === 'compare' ? 'var(--primary-glow)' : 'transparent',
-                color: page === 'compare' ? 'var(--primary)' : 'var(--text-secondary)',
-                fontWeight: page === 'compare' ? 700 : 500,
-                fontSize: '0.92rem',
-                cursor: 'pointer',
-                textAlign: isArabic ? 'right' : 'left',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <Eye size={18} />
-              {isArabic ? 'مقارنة المخططات' : 'Plan Comparison'}
             </button>
 
             {/* Billing Link */}
@@ -407,7 +482,9 @@ export default function App() {
             token={token} 
             isArabic={isArabic} 
             onSelectProject={setSelectedProject}
-            onNavigate={setPage}
+            onNavigate={handleNavigate}
+            onStartModuleProject={handleStartModuleProject}
+            user={user}
           />
         )}
         {page === 'projects' && (
@@ -415,7 +492,8 @@ export default function App() {
             token={token} 
             isArabic={isArabic} 
             onSelectProject={setSelectedProject}
-            onNavigate={setPage}
+            onNavigate={handleNavigate}
+            initialTab={pageParams?.tab}
           />
         )}
         {page === 'workflow' && (
@@ -426,9 +504,31 @@ export default function App() {
             onNavigate={setPage}
           />
         )}
+        {page === 'programme' && (
+          <Programme 
+            token={token} 
+            isArabic={isArabic} 
+            initialProjectName={moduleProjectName.programme}
+            onClearInitialName={() => setModuleProjectName(prev => ({ ...prev, programme: '' }))}
+            onStartProject={() => setActiveModules(prev => ({ ...prev, programme: true }))}
+            initialLoadData={pageParams?.loadData}
+            onClearInitialLoadData={() => setPageParams(null)}
+          />
+        )}
+        {page === 'cashflow' && (
+          <CashFlow 
+            token={token} 
+            isArabic={isArabic} 
+            initialProjectName={moduleProjectName.cashflow}
+            onClearInitialName={() => setModuleProjectName(prev => ({ ...prev, cashflow: '' }))}
+            onStartProject={() => setActiveModules(prev => ({ ...prev, cashflow: true }))}
+            initialLoadData={pageParams?.loadData}
+            onClearInitialLoadData={() => setPageParams(null)}
+          />
+        )}
         {page === 'market' && <MarketPrices token={token} isArabic={isArabic} />}
         {page === 'compare' && <PlanComparison token={token} isArabic={isArabic} />}
-        {page === 'billing' && <Billing token={token} isArabic={isArabic} />}
+        {page === 'billing' && <Billing token={token} isArabic={isArabic} user={user} onLogout={handleLogout} />}
         {page === 'qs_assistant' && <QsAssistant token={token} isArabic={isArabic} />}
         {page === 'admin' && <Admin token={token} isArabic={isArabic} />}
       </main>

@@ -31,13 +31,22 @@ def _get_dodo_client() -> DodoPayments:
     return DodoPayments(bearer_token=api_key, environment=env)
 
 
+# One-time products (not subscriptions): the +1 project add-on and the two
+# per-project module tools (Work Programme, Cash Flow), all 50 AED each.
+ONE_TIME_TIERS = {"addon", "programme", "cashflow"}
+
+
 def dodo_product_for_tier(tier: int | str) -> str:
     if tier == "addon":
         price_id = get_setting("DODO_PRODUCT_ADDON_PROJECT")
+    elif tier == "programme":
+        price_id = get_setting("DODO_PRODUCT_PROGRAMME")
+    elif tier == "cashflow":
+        price_id = get_setting("DODO_PRODUCT_CASHFLOW")
     else:
         price_id = get_setting(f"DODO_PRODUCT_TIER_{tier}")
     if not price_id:
-        raise RuntimeError(f"Missing DODO_PRODUCT_TIER_{tier} or ADDON")
+        raise RuntimeError(f"Missing Dodo product id for tier '{tier}'")
     return price_id
 
 
@@ -46,8 +55,12 @@ def create_checkout_session(user: dict, tier: int | str) -> str:
     client = _get_dodo_client()
     product_id = dodo_product_for_tier(tier)
 
-    if tier == "addon":
-        custom_data = {"user_id": str(user["id"]), "is_addon": "true"}
+    if tier in ONE_TIME_TIERS:
+        custom_data = {"user_id": str(user["id"])}
+        if tier == "addon":
+            custom_data["is_addon"] = "true"
+        else:
+            custom_data["feature"] = tier  # "programme" | "cashflow"
         kwargs = {
             "product_cart": [{"product_id": product_id, "quantity": 1}],
             "customer": {"email": user["email"]},
@@ -88,7 +101,7 @@ def create_portal_session(user_id: int) -> str:
         (user_id,)
     )
     if df.empty or not df.iloc[0]["provider_customer_id"]:
-        raise RuntimeError("No active Dodo Payments customer ID found for this user.")
+        raise RuntimeError("No subscription found for this user")
         
     customer_id = df.iloc[0]["provider_customer_id"]
     try:
@@ -196,6 +209,14 @@ def _record_transaction(data: dict[str, Any], event_type: str) -> None:
     if is_addon and status in {"paid", "succeeded"} and user_id:
         safe_execute("UPDATE qto_users SET extra_projects_allowance = extra_projects_allowance + 1 WHERE id = %s", (user_id,))
         audit_log("addon_purchased", int(user_id), "user", int(user_id), {"provider": "dodopayments", "status": status})
+        return
+
+    # Per-project module tools (Work Programme / Cash Flow) — grant 1 feature credit.
+    feature = metadata.get("feature")
+    if feature in {"programme", "cashflow"} and status in {"paid", "succeeded"} and user_id:
+        from utils.features import grant_credit
+        grant_credit(int(user_id), feature, 1)
+        audit_log("feature_purchased", int(user_id), "user", int(user_id), {"provider": "dodopayments", "feature": feature, "status": status})
         return
 
     subscription_id = data.get("subscription_id")

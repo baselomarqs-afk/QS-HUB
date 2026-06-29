@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Zap, Smartphone, BarChart2, Globe, Bot, TrendingUp } from 'lucide-react';
+import { Sparkles, Zap, Smartphone, BarChart2, Globe, Bot, TrendingUp, CalendarDays, Wallet } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 import { PrivacyModal, TermsModal, RefundModal } from './LegalModals';
 
@@ -161,7 +161,7 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
               <Zap size={28} fill="#3b82f6" />
             </div>
             <h4 style={{ fontWeight: 800, fontSize: '1.2rem', marginBottom: '15px', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
-              {isArabic ? 'مساعد حصر الكميات الذكي' : 'Ur QS Assistant'}
+              {isArabic ? 'مساعد حصر الكميات الذكي' : 'Your QS Assistant'}
             </h4>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
               {isArabic 
@@ -193,15 +193,15 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
               justifyContent: 'center', 
               marginBottom: '20px' 
             }}>
-              <Bot size={28} />
+              <CalendarDays size={28} />
             </div>
             <h4 style={{ fontWeight: 800, fontSize: '1.2rem', marginBottom: '15px', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
-              {isArabic ? 'مخططات PDF المتجهة' : 'Vector PDF Drawings'}
+              {isArabic ? 'الجدول الزمني' : 'WORK PROGRAMME'}
             </h4>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
               {isArabic 
-                ? 'تساعدك المنصة في استخراج وحصر أكثر من 50 بنداً إنشائياً ومعمارياً بالاعتماد الكامل على ملفات الـ PDF المتجهة.'
-                : 'Helps you in extracting +50 items using (vector) PDF drawings.'}
+                ? 'توليد جداول زمنية ومخططات غانت والمراحل الرئيسية للمشروع تلقائياً من الكميات المحصورة.'
+                : 'Generate work schedules, Gantt charts, and milestones automatically derived from measured quantities.'}
             </p>
           </div>
 
@@ -229,21 +229,16 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
               justifyContent: 'center', 
               marginBottom: '20px' 
             }}>
-              <TrendingUp size={28} />
+              <Wallet size={28} />
             </div>
             <h4 style={{ fontWeight: 800, fontSize: '1.2rem', marginBottom: '15px', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
-              {isArabic ? 'سرعة ودقة غير مسبوقة' : 'UNMATCHED SPEED & ACCURACY'}
+              {isArabic ? 'التدفق النقدي' : 'CASH FLOW'}
             </h4>
             <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.6', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <p>
                 {isArabic 
-                  ? 'احصل على جدول كمياتك (BOQ) جاهزاً في غضون دقائق، وليس أياماً.'
-                  : 'Get your BOQ ready in minutes, not days.'}
-              </p>
-              <p>
-                {isArabic 
-                  ? 'تضمن لك المنصة تحسينات مستمرة في الدقة من مشروع إلى آخر.'
-                  : 'Continuous accuracy improvements from one project to the next.'}
+                  ? 'توقع التدفقات النقدية وجداول الدفعات وتوليد منحنيات S-Curve للتخطيط المالي للمشروع.'
+                  : 'Forecast project cash flows, payment schedules, and generate financial S-curves for budget planning.'}
               </p>
             </div>
           </div>

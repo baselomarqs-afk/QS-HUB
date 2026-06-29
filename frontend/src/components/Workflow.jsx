@@ -9,6 +9,7 @@ import ExtractStep from './workflow/ExtractStep';
 import LoadingOverlay from './common/LoadingOverlay';
 import VerifyStep from './workflow/VerifyStep';
 import BoqStep from './workflow/BoqStep';
+import FeedbackModal from './common/FeedbackModal';
 
 export default function Workflow({ token, project, isArabic, onNavigate }) {
   const [currentStep, setCurrentStep] = useState(1);
@@ -73,6 +74,8 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
   const [boqItems, setBoqItems] = useState([]);
   const [boqMeta, setBoqMeta] = useState({ needs_input: [], estimates: [] });
   const [sanityWarnings, setSanityWarnings] = useState([]);
+  
+  const [showFeedback, setShowFeedback] = useState(false);
   
   // UI States
   const [zoom, setZoom] = useState(1);
@@ -663,6 +666,7 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
       
       setCurrentStep(8); // Proceed directly to download
       await saveActiveState(8);
+      setShowFeedback(true);
     } catch (err) {
       alert(err.message);
     } finally {
@@ -831,6 +835,14 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
           />
         )}
       </div>
+      
+      <FeedbackModal 
+        isOpen={showFeedback} 
+        onClose={() => setShowFeedback(false)} 
+        toolName="QTO Workflow" 
+        projectName={project ? project.name : ''} 
+        isArabic={isArabic} 
+      />
     </div>
     </div>
   );

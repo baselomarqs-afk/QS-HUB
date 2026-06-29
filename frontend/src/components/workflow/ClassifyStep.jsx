@@ -37,7 +37,11 @@ export default function ClassifyStep({
         <div style={{ color: '#3b82f6', marginTop: '2px' }}><Info size={20} /></div>
         <div>
           <h4 style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px', fontSize: '0.95rem' }}>
-            {isArabic ? 'ما المطلوب في هذه الخطوة؟' : 'What to do in this step?'}
+            {isArabic ? (
+              <>ما المطلوب في هذه الخطوة؟ <span style={{color: 'var(--error, red)'}}>(المراجعة اليدوية لتصنيف الصفحات إلزامية)</span></>
+            ) : (
+              <>What to do in this step? <span style={{color: 'var(--error, red)'}}>(manual checking the pages classification is must )</span></>
+            )}
           </h4>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0, lineHeight: '1.5' }}>
             {isArabic 

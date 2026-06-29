@@ -313,6 +313,19 @@ def initialize_sqlite_db(conn):
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
+
+    # 13. qto_project_feedback
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS qto_project_feedback (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        tool_name TEXT NOT NULL,
+        project_name TEXT NOT NULL,
+        rating INTEGER NOT NULL,
+        reason TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
     
     # Seed admin user if none exists
     cur.execute("SELECT COUNT(*) FROM qto_users")

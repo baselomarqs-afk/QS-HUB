@@ -139,7 +139,8 @@ async def login(req: UserLogin):
 
 @router.get("/profile")
 async def profile(current_user: dict = Depends(get_current_user)):
-    df = safe_query("SELECT id, email, role, created_at FROM qto_users WHERE id=%s", (current_user["id"],))
+    import pandas as pd
+    df = safe_query("SELECT id, email, role, created_at, name FROM qto_users WHERE id=%s", (current_user["id"],))
     if df.empty:
         raise HTTPException(status_code=404, detail="User not found")
     user = df.iloc[0]
@@ -150,6 +151,7 @@ async def profile(current_user: dict = Depends(get_current_user)):
     
     return {
         "id": int(user["id"]),
+        "name": user["name"] if "name" in user and pd.notna(user["name"]) else None,
         "email": user["email"],
         "role": user["role"],
         "created_at": user["created_at"],
@@ -184,3 +186,21 @@ async def reset_password_route(req: UpdatePasswordReq):
     if reset_password(req.token, req.password):
         return {"message": "Password updated successfully."}
     raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
+
+class UserProfileUpdate(BaseModel):
+    name: str
+
+@router.put("/profile")
+async def update_profile(req: UserProfileUpdate, current_user: dict = Depends(get_current_user)):
+    success, err = safe_execute("UPDATE qto_users SET name=%s WHERE id=%s", (req.name, current_user["id"]))
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Database update failed: {err}")
+    return {"message": "Profile updated successfully."}
+
+@router.delete("/account")
+async def delete_account(current_user: dict = Depends(get_current_user)):
+    user_id = current_user["id"]
+    success, err = safe_execute("DELETE FROM qto_users WHERE id=%s", (user_id,))
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Database deletion failed: {err}")
+    return {"message": "Account deleted successfully."}
