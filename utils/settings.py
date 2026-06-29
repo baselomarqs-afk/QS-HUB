@@ -22,7 +22,7 @@ def get_setting(name: str, default: str | None = None, required: bool = False) -
     value = os.environ.get(name, default)
     if required and not value:
         raise RuntimeError(f"Missing required setting: {name}")
-    return str(value) if value is not None else ""
+    return str(value).strip().strip("'").strip('"') if value is not None else ""
 
 
 def get_int_setting(name: str, default: int) -> int:
