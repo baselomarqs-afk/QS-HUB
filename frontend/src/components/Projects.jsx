@@ -87,7 +87,8 @@ export default function Projects({ token, isArabic, onSelectProject, onNavigate,
       if (res.ok) {
         const data = await res.json();
         const cfg = { ...DEFAULT_CFG, ...data.config };
-        const { buildActivityList, runScheduler } = await import('../engine/scheduler');
+        const { buildActivityList } = await import('../engine/durationEngine');
+        const { runScheduler } = await import('../engine/scheduler');
         const acts = buildActivityList(cfg);
         const out = runScheduler(cfg, acts);
         if (feature === 'programme') {
