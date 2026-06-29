@@ -13,7 +13,7 @@ import { buildActivityList, autoCalculateTotalWeeks } from '../engine/durationEn
 import { runScheduler, fmtDate } from '../engine/scheduler';
 import FeedbackModal from './common/FeedbackModal';
 
-function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName, onStartProject }) {
+function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName, onStartProject, initialLoadData, onClearInitialLoadData }) {
   const t = (en, ar) => (isArabic ? ar : en);
   const [cfg, setCfg] = useState({ ...DEFAULT_CONFIG });
   const [acts, setActs] = useState(null);
@@ -54,6 +54,18 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
       onClearInitialName();
     }
   }, [initialProjectName]);
+
+  useEffect(() => {
+    if (initialLoadData) {
+      const merged = { ...DEFAULT_CONFIG, ...initialLoadData.config };
+      setCfg(merged);
+      setActs(buildActivityList(merged));
+      setSavedId(initialLoadData.id);
+      justLoaded.current = true;
+      setIsHistoryView(true);
+      if (onClearInitialLoadData) onClearInitialLoadData();
+    }
+  }, [initialLoadData]);
 
   const out = useMemo(() => (acts ? runScheduler(cfg, acts) : null), [acts, cfg]);
   const totalDays = out?.totalDays ?? 1;
@@ -154,14 +166,9 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
       />
 
       {isHistoryView && (
-        <button className="btn btn-primary" onClick={() => {
-          setIsHistoryView(false);
-          setSavedId(null);
-          setActs(null);
-          setCfg({ ...DEFAULT_CONFIG });
-        }} style={{ marginBottom: 15, padding: '8px 16px', fontWeight: 600 }}>
-          {isArabic ? 'إنشاء مشروع جديد' : '+ Start New Project'}
-        </button>
+        <div style={{ marginBottom: 15, padding: '12px 16px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{isArabic ? 'وضع عرض السجل - القراءة فقط' : 'History View - Read Only'}</span>
+        </div>
       )}
 
       {!isHistoryView && (

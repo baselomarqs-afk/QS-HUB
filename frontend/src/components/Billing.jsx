@@ -337,17 +337,17 @@ export default function Billing({ token, isArabic, user, onLogout }) {
                       <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Check size={14} color="var(--success)" />
                         <span>
-                          {activeTab === 'qto' && (isArabic ? 'ذكاء اصطناعي للرؤية والمعادلات' : 'AI Vision & Equations')}
-                          {activeTab === 'programme' && (isArabic ? 'حساب مسار حرج آلي' : 'Auto CPM Schedule')}
-                          {activeTab === 'cashflow' && (isArabic ? 'ربط مالي للتنفيذ' : 'Construction Finance Mapping')}
+                          {activeTab === 'qto' && (isArabic ? `استعلامات ذكاء اصطناعي: ${p.ai_calls}` : `AI Queries: ${p.ai_calls}`)}
+                          {activeTab === 'programme' && (isArabic ? `تعديلات ذكاء اصطناعي: ${p.ai_calls}` : `AI Modifications: ${p.ai_calls}`)}
+                          {activeTab === 'cashflow' && (isArabic ? `تحليلات مالية: ${p.ai_calls}` : `Financial Analysis: ${p.ai_calls}`)}
                         </span>
                       </li>
                       <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Check size={14} color="var(--success)" />
                         <span>
-                          {activeTab === 'qto' && (isArabic ? 'تقارير Excel و PDF منسقة' : 'Formatted Excel & PDF exports')}
-                          {activeTab === 'programme' && (isArabic ? 'مخطط جانت وتصدير إكسل' : 'Gantt Chart & Excel Export')}
-                          {activeTab === 'cashflow' && (isArabic ? 'فواتير شهرية وتصدير إكسل' : 'Monthly Bills & Excel Export')}
+                          {activeTab === 'qto' && (isArabic ? `عمليات تصدير: ${p.exports}` : `Exports limit: ${p.exports}`)}
+                          {activeTab === 'programme' && (isArabic ? `تصدير مخططات: ${p.exports}` : `Exports limit: ${p.exports}`)}
+                          {activeTab === 'cashflow' && (isArabic ? `تصدير تقارير: ${p.exports}` : `Exports limit: ${p.exports}`)}
                         </span>
                       </li>
                     </ul>

@@ -72,7 +72,9 @@ async def get_subscription_details(feature: str = Query("qto"), current_user: di
                 "tier": tier,
                 "name": p.name,
                 "price_aed": p.monthly_price_aed,
-                "projects_limit": p.projects
+                "projects_limit": p.projects,
+                "ai_calls": p.ai_calls,
+                "exports": p.exports
             } for tier, p in PLANS.items() if tier > 0
         ]
     }

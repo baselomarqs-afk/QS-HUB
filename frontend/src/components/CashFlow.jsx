@@ -13,7 +13,7 @@ import { runScheduler } from '../engine/scheduler';
 import { computeCashFlow, fmtAed } from '../engine/cashflow';
 import FeedbackModal from './common/FeedbackModal';
 
-function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName, onStartProject }) {
+function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName, onStartProject, initialLoadData, onClearInitialLoadData }) {
   const t = (en, ar) => (isArabic ? ar : en);
   const [cfg, setCfg] = useState({ ...DEFAULT_CONFIG });
   const [processed, setProcessed] = useState(false);
@@ -74,6 +74,19 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
       onClearInitialName();
     }
   }, [initialProjectName]);
+
+  const [isHistoryView, setIsHistoryView] = useState(false);
+
+  useEffect(() => {
+    if (initialLoadData) {
+      setCfg({ ...DEFAULT_CONFIG, ...initialLoadData.config });
+      setSavedId(initialLoadData.id);
+      justLoaded.current = true;
+      setIsHistoryView(true);
+      setProcessed(true); // show output directly
+      if (onClearInitialLoadData) onClearInitialLoadData();
+    }
+  }, [initialLoadData]);
 
   const result = useMemo(() => {
     if (!canProcess) return null;
@@ -156,14 +169,9 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
       />
 
       {isHistoryView && (
-        <button className="btn btn-primary" onClick={() => {
-          setIsHistoryView(false);
-          setSavedId(null);
-          setProcessed(false);
-          setCfg({ ...DEFAULT_CONFIG });
-        }} style={{ marginBottom: 15, padding: '8px 16px', fontWeight: 600 }}>
-          {isArabic ? 'إنشاء مشروع جديد' : '+ Start New Project'}
-        </button>
+        <div style={{ marginBottom: 15, padding: '12px 16px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{isArabic ? 'وضع عرض السجل - القراءة فقط' : 'History View - Read Only'}</span>
+        </div>
       )}
 
       {!isHistoryView && (
