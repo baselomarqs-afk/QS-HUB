@@ -57,12 +57,6 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
   const out = useMemo(() => (acts ? runScheduler(cfg, acts) : null), [acts, cfg]);
   const totalDays = out?.totalDays ?? 1;
 
-  useEffect(() => {
-    if (autoSavePending && out && !savedId && !saving) {
-      save();
-      setAutoSavePending(false);
-    }
-  }, [autoSavePending, out, savedId, saving]);
 
   const process = () => {
     if (canProcess) {
@@ -75,8 +69,12 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
         if (pct >= 100) {
           clearInterval(interval);
           setIsSimulating(false);
-          setActs(buildActivityList(cfg));
-          setAutoSavePending(true);
+          const newActs = buildActivityList(cfg);
+          setActs(newActs);
+          if (!savedId) {
+            const scheduleOut = runScheduler(cfg, newActs);
+            save(scheduleOut);
+          }
           if (onStartProject) onStartProject();
         }
       }, 10);
@@ -96,8 +94,8 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
     setShowFeedback(true);
   };
 
-  const save = async () => {
-    if (!out) return;
+  const save = async (scheduleOut = out) => {
+    if (!scheduleOut) return;
     setSaving(true);
     setSavedMsg('');
     try {
@@ -110,8 +108,8 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
           config: cfg,
           summary: {
             villaType: cfg.villaType, totalBua: derived.totalBua,
-            startDate: out.startDate, finishDate: out.finishDate,
-            totalWeeks: out.totalWeeks, activities: out.scheduled.length,
+            startDate: scheduleOut.startDate, finishDate: scheduleOut.finishDate,
+            totalWeeks: scheduleOut.totalWeeks, activities: scheduleOut.scheduled.length,
           },
         }),
       });

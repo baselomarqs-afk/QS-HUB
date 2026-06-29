@@ -38,7 +38,12 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
           clearInterval(interval);
           setIsSimulating(false);
           setProcessed(true);
-          setAutoSavePending(true);
+          if (!savedId) {
+            const acts = buildActivityList(cfg);
+            const out = runScheduler(cfg, acts);
+            const resObj = computeCashFlow(cfg, out.monthly);
+            save(resObj);
+          }
           if (onStartProject) onStartProject();
         }
       }, 10);
@@ -77,12 +82,6 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
     return computeCashFlow(cfg, out.monthly);
   }, [cfg, canProcess]);
 
-  useEffect(() => {
-    if (autoSavePending && result && !savedId && !saving) {
-      save();
-      setAutoSavePending(false);
-    }
-  }, [autoSavePending, result, savedId, saving]);
 
   const show = processed && canProcess && result;
 
@@ -92,8 +91,8 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
     setShowFeedback(true);
   };
 
-  const save = async () => {
-    if (!result) return;
+  const save = async (resultObj = result) => {
+    if (!resultObj) return;
     setSaving(true);
     setSavedMsg('');
     try {
@@ -104,7 +103,7 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
           project_id: savedId,
           name: cfg.projectName,
           config: cfg,
-          summary: result.summary,
+          summary: resultObj.summary,
         }),
       });
       const data = await res.json();
