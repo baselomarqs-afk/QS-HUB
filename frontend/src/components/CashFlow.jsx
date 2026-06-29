@@ -46,7 +46,7 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
           }
           if (onStartProject) onStartProject();
         }
-      }, 10);
+      }, 600);
     }
   };
 
@@ -88,7 +88,6 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
   const exportExcel = async () => {
     const mod = await import('../engine/cashflowExcel');
     mod.exportCashFlowToExcel(cfg, result, cfg.projectName || 'Project');
-    setShowFeedback(true);
   };
 
   const save = async (resultObj = result) => {
@@ -196,15 +195,6 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
         <h3 style={{ marginTop: 22, color: 'var(--text-primary)' }}>④ {t('Run Process', 'تشغيل المعالجة')}</h3>
         {missing.length > 0 && (
           <p style={{ color: 'var(--warning, #d97706)', marginTop: 14 }}>⚠️ {t('Please fill required fields', 'يرجى تعبئة الحقول المطلوبة')}: {missing.join('، ')}</p>
-        )}
-      <FeedbackModal 
-        isOpen={showFeedback} 
-        onClose={() => setShowFeedback(false)} 
-        toolName="Cash Flow" 
-        projectName={cfg.projectName} 
-        isArabic={isArabic} 
-      />
-
         {isSimulating ? (
           <div style={{ marginTop: 20, padding: 20, background: 'var(--bg-primary)', borderRadius: 8, border: '1px solid var(--border-color)', textAlign: 'center' }}>
             <h4 style={{ margin: 0, marginBottom: 10, color: 'var(--text-primary)' }}>{t('Processing Financial Data...', 'جاري معالجة البيانات المالية...')}</h4>
@@ -232,9 +222,11 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
             <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
               <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>📈 {cfg.projectName} — {cfg.villaType}</h3>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn btn-secondary" onClick={save} disabled={saving}>
-                  {saving ? <Loader2 size={15} className="spin" /> : <Save size={15} />} {t('Save to History', 'حفظ في السجل')}
-                </button>
+                {!savedId && (
+                  <button className="btn btn-secondary" onClick={() => save()} disabled={saving}>
+                    {saving ? <Loader2 size={15} className="spin" /> : <Save size={15} />} {t('Save to History', 'حفظ في السجل')}
+                  </button>
+                )}
                 <button className="btn btn-primary" onClick={exportExcel}>
                   <Download size={15} /> {t('Export Excel', 'تصدير إكسل')}
                 </button>
@@ -312,6 +304,14 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
                  'صافي الشهادة = الإجمالي − استرداد الدفعة المقدمة − المحتجزات (+ الضريبة). يتأخر التدفق المالي للداخل بفترة الاعتماد والسداد. الصفوف المميّزة تعبر عن فترات الإفراج عن المحتجزات.')}
             </p>
           </div>
+
+          <FeedbackModal 
+            isOpen={true} 
+            inline={true}
+            toolName="Cash Flow" 
+            projectName={cfg.projectName} 
+            isArabic={isArabic} 
+          />
         </>
       )}
     </div>

@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { Star, X } from 'lucide-react';
 
-const FeedbackModal = ({ isOpen, onClose, toolName, projectName, isArabic }) => {
+const FeedbackModal = ({ isOpen, onClose, toolName, projectName, isArabic, inline = false }) => {
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  if (!isOpen) return null;
+  if (!isOpen && !inline) return null;
 
   const handleSubmit = async () => {
     if (rating === 0) return;
@@ -37,7 +37,7 @@ const FeedbackModal = ({ isOpen, onClose, toolName, projectName, isArabic }) => 
       if (res.ok) {
         setSubmitted(true);
         setTimeout(() => {
-          onClose();
+          if (onClose) onClose();
           // reset state for next time
           setTimeout(() => {
             setRating(0);
@@ -57,23 +57,23 @@ const FeedbackModal = ({ isOpen, onClose, toolName, projectName, isArabic }) => 
     }
   };
 
-  return (
+  const cardContent = (
     <div style={{
-      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-      backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+      background: inline ? 'transparent' : 'var(--bg-secondary)', 
+      border: inline ? 'none' : '1px solid var(--border-color)',
+      borderRadius: '16px', padding: inline ? '30px 0' : '30px', width: '100%', maxWidth: inline ? '100%' : '400px',
+      position: 'relative', textAlign: 'center', 
+      boxShadow: inline ? 'none' : '0 20px 40px rgba(0,0,0,0.3)',
+      marginTop: inline ? '40px' : '0'
     }}>
-      <div style={{
-        background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-        borderRadius: '16px', padding: '30px', width: '90%', maxWidth: '400px',
-        position: 'relative', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
-      }}>
+      {!inline && onClose && (
         <button 
           onClick={onClose}
           style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
         >
           <X size={20} />
         </button>
+      )}
 
         {submitted ? (
           <div style={{ padding: '20px 0' }}>
@@ -145,7 +145,15 @@ const FeedbackModal = ({ isOpen, onClose, toolName, projectName, isArabic }) => 
             </div>
           </>
         )}
-      </div>
+  if (inline) return cardContent;
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+      backgroundColor: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+    }}>
+      {cardContent}
     </div>
   );
 };

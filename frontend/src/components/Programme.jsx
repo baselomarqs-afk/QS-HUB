@@ -77,7 +77,7 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
           }
           if (onStartProject) onStartProject();
         }
-      }, 10);
+      }, 600);
     }
   };
   const patchAct = (id, weeks) =>
@@ -91,7 +91,6 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
   const exportExcel = async () => {
     const mod = await import('../engine/programmeExcel');
     mod.exportProgrammeToExcel(out, cfg.projectName || 'Project');
-    setShowFeedback(true);
   };
 
   const save = async (scheduleOut = out) => {
@@ -221,13 +220,7 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
         {missing.length > 0 && (
           <p style={{ color: 'var(--warning, #d97706)', marginTop: 14 }}>⚠️ {t('Please fill required fields', 'يرجى تعبئة الحقول المطلوبة')}: {missing.join('، ')}</p>
         )}
-        <FeedbackModal 
-          isOpen={showFeedback} 
-          onClose={() => setShowFeedback(false)} 
-          toolName="Work Programme" 
-          projectName={cfg.projectName} 
-          isArabic={isArabic} 
-        />
+
         {isSimulating ? (
           <div style={{ marginTop: 20, padding: 20, background: 'var(--bg-primary)', borderRadius: 8, border: '1px solid var(--border-color)', textAlign: 'center' }}>
             <h4 style={{ margin: 0, marginBottom: 10, color: 'var(--text-primary)' }}>{t('Processing Project Data...', 'جاري معالجة بيانات المشروع...')}</h4>
@@ -251,9 +244,11 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
             <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
               <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>📊 {cfg.projectName} — {cfg.villaType}</h3>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn btn-secondary" onClick={save} disabled={saving}>
-                  {saving ? <Loader2 size={15} className="spin" /> : <Save size={15} />} {t('Save to History', 'حفظ في السجل')}
-                </button>
+                {!savedId && (
+                  <button className="btn btn-secondary" onClick={() => save()} disabled={saving}>
+                    {saving ? <Loader2 size={15} className="spin" /> : <Save size={15} />} {t('Save to History', 'حفظ في السجل')}
+                  </button>
+                )}
                 <button className="btn btn-primary" onClick={exportExcel}>
                   <Download size={15} /> {t('Export Excel', 'تصدير إكسل')}
                 </button>
