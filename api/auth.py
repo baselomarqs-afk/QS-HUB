@@ -92,17 +92,15 @@ async def register(req: UserRegister):
     if not df_del.empty:
         deleted_at = df_del.iloc[0]["deleted_at"]
         if pd.notna(deleted_at):
-            if isinstance(deleted_at, str):
-                try:
-                    deleted_at = datetime.fromisoformat(deleted_at.replace("Z", ""))
-                except Exception:
-                    deleted_at = datetime.utcnow()
-            
-            # Since deleted_at might be pandas Timestamp or datetime
-            now = datetime.utcnow()
-            diff = (now - deleted_at).days if hasattr(now - deleted_at, 'days') else 0
-            if diff < 90:
-                raise HTTPException(status_code=400, detail="This email is restricted from registering for 90 days after account deletion.")
+            try:
+                dt = pd.to_datetime(deleted_at).tz_localize(None)
+                now = pd.Timestamp.utcnow().tz_localize(None)
+                if (now - dt).days < 90:
+                    raise HTTPException(status_code=400, detail="This email is restricted from registering for 90 days after account deletion.")
+            except HTTPException:
+                raise
+            except Exception as e:
+                pass
     
     hashed = password_hash(req.password)
     success, err = safe_execute(
