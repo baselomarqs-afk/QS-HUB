@@ -115,7 +115,8 @@ export default function Projects({ token, isArabic, onSelectProject, onNavigate,
     ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
         {qtoProjects.map((proj) => {
-          const isDone = proj.current_step >= 7;
+          const step = proj.current_step || 8;
+          const isDone = step >= 7;
           return (
           <div 
             key={proj.id} className="glass-card" onClick={isDone ? undefined : () => { onSelectProject(proj); onNavigate('workflow'); }}
