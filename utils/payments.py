@@ -96,6 +96,10 @@ def create_checkout_session(user: dict, tier: int | str, feature: str = "qto") -
             "metadata_feature": feature
         }
         
+        # Apply discount code QTO2026 for tier 2 and 3
+        if tier in [2, 3, "2", "3"]:
+            params["discount_code"] = "QTO2026"
+            
         query_string = urllib.parse.urlencode(params)
         checkout_url = f"https://checkout.dodopayments.com/buy/{product_id}?{query_string}"
         
