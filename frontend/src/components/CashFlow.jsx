@@ -195,6 +195,7 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
         <h3 style={{ marginTop: 22, color: 'var(--text-primary)' }}>④ {t('Run Process', 'تشغيل المعالجة')}</h3>
         {missing.length > 0 && (
           <p style={{ color: 'var(--warning, #d97706)', marginTop: 14 }}>⚠️ {t('Please fill required fields', 'يرجى تعبئة الحقول المطلوبة')}: {missing.join('، ')}</p>
+        )}
         {isSimulating ? (
           <div style={{ marginTop: 20, padding: 20, background: 'var(--bg-primary)', borderRadius: 8, border: '1px solid var(--border-color)', textAlign: 'center' }}>
             <h4 style={{ margin: 0, marginBottom: 10, color: 'var(--text-primary)' }}>{t('Processing Financial Data...', 'جاري معالجة البيانات المالية...')}</h4>
