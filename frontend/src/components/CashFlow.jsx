@@ -145,7 +145,15 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
           setCfg({ ...DEFAULT_CONFIG, ...config });
           setSavedId(id);
           if (onStartProject) onStartProject();
-        }} />
+        }} 
+        onExport={async ({ id, config }) => {
+          const acts = buildActivityList(config);
+          const scheduleOut = runScheduler(config, acts);
+          const resObj = computeCashFlow(config, scheduleOut.monthly);
+          const mod = await import('../engine/cashflowExcel');
+          mod.exportCashFlowToExcel(resObj, config.projectName || 'Project');
+        }}
+      />
 
       <div style={card}>
         <h3 style={{ marginTop: 0, color: 'var(--text-primary)' }}>① {t('Project Entries', 'بيانات المشروع')}</h3>

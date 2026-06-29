@@ -76,49 +76,24 @@ export default function FeatureGate({ feature, token, isArabic, title, children 
         </div>
         <h2 style={{ margin: '0 0 8px', color: 'var(--text-primary)', fontSize: '1.4rem' }}>{title}</h2>
         <p style={{ color: 'var(--text-secondary)', margin: '0 0 22px', lineHeight: 1.7 }}>
-          {t(
-            `Unlock this tool for one project. A single payment of ${PRICE_AED} AED grants you one ${feature === 'programme' ? 'Work Programme' : 'Cash Flow'} project.`,
-            `افتح هذه الأداة لمشروع واحد. دفعة واحدة بقيمة ${PRICE_AED} درهم تمنحك مشروع ${feature === 'programme' ? 'برنامج أعمال' : 'تدفق نقدي'} واحد.`,
-          )}
+          {isArabic 
+            ? 'هذه الميزة متاحة فقط للمستخدمين المشتركين.'
+            : 'This feature requires a premium subscription.'}
         </p>
 
-        <div style={{
-          display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 6, marginBottom: 22,
-        }}>
-          <span style={{ fontSize: '2.6rem', fontWeight: 800, color: 'var(--text-primary)' }}>{PRICE_AED}</span>
-          <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{t('AED / project', 'درهم / مشروع')}</span>
-        </div>
-
-        <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', textAlign: isArabic ? 'right' : 'left' }}>
-          {[
-            t('Full bilingual report (EN / AR)', 'تقرير كامل ثنائي اللغة (EN / AR)'),
-            t('Excel export included', 'تصدير Excel متضمّن'),
-            t('Saved to your project history', 'يُحفظ في سجل مشاريعك'),
-          ].map((line, i) => (
-            <li key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '6px 0', color: 'var(--text-secondary)' }}>
-              <CheckCircle2 size={18} style={{ color: 'var(--success)', flexShrink: 0 }} /> {line}
-            </li>
-          ))}
-        </ul>
-
         {state.error && (
-          <p style={{ color: 'var(--error)', fontSize: '0.88rem', marginBottom: 14 }}>{state.error}</p>
+          <p style={{ color: 'var(--error)', fontSize: '0.85rem', marginBottom: 15 }}>{state.error}</p>
         )}
 
-        <button
-          className="btn btn-primary"
-          onClick={buy}
-          disabled={buying}
-          style={{ width: '100%', padding: '14px', fontSize: '1rem', fontWeight: 700 }}
+        <button 
+          className="btn btn-primary" 
+          style={{ width: '100%', padding: '12px 20px', fontWeight: 700 }}
+          onClick={() => {
+            window.location.hash = '#billing';
+            window.dispatchEvent(new Event('hashchange'));
+          }}
         >
-          {buying ? <Loader2 size={18} className="spin" /> : t(`Pay ${PRICE_AED} AED & Unlock`, `ادفع ${PRICE_AED} درهم وافتح`)}
-        </button>
-        <button
-          className="btn btn-secondary"
-          onClick={checkAccess}
-          style={{ width: '100%', padding: '10px', marginTop: 10 }}
-        >
-          {t('I already paid — refresh', 'لقد دفعت — تحديث')}
+          {isArabic ? 'الاشتراك الآن' : 'Subscribe Now'}
         </button>
       </div>
     </div>
