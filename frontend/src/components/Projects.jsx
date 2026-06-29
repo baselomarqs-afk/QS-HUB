@@ -79,7 +79,8 @@ export default function Projects({ token, isArabic, onSelectProject, onNavigate,
     const DEFAULT_CFG = {
       buaPerFloor: 400, complexityFactor: 1.0, hasPool: false, hasDemolition: false,
       contractValueAed: 1500000, advancePaymentPct: 10, retentionPct: 10, retentionReleaseAtCompletionPct: 50,
-      vatPct: 5, certificationPeriodDays: 30, paymentPeriodDays: 30, defectsLiabilityMonths: 12, contractorCostRatio: 0.85
+      vatPct: 5, certificationPeriodDays: 30, paymentPeriodDays: 30, defectsLiabilityMonths: 12, contractorCostRatio: 0.85,
+      startISO: new Date().toISOString().split('T')[0]
     };
     try {
       const res = await fetch(`/api/modules/${feature}/item/${id}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -91,7 +92,7 @@ export default function Projects({ token, isArabic, onSelectProject, onNavigate,
         const out = runScheduler(cfg, acts);
         if (feature === 'programme') {
           const mod = await import('../engine/programmeExcel');
-          mod.exportProgrammeToExcel(cfg, out, cfg.projectName || 'Project');
+          mod.exportProgrammeToExcel(out, cfg.projectName || 'Project');
         } else {
           const { computeCashFlow } = await import('../engine/cashflow');
           const resObj = computeCashFlow(cfg, out.monthly);
