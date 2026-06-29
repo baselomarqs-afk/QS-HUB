@@ -54,7 +54,7 @@ export default function ModuleHistory({ feature, token, isArabic, onLoad, refres
                 background: 'var(--bg-primary)', border: '1px solid var(--border-color)',
                 borderRadius: 8, padding: '7px 11px',
               }}>
-              <span onClick={() => load(it.id)} style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.84rem', cursor: 'pointer' }}>{it.name}</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.84rem' }}>{it.name}</span>
               <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginRight: 'auto', marginLeft: isArabic ? 'auto' : 0 }}>{it.date}</span>
               
               {onExport && (
@@ -71,7 +71,7 @@ export default function ModuleHistory({ feature, token, isArabic, onLoad, refres
                       }
                     } catch { /* ignore */ }
                   }}
-                  title={isArabic ? 'تصدير إكسل' : 'Export Excel'}
+                  title={isArabic ? 'تنزيل التقرير (Excel)' : 'Download Report (Excel)'}
                 />
               )}
 
