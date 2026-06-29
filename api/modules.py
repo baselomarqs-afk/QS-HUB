@@ -50,7 +50,7 @@ async def save(feature: str, req: SaveModuleReq, current_user: dict = Depends(ge
     
     if is_new and not is_admin:
         from utils.usage import check_limit, EVENT_PROJECT
-        ok, msg = check_limit(current_user, EVENT_PROJECT)
+        ok, msg = check_limit(current_user, EVENT_PROJECT, feature=feature)
         if not ok:
             raise HTTPException(status_code=403, detail=msg)
                 

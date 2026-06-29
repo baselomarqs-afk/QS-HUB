@@ -37,11 +37,11 @@ def log_usage(
 
 
 @ttl_cache(ttl_seconds=60)
-def monthly_usage(user_id: int, event_type: str) -> int:
+def monthly_usage(user_id: int, event_type: str, feature: str = "qto") -> int:
     if is_sqlite():
         df = safe_query(
             """
-            SELECT COALESCE(SUM(quantity), 0) AS total
+            SELECT quantity, metadata
             FROM qto_usage_logs
             WHERE user_id=%s
               AND event_type=%s
@@ -52,7 +52,7 @@ def monthly_usage(user_id: int, event_type: str) -> int:
     else:
         df = safe_query(
             """
-            SELECT COALESCE(SUM(quantity), 0) AS total
+            SELECT quantity, metadata
             FROM qto_usage_logs
             WHERE user_id=%s
               AND event_type=%s
@@ -60,23 +60,36 @@ def monthly_usage(user_id: int, event_type: str) -> int:
             """,
             (user_id, event_type),
         )
+    
     if df.empty:
         return 0
-    return int(df.iloc[0]["total"] or 0)
+        
+    total = 0
+    for _, row in df.iterrows():
+        try:
+            meta = json.loads(row["metadata"] or "{}")
+            row_feature = meta.get("feature", "qto")
+            if row_feature == feature:
+                total += int(row["quantity"] or 0)
+        except Exception:
+            pass
+            
+    return total
 
 
-def check_limit(user: dict, event_type: str, amount: int = 1) -> tuple[bool, str]:
+def check_limit(user: dict, event_type: str, amount: int = 1, feature: str = "qto") -> tuple[bool, str]:
     user_id = int(user.get("id"))
     role = user.get("role")
-    plan = get_plan_for_user(user_id, role)
+    plan = get_plan_for_user(user_id, role, feature)
     
     extra_projects = 0
-    try:
-        df_extra = safe_query("SELECT extra_projects_allowance FROM qto_users WHERE id=%s", (user_id,))
-        if not df_extra.empty:
-            extra_projects = int(df_extra.iloc[0]["extra_projects_allowance"] or 0)
-    except Exception as e:
-        print(f"Error fetching extra projects: {e}")
+    if feature == "qto":
+        try:
+            df_extra = safe_query("SELECT extra_projects_allowance FROM qto_users WHERE id=%s", (user_id,))
+            if not df_extra.empty:
+                extra_projects = int(df_extra.iloc[0]["extra_projects_allowance"] or 0)
+        except Exception as e:
+            print(f"Error fetching extra projects: {e}")
 
     limits = {
         EVENT_PROJECT: plan.projects + extra_projects,
@@ -86,12 +99,12 @@ def check_limit(user: dict, event_type: str, amount: int = 1) -> tuple[bool, str
     limit = limits.get(event_type)
     if limit is None:
         return True, "OK"
-    used = monthly_usage(user_id, event_type)
+    used = monthly_usage(user_id, event_type, feature)
     if used + amount > limit:
         # Check if they are just blocked by base plan or also exhausted extras
-        if event_type == EVENT_PROJECT and used >= (plan.projects + extra_projects):
+        if event_type == EVENT_PROJECT and feature == "qto" and used >= (plan.projects + extra_projects):
             return False, f"Plan limit reached for {event_type}: {used}/{limit}. You have 0 Extra Projects remaining."
-        return False, f"Plan limit reached for {event_type}: {used}/{limit}"
+        return False, f"Plan limit reached for {event_type} ({feature}): {used}/{limit}"
     return True, "OK"
 
 

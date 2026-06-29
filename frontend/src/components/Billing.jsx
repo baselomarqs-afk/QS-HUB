@@ -1,23 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Check, AlertCircle, Sparkles } from 'lucide-react';
+import { CreditCard, Check, AlertCircle, Sparkles, Layers, Briefcase, DollarSign } from 'lucide-react';
 
 export default function Billing({ token, isArabic, user, onLogout }) {
   const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [message, setMessage] = useState('');
+  const [activeTab, setActiveTab] = useState('qto');
   
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(user?.name || '');
 
   useEffect(() => {
-    fetchSubscriptionDetails();
-  }, []);
+    fetchSubscriptionDetails(activeTab);
+  }, [activeTab]);
 
-  const fetchSubscriptionDetails = async () => {
+  const fetchSubscriptionDetails = async (feature) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/billing/subscription", {
+      const res = await fetch(`/api/billing/subscription?feature=${feature}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -31,11 +32,11 @@ export default function Billing({ token, isArabic, user, onLogout }) {
     }
   };
 
-  const handleCheckout = async (tier) => {
+  const handleCheckout = async (tier, feature = 'qto') => {
     setLoading(true);
     setMessage('');
     try {
-      const res = await fetch(`/api/billing/checkout?tier=${tier}`, {
+      const res = await fetch(`/api/billing/checkout?tier=${tier}&feature=${feature}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -234,6 +235,50 @@ export default function Billing({ token, isArabic, user, onLogout }) {
           <h3 id="subscription-catalog" style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '20px', paddingTop: '20px' }}>
             {isArabic ? 'باقات الاشتراك المتاحة' : 'Available Subscription Packages'}
           </h3>
+          
+          {/* Tabs for different products */}
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '25px', overflowX: 'auto', paddingBottom: '5px' }}>
+            <button 
+              onClick={() => setActiveTab('qto')}
+              style={{
+                padding: '12px 20px', borderRadius: '12px', border: 'none',
+                background: activeTab === 'qto' ? 'var(--primary)' : 'var(--bg-secondary)',
+                color: activeTab === 'qto' ? 'white' : 'var(--text-primary)',
+                fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              <Layers size={18} />
+              {isArabic ? 'حصر الكميات (QTO)' : 'QTO Takeoff'}
+            </button>
+            <button 
+              onClick={() => setActiveTab('programme')}
+              style={{
+                padding: '12px 20px', borderRadius: '12px', border: 'none',
+                background: activeTab === 'programme' ? 'var(--primary)' : 'var(--bg-secondary)',
+                color: activeTab === 'programme' ? 'white' : 'var(--text-primary)',
+                fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              <Briefcase size={18} />
+              {isArabic ? 'برنامج العمل' : 'Work Programme'}
+            </button>
+            <button 
+              onClick={() => setActiveTab('cashflow')}
+              style={{
+                padding: '12px 20px', borderRadius: '12px', border: 'none',
+                background: activeTab === 'cashflow' ? 'var(--primary)' : 'var(--bg-secondary)',
+                color: activeTab === 'cashflow' ? 'white' : 'var(--text-primary)',
+                fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              <DollarSign size={18} />
+              {isArabic ? 'التدفق المالي' : 'Cash Flow'}
+            </button>
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
             {details.plans_catalog.map((p) => {
               const showDiscount = p.tier === 2 || p.tier === 3;
@@ -297,12 +342,12 @@ export default function Billing({ token, isArabic, user, onLogout }) {
                   </div>
 
                   <button 
-                    className={`btn ${p.tier === details.plan_tier ? 'btn-secondary' : 'btn-primary'}`} 
+                    className={`btn ${p.tier === details.plan_tier && activeTab === 'qto' ? 'btn-secondary' : 'btn-primary'}`} 
                     style={{ width: '100%' }}
-                    onClick={() => handleCheckout(p.tier)}
-                    disabled={p.tier === details.plan_tier}
+                    onClick={() => handleCheckout(p.tier, activeTab)}
+                    disabled={p.tier === details.plan_tier && activeTab === 'qto'}
                   >
-                    {p.tier === details.plan_tier 
+                    {p.tier === details.plan_tier && activeTab === 'qto' 
                       ? (isArabic ? 'الباقة الحالية' : 'Current Plan') 
                       : (isArabic ? `اختر باقة ${p.name}` : `Select ${p.name}`)}
                   </button>

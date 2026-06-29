@@ -33,26 +33,27 @@ async def feature_access(feature: str = Query(...), current_user: dict = Depends
     }
 
 @router.get("/subscription")
-async def get_subscription_details(current_user: dict = Depends(get_current_user)):
+async def get_subscription_details(feature: str = Query("qto"), current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
     role = current_user["role"]
     email = current_user["email"]
     
-    sub = get_active_subscription(user_id)
-    plan = get_plan_for_user(user_id, role)
+    sub = get_active_subscription(user_id, feature)
+    plan = get_plan_for_user(user_id, role, feature)
     
     # Extra projects
     extra_projects = 0
-    try:
-        df_extra = safe_query("SELECT extra_projects_allowance FROM qto_users WHERE id=%s", (user_id,))
-        if not df_extra.empty:
-            extra_projects = int(df_extra.iloc[0]["extra_projects_allowance"] or 0)
-    except:
-        pass
+    if feature == "qto":
+        try:
+            df_extra = safe_query("SELECT extra_projects_allowance FROM qto_users WHERE id=%s", (user_id,))
+            if not df_extra.empty:
+                extra_projects = int(df_extra.iloc[0]["extra_projects_allowance"] or 0)
+        except:
+            pass
         
-    usage_projects = monthly_usage(user_id, EVENT_PROJECT)
-    usage_exports = monthly_usage(user_id, EVENT_EXPORT)
-    usage_ai = monthly_usage(user_id, EVENT_AI_CALL)
+    usage_projects = monthly_usage(user_id, EVENT_PROJECT, feature)
+    usage_exports = monthly_usage(user_id, EVENT_EXPORT, feature)
+    usage_ai = monthly_usage(user_id, EVENT_AI_CALL, feature)
     
     return {
         "plan_name": plan.name,
