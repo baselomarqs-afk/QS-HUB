@@ -328,15 +328,27 @@ export default function Billing({ token, isArabic, user, onLogout }) {
                     <ul style={{ listStyle: 'none', padding: 0, margin: '20px 0', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.88rem' }}>
                       <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Check size={14} color="var(--success)" />
-                        <span>{isArabic ? `حصر المشاريع: ${p.projects_limit}` : `Projects Takeoffs: ${p.projects_limit}`}</span>
+                        <span>
+                          {activeTab === 'qto' && (isArabic ? `حصر المشاريع: ${p.projects_limit}` : `Projects Takeoffs: ${p.projects_limit}`)}
+                          {activeTab === 'programme' && (isArabic ? `برامج العمل: ${p.projects_limit}` : `Programmes: ${p.projects_limit}`)}
+                          {activeTab === 'cashflow' && (isArabic ? `التدفقات المالية: ${p.projects_limit}` : `Cash Flows: ${p.projects_limit}`)}
+                        </span>
                       </li>
                       <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Check size={14} color="var(--success)" />
-                        <span>{isArabic ? 'ذكاء اصطناعي للرؤية والمعادلات' : 'AI Vision & Equations'}</span>
+                        <span>
+                          {activeTab === 'qto' && (isArabic ? 'ذكاء اصطناعي للرؤية والمعادلات' : 'AI Vision & Equations')}
+                          {activeTab === 'programme' && (isArabic ? 'حساب مسار حرج آلي' : 'Auto CPM Schedule')}
+                          {activeTab === 'cashflow' && (isArabic ? 'ربط مالي للتنفيذ' : 'Construction Finance Mapping')}
+                        </span>
                       </li>
                       <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Check size={14} color="var(--success)" />
-                        <span>{isArabic ? 'تقارير Excel و PDF منسقة' : 'Formatted Excel & PDF exports'}</span>
+                        <span>
+                          {activeTab === 'qto' && (isArabic ? 'تقارير Excel و PDF منسقة' : 'Formatted Excel & PDF exports')}
+                          {activeTab === 'programme' && (isArabic ? 'مخطط جانت وتصدير إكسل' : 'Gantt Chart & Excel Export')}
+                          {activeTab === 'cashflow' && (isArabic ? 'فواتير شهرية وتصدير إكسل' : 'Monthly Bills & Excel Export')}
+                        </span>
                       </li>
                     </ul>
                   </div>

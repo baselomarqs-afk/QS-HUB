@@ -25,6 +25,7 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
   const [loadingPct, setLoadingPct] = useState(0);
   const [showFeedback, setShowFeedback] = useState(false);
   const [autoSavePending, setAutoSavePending] = useState(false);
+  const [isHistoryView, setIsHistoryView] = useState(false);
 
   const patch = (p) => setCfg((c) => ({ ...c, ...p }));
   const derived = useMemo(() => deriveVilla(cfg), [cfg]);
@@ -137,8 +138,11 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
       <ModuleHistory feature="programme" token={token} isArabic={isArabic} refreshKey={savedId}
         onLoad={({ id, config }) => {
           justLoaded.current = true;
-          setCfg({ ...DEFAULT_CONFIG, ...config });
+          const merged = { ...DEFAULT_CONFIG, ...config };
+          setCfg(merged);
+          setActs(buildActivityList(merged));
           setSavedId(id);
+          setIsHistoryView(true);
           if (onStartProject) onStartProject();
         }} 
         onExport={async ({ id, config }) => {
@@ -149,6 +153,18 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
         }}
       />
 
+      {isHistoryView && (
+        <button className="btn btn-primary" onClick={() => {
+          setIsHistoryView(false);
+          setSavedId(null);
+          setActs(null);
+          setCfg({ ...DEFAULT_CONFIG });
+        }} style={{ marginBottom: 15, padding: '8px 16px', fontWeight: 600 }}>
+          {isArabic ? 'إنشاء مشروع جديد' : '+ Start New Project'}
+        </button>
+      )}
+
+      {!isHistoryView && (
       <div style={card}>
         <h3 style={{ marginTop: 0, color: 'var(--text-primary)' }}>① {t('Project Entries', 'بيانات المشروع')}</h3>
         <SpecPrefill cfg={cfg} setCfg={patch} isArabic={isArabic} token={token} />
@@ -244,6 +260,7 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
           </button>
         )}
       </div>
+      )}
 
       {out && (
         <>

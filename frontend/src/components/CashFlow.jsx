@@ -155,6 +155,18 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
         }}
       />
 
+      {isHistoryView && (
+        <button className="btn btn-primary" onClick={() => {
+          setIsHistoryView(false);
+          setSavedId(null);
+          setProcessed(false);
+          setCfg({ ...DEFAULT_CONFIG });
+        }} style={{ marginBottom: 15, padding: '8px 16px', fontWeight: 600 }}>
+          {isArabic ? 'إنشاء مشروع جديد' : '+ Start New Project'}
+        </button>
+      )}
+
+      {!isHistoryView && (
       <div style={card}>
         <h3 style={{ marginTop: 0, color: 'var(--text-primary)' }}>① {t('Project Entries', 'بيانات المشروع')}</h3>
         <SpecPrefill cfg={cfg} setCfg={patch} isArabic={isArabic} token={token} />
@@ -224,6 +236,7 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
              '* تقوم المعالجة ببناء الجدول التنفيذي أولاً، ثم استنتاج فواتير الدفعات الشهرية وفق التسلسل الزمني لبرنامج الأعمال.')}
         </p>
       </div>
+      )}
 
       {show && result && (
         <>
