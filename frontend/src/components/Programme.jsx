@@ -24,6 +24,7 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
   const [isSimulating, setIsSimulating] = useState(false);
   const [loadingPct, setLoadingPct] = useState(0);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [autoSavePending, setAutoSavePending] = useState(false);
 
   const patch = (p) => setCfg((c) => ({ ...c, ...p }));
   const derived = useMemo(() => deriveVilla(cfg), [cfg]);
@@ -56,6 +57,13 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
   const out = useMemo(() => (acts ? runScheduler(cfg, acts) : null), [acts, cfg]);
   const totalDays = out?.totalDays ?? 1;
 
+  useEffect(() => {
+    if (autoSavePending && out && !savedId && !saving) {
+      save();
+      setAutoSavePending(false);
+    }
+  }, [autoSavePending, out, savedId, saving]);
+
   const process = () => {
     if (canProcess) {
       setIsSimulating(true);
@@ -68,9 +76,10 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
           clearInterval(interval);
           setIsSimulating(false);
           setActs(buildActivityList(cfg));
+          setAutoSavePending(true);
           if (onStartProject) onStartProject();
         }
-      }, 600); // 600ms * 100 = 60 seconds total
+      }, 10);
     }
   };
   const patchAct = (id, weeks) =>

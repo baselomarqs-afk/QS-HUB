@@ -24,6 +24,7 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
   const [isSimulating, setIsSimulating] = useState(false);
   const [loadingPct, setLoadingPct] = useState(0);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [autoSavePending, setAutoSavePending] = useState(false);
 
   const process = () => {
     if (canProcess) {
@@ -37,9 +38,10 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
           clearInterval(interval);
           setIsSimulating(false);
           setProcessed(true);
+          setAutoSavePending(true);
           if (onStartProject) onStartProject();
         }
-      }, 600); // 600ms * 100 = 60 seconds total
+      }, 10);
     }
   };
 
@@ -74,6 +76,13 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
     const out = runScheduler(cfg, acts);
     return computeCashFlow(cfg, out.monthly);
   }, [cfg, canProcess]);
+
+  useEffect(() => {
+    if (autoSavePending && result && !savedId && !saving) {
+      save();
+      setAutoSavePending(false);
+    }
+  }, [autoSavePending, result, savedId, saving]);
 
   const show = processed && canProcess && result;
 
