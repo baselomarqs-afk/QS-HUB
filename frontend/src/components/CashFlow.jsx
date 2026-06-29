@@ -37,7 +37,6 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
           clearInterval(interval);
           setIsSimulating(false);
           setProcessed(true);
-          setShowFeedback(true);
           if (onStartProject) onStartProject();
         }
       }, 600); // 600ms * 100 = 60 seconds total
@@ -81,6 +80,7 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
   const exportExcel = async () => {
     const mod = await import('../engine/cashflowExcel');
     mod.exportCashFlowToExcel(cfg, result, cfg.projectName || 'Project');
+    setShowFeedback(true);
   };
 
   const save = async () => {

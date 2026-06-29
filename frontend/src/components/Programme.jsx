@@ -68,7 +68,6 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
           clearInterval(interval);
           setIsSimulating(false);
           setActs(buildActivityList(cfg));
-          setShowFeedback(true);
           if (onStartProject) onStartProject();
         }
       }, 600); // 600ms * 100 = 60 seconds total
@@ -85,6 +84,7 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
   const exportExcel = async () => {
     const mod = await import('../engine/programmeExcel');
     mod.exportProgrammeToExcel(out, cfg.projectName || 'Project');
+    setShowFeedback(true);
   };
 
   const save = async () => {

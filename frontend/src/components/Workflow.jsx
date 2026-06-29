@@ -666,7 +666,6 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
       
       setCurrentStep(8); // Proceed directly to download
       await saveActiveState(8);
-      setShowFeedback(true);
     } catch (err) {
       alert(err.message);
     } finally {
@@ -677,10 +676,12 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
   // Exporters
   const downloadExcel = () => {
     window.open(`/api/workflow/export/excel?project_id=${project.id}&Authorization=Bearer ${token}`);
+    setShowFeedback(true);
   };
 
   const downloadPDF = () => {
     window.open(`/api/workflow/export/pdf?project_id=${project.id}&Authorization=Bearer ${token}`);
+    setShowFeedback(true);
   };
 
   // UI Helpers
