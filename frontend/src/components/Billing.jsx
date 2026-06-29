@@ -342,12 +342,12 @@ export default function Billing({ token, isArabic, user, onLogout }) {
                   </div>
 
                   <button 
-                    className={`btn ${p.tier === details.plan_tier && activeTab === 'qto' ? 'btn-secondary' : 'btn-primary'}`} 
+                    className={`btn ${p.tier === details.plan_tier ? 'btn-secondary' : 'btn-primary'}`} 
                     style={{ width: '100%' }}
                     onClick={() => handleCheckout(p.tier, activeTab)}
-                    disabled={p.tier === details.plan_tier && activeTab === 'qto'}
+                    disabled={p.tier === details.plan_tier}
                   >
-                    {p.tier === details.plan_tier && activeTab === 'qto' 
+                    {p.tier === details.plan_tier 
                       ? (isArabic ? 'الباقة الحالية' : 'Current Plan') 
                       : (isArabic ? `اختر باقة ${p.name}` : `Select ${p.name}`)}
                   </button>
