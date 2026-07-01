@@ -12,12 +12,44 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
   const [details, setDetails] = useState(null);
   const [programmeAccess, setProgrammeAccess] = useState(null);
   const [cashflowAccess, setCashflowAccess] = useState(null);
+  const [paymentMsg, setPaymentMsg] = useState('');
 
   useEffect(() => {
     fetchProjects();
     fetchActiveProjectState();
     fetchSubscriptionDetails();
     fetchModuleAccess();
+
+    // Detect return from payment page
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment_success') === '1') {
+      window.history.replaceState({}, '', window.location.pathname);
+      setPaymentMsg(isArabic
+        ? '⚡ جاري تفعيل اشتراكك، قد يستغرق بضع ثوانٍ...'
+        : '⚡ Activating your subscription, please wait a few seconds...');
+      // Poll every 3 seconds for up to 30 seconds to pick up new subscription
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        await fetchModuleAccess();
+        await fetchSubscriptionDetails();
+        if (attempts >= 10) {
+          clearInterval(poll);
+          setPaymentMsg(isArabic ? '✅ تم تحديث الاشتراك!' : '✅ Subscription updated!');
+          setTimeout(() => setPaymentMsg(''), 4000);
+        }
+      }, 3000);
+    }
+
+    // When user returns to this tab (from payment tab), refresh data
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        fetchSubscriptionDetails();
+        fetchModuleAccess();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, []);
 
   const fetchSubscriptionDetails = async () => {
@@ -204,6 +236,25 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
 
   return (
     <div className="dashboard-content" style={{ padding: '30px', textAlign: isArabic ? 'right' : 'left', direction: isArabic ? 'rtl' : 'ltr' }}>
+
+      {/* Payment Success Banner */}
+      {paymentMsg && (
+        <div style={{
+          padding: '14px 20px',
+          marginBottom: '20px',
+          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(59, 130, 246, 0.1))',
+          border: '1px solid rgba(16, 185, 129, 0.4)',
+          borderRadius: '12px',
+          color: 'var(--success)',
+          fontWeight: 700,
+          fontSize: '1rem',
+          textAlign: 'center',
+          animation: 'pulse 1.5s ease-in-out infinite'
+        }}>
+          {paymentMsg}
+        </div>
+      )}
+
       {/* Welcome Banner */}
       <div style={{ marginBottom: '35px' }}>
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
@@ -625,7 +676,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                   transition: 'all 0.2s ease',
                   marginTop: '5px'
                 }}
-                onClick={() => handleCheckout('programme')}
+                onClick={() => handleCheckout(1, 'programme')}
                 onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)' }}
                 onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.05)' }}
               >
@@ -795,7 +846,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                   transition: 'all 0.2s ease',
                   marginTop: '5px'
                 }}
-                onClick={() => handleCheckout('cashflow')}
+                onClick={() => handleCheckout(1, 'cashflow')}
                 onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)' }}
                 onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.05)' }}
               >

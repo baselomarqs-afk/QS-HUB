@@ -18,9 +18,16 @@ async def feature_access(feature: str = Query(...), current_user: dict = Depends
     
     user_id = current_user["id"]
     role = current_user["role"]
+    email = current_user["email"]
     is_admin = role == "admin"
+
+    # Auto-sync from Dodo API — so even if webhook was missed, subscription activates on next Dashboard load
+    try:
+        auto_sync_user_subscriptions(user_id, email)
+    except Exception:
+        pass
+
     projects = count_projects(user_id, feature)
-    
     plan = get_plan_for_user(user_id, role, feature)
     
     extra_projects = 0
