@@ -156,10 +156,10 @@ def _upsert_subscription_from_dodo(data: dict[str, Any]) -> None:
     
     subscription_id = data.get("subscription_id")
     status = data.get("status", "inactive")
-    customer_id = data.get("customer_id")
+    customer_id = data.get("customer_id") or data.get("customer", {}).get("customer_id")
     
-    current_period_start = data.get("current_period_start")
-    current_period_end = data.get("current_period_end")
+    current_period_start = data.get("current_period_start") or data.get("created_at")
+    current_period_end = data.get("current_period_end") or data.get("next_billing_date") or data.get("expires_at")
     
     if not user_id:
         customer_email = data.get("customer", {}).get("email")
@@ -237,7 +237,7 @@ def _record_transaction(data: dict[str, Any], event_type: str) -> None:
         return
 
     subscription_id = data.get("subscription_id")
-    customer_id = data.get("customer_id")
+    customer_id = data.get("customer_id") or data.get("customer", {}).get("customer_id")
     currency = data.get("currency") or "AED"
     amount = float(data.get("amount") or 0) / 100
 

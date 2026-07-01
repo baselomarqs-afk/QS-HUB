@@ -546,7 +546,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
 
             {/* Start Project Bar */}
             <div style={{ marginTop: '5px' }}>
-              {!isAdmin && details && details.plan_tier === 0 ? (
+              {!isAdmin && programmeAccess && programmeAccess.plan_tier === 0 ? (
                 <button
                   onClick={() => handleCheckout(1, 'programme')}
                   style={{ width: '100%', padding: '10px', backgroundColor: 'var(--success)', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 4px 10px rgba(16, 185, 129, 0.3)' }}
@@ -611,7 +611,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
             </div>
 
             {/* Add Project Green Box */}
-            {!isAdmin && details && details.plan_tier !== 0 && (
+            {!isAdmin && programmeAccess && programmeAccess.plan_tier !== 0 && (
               <div 
                 style={{ 
                   backgroundColor: 'rgba(16, 185, 129, 0.05)', 
@@ -716,7 +716,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
 
             {/* Start Project Bar */}
             <div style={{ marginTop: '5px' }}>
-              {!isAdmin && details && details.plan_tier === 0 ? (
+              {!isAdmin && cashflowAccess && cashflowAccess.plan_tier === 0 ? (
                 <button
                   onClick={() => handleCheckout(1, 'cashflow')}
                   style={{ width: '100%', padding: '10px', backgroundColor: 'var(--success)', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 4px 10px rgba(16, 185, 129, 0.3)' }}
@@ -781,7 +781,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
             </div>
 
             {/* Add Project Green Box */}
-            {!isAdmin && details && details.plan_tier !== 0 && (
+            {!isAdmin && cashflowAccess && cashflowAccess.plan_tier !== 0 && (
               <div 
                 style={{ 
                   backgroundColor: 'rgba(16, 185, 129, 0.05)', 

@@ -37,10 +37,11 @@ async def feature_access(feature: str = Query(...), current_user: dict = Depends
     return {
         "feature": feature,
         "access": can_create or projects > 0,
-        "credits": 0,
+        "credits": extra_projects,
         "projects": projects,
         "limit": limit,
         "can_create": can_create,
+        "plan_tier": plan.tier,
     }
 
 @router.get("/subscription")
@@ -130,17 +131,4 @@ async def get_portal_url(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/feature-access")
-async def feature_access(feature: str = Query(...), current_user: dict = Depends(get_current_user)):
-    """Check if user has limits to use the module."""
-    if feature not in ["programme", "cashflow", "qto"]:
-        raise HTTPException(status_code=404, detail="Unknown feature.")
-    
-    is_admin = current_user.get("role") == "admin"
-    if is_admin:
-        return {"access": True, "credits": 9999}
-        
-    from utils.usage import check_limit, EVENT_PROJECT
-    ok, msg = check_limit(current_user, EVENT_PROJECT, feature=feature)
-    
-    return {"access": ok, "credits": 1 if ok else 0}
+
