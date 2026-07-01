@@ -9,6 +9,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import time
 from datetime import datetime
 from typing import Any
@@ -21,6 +22,49 @@ except ImportError:
 from utils.audit import audit_log
 from utils.db import safe_execute, safe_query
 from utils.settings import app_base_url, get_setting
+
+logger = logging.getLogger("qto.payments")
+
+
+def _dodo_base_url() -> str:
+    """Single source of truth for the Dodo REST base URL.
+
+    The API key prefix (`live_` / `test_`) is authoritative — this removes the
+    whole class of bugs where DODO_ENVIRONMENT was set to the wrong value and
+    we ended up querying the test server with a live key (finding nothing).
+    """
+    api_key = (get_setting("DODO_PAYMENTS_API_KEY", "") or "").strip()
+    if api_key.startswith("live_"):
+        return "https://live.dodopayments.com"
+    if api_key.startswith("test_"):
+        return "https://test.dodopayments.com"
+    env = get_setting("DODO_ENVIRONMENT", "test_mode").lower()
+    return "https://live.dodopayments.com" if env in ("live_mode", "production", "live") else "https://test.dodopayments.com"
+
+
+_PRODUCT_MAP_CACHE: dict[str, tuple[str, int]] | None = None
+
+
+def build_product_map(force: bool = False) -> dict[str, tuple[str, int]]:
+    """Deterministic mapping: real Dodo product_id -> (feature, tier).
+
+    Built once from the configured product ids so we never have to *guess* a
+    tier by looping. Dummy fallback ids are excluded.
+    """
+    global _PRODUCT_MAP_CACHE
+    if _PRODUCT_MAP_CACHE is not None and not force:
+        return _PRODUCT_MAP_CACHE
+    mapping: dict[str, tuple[str, int]] = {}
+    for feature in ("qto", "programme", "cashflow"):
+        for tier in (1, 2, 3, 4):
+            try:
+                pid = dodo_product_for_tier(tier, feature)
+            except Exception:
+                continue
+            if pid and not str(pid).startswith("pdt_DUMMY"):
+                mapping[pid] = (feature, tier)
+    _PRODUCT_MAP_CACHE = mapping
+    return mapping
 
 
 def _get_dodo_client() -> DodoPayments:
@@ -38,7 +82,14 @@ ONE_TIME_TIERS = {"addon", "programme", "cashflow"}
 
 def dodo_product_for_tier(tier: int | str, feature: str = "qto") -> str:
     if tier == "addon":
-        price_id = get_setting("DODO_PRODUCT_ADDON_PROJECT")
+        # Each tool has its own +1 add-on product; fall back to the QTO add-on
+        # if a tool-specific one isn't configured yet.
+        if feature == "programme":
+            price_id = get_setting("DODO_PRODUCT_ADDON_PROGRAMME") or get_setting("DODO_PRODUCT_ADDON_PROJECT")
+        elif feature == "cashflow":
+            price_id = get_setting("DODO_PRODUCT_ADDON_CASHFLOW") or get_setting("DODO_PRODUCT_ADDON_PROJECT")
+        else:
+            price_id = get_setting("DODO_PRODUCT_ADDON_PROJECT")
     elif tier == "programme":
         price_id = get_setting("DODO_PRODUCT_PROGRAMME") or get_setting("DODO_PRODUCT_ADDON_PROJECT")
     elif tier == "cashflow":
@@ -67,6 +118,8 @@ def create_checkout_session(user: dict, tier: int | str, feature: str = "qto") -
     if tier in ONE_TIME_TIERS:
         if tier == "addon":
             custom_data["is_addon"] = "true"
+            # Which tool this +1 project belongs to (qto/programme/cashflow).
+            custom_data["feature"] = feature
         else:
             custom_data["feature"] = tier  # "programme" | "cashflow"
     else:
@@ -143,15 +196,10 @@ def _upsert_subscription_from_dodo(data: dict[str, Any]) -> None:
     product_id = data.get("product_id") or data.get("product", {}).get("product_id")
     inferred_feature, inferred_tier = "qto", 0
     if product_id:
-        # Find feature and tier by matching product_id
-        for f in ["qto", "programme", "cashflow"]:
-            for t in [1, 2, 3, 4]:
-                try:
-                    if dodo_product_for_tier(t, f) == product_id:
-                        inferred_feature, inferred_tier = f, t
-                        break
-                except Exception:
-                    pass
+        # Deterministic lookup: product_id -> (feature, tier)
+        mapped = build_product_map().get(product_id)
+        if mapped:
+            inferred_feature, inferred_tier = mapped
 
     metadata = data.get("metadata") or {}
     user_id = int(metadata.get("user_id", 0) or data.get("metadata_user_id", 0) or 0)
@@ -241,14 +289,17 @@ def auto_sync_user_subscriptions(user_id: int, user_email: str) -> int:
     try:
         api_key = get_setting("DODO_PAYMENTS_API_KEY")
         if not api_key:
+            logger.warning("auto_sync skipped: DODO_PAYMENTS_API_KEY not configured")
             return 0
-        env = get_setting("DODO_ENVIRONMENT", "test_mode").lower()
-        base_url = "https://live.dodopayments.com" if env in ["live_mode", "production", "live"] else "https://test.dodopayments.com"
+        base_url = _dodo_base_url()
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        product_map = build_product_map()
 
         # Fetch all subscriptions from Dodo
         r = _requests.get(f"{base_url}/subscriptions?limit=50", headers=headers, timeout=8)
         if r.status_code != 200:
+            logger.warning("auto_sync: Dodo /subscriptions returned %s at %s: %s",
+                           r.status_code, base_url, r.text[:300])
             return 0
 
         data = r.json()
@@ -256,7 +307,7 @@ def auto_sync_user_subscriptions(user_id: int, user_email: str) -> int:
 
         for item in items:
             # Only process subscriptions belonging to this user
-            item_email = item.get("customer", {}).get("email", "")
+            item_email = (item.get("customer", {}) or {}).get("email", "")
             item_metadata = item.get("metadata") or {}
             item_user_id = int(item_metadata.get("user_id", 0) or 0)
 
@@ -266,29 +317,22 @@ def auto_sync_user_subscriptions(user_id: int, user_email: str) -> int:
             sub_id = item.get("subscription_id") or item.get("id", "")
             status = item.get("status", "")
             product_id = item.get("product_id", "")
-            customer_id = item.get("customer", {}).get("customer_id", "")
+            customer_id = (item.get("customer", {}) or {}).get("customer_id", "")
 
             if not sub_id or status not in ("active", "trialing"):
                 continue
 
-            # Map product_id → feature + tier
-            feature = item_metadata.get("feature") or "qto"
-            tier_raw = item_metadata.get("plan_tier")
-            try:
-                tier = int(tier_raw) if tier_raw else 1
-            except Exception:
-                tier = 1
-
-            # If metadata didn't have it, try to infer from product_id
-            if not item_metadata.get("feature"):
-                for f in ["qto", "programme", "cashflow"]:
-                    for t in [1, 2, 3, 4]:
-                        try:
-                            if dodo_product_for_tier(t, f) == product_id:
-                                feature, tier = f, t
-                                break
-                        except Exception:
-                            pass
+            # Map product_id → feature + tier. The product map is authoritative;
+            # metadata is only a fallback when the product id isn't recognised.
+            if product_id in product_map:
+                feature, tier = product_map[product_id]
+            else:
+                feature = item_metadata.get("feature") or "qto"
+                tier_raw = item_metadata.get("plan_tier")
+                try:
+                    tier = int(tier_raw) if tier_raw else 1
+                except Exception:
+                    tier = 1
 
             # Check if already in DB
             existing = safe_query(
@@ -319,29 +363,153 @@ def auto_sync_user_subscriptions(user_id: int, user_email: str) -> int:
             get_plan_for_user.clear()
 
     except Exception:
-        pass  # Auto-sync is best-effort; never crash the billing page
+        # Best-effort: never crash the page — but DO log so failures aren't silent.
+        logger.exception("auto_sync_user_subscriptions failed for user_id=%s", user_id)
 
     return synced
 
 
+def sync_user_addons(user_id: int, user_email: str) -> int:
+    """Pull recent ONE-TIME payments from Dodo and grant any '+1 project'
+    add-ons that haven't been granted yet. This is the synchronous counterpart
+    to auto_sync_user_subscriptions for add-ons — so a bought extra project
+    reflects immediately even if the webhook never arrives.
+
+    Only payments explicitly tagged `is_addon=true` are processed here, so a
+    recurring subscription charge can never be mistaken for an add-on. Grants
+    are idempotent via _already_processed().
+    """
+    import requests as _requests
+    from utils.features import FEATURE_EXTRA_COL
+
+    granted = 0
+    try:
+        api_key = get_setting("DODO_PAYMENTS_API_KEY")
+        if not api_key:
+            return 0
+        base_url = _dodo_base_url()
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+
+        r = _requests.get(f"{base_url}/payments?limit=50", headers=headers, timeout=8)
+        if r.status_code != 200:
+            logger.warning("sync_user_addons: Dodo /payments returned %s at %s: %s",
+                           r.status_code, base_url, r.text[:300])
+            return 0
+
+        data = r.json()
+        items = data.get("items", data.get("data", []))
+
+        for item in items:
+            item_email = (item.get("customer", {}) or {}).get("email", "")
+            metadata = item.get("metadata") or {}
+            item_user_id = int(metadata.get("user_id", 0) or 0)
+            if item_email != user_email and item_user_id != user_id:
+                continue
+
+            status = (item.get("status") or "").lower()
+            if status not in ("succeeded", "paid"):
+                continue
+
+            if metadata.get("is_addon") != "true":
+                continue  # only add-ons — subscription charges are handled elsewhere
+
+            payment_id = item.get("payment_id") or item.get("id")
+            if _already_processed("addon_purchased", payment_id):
+                continue
+
+            feature = metadata.get("feature") or "qto"
+            col = FEATURE_EXTRA_COL.get(feature, "extra_projects_allowance")
+            safe_execute(f"UPDATE qto_users SET {col} = COALESCE({col}, 0) + 1 WHERE id = %s", (user_id,))
+            audit_log("addon_purchased", user_id, "user", payment_id,
+                      {"provider": "dodopayments", "status": status, "feature": feature, "source": "sync"})
+            granted += 1
+
+    except Exception:
+        logger.exception("sync_user_addons failed for user_id=%s", user_id)
+
+    return granted
+
+
+def force_activate_subscription(user_id: int, user_email: str, feature: str = "qto") -> dict[str, Any]:
+    """Synchronous, uncached activation used right after the user returns from
+    the Dodo checkout page. Pulls straight from the Dodo API, writes any active
+    subscriptions, then ALWAYS clears the plan caches (even if 0 new rows) so a
+    row written by a webhook a moment earlier is picked up immediately.
+
+    Returns {active, plan_tier, feature, synced}.
+    """
+    synced = 0
+    try:
+        synced = auto_sync_user_subscriptions(user_id, user_email)
+    except Exception:
+        logger.exception("force_activate: auto_sync failed for user_id=%s", user_id)
+
+    # Reconcile one-time add-on purchases synchronously too (no webhook needed).
+    addons = 0
+    try:
+        addons = sync_user_addons(user_id, user_email)
+    except Exception:
+        logger.exception("force_activate: addon sync failed for user_id=%s", user_id)
+
+    # Always clear caches — the whole point is to defeat a stale `None`.
+    from utils.plans import get_active_subscription, get_plan_for_user
+    get_active_subscription.clear()
+    get_plan_for_user.clear()
+
+    sub = get_active_subscription(user_id, feature)
+    return {
+        "active": bool(sub),
+        "plan_tier": int(sub.get("plan_tier", 0)) if sub else 0,
+        "status": sub.get("status") if sub else "inactive",
+        "feature": feature,
+        "synced": synced,
+        "addons": addons,
+    }
+
+
+def _already_processed(action: str, payment_id: str | None) -> bool:
+    """Idempotency guard: a duplicate webhook must not grant the add-on twice."""
+    if not payment_id:
+        return False
+    try:
+        df = safe_query(
+            "SELECT id FROM qto_audit_logs WHERE action=%s AND target_id=%s LIMIT 1",
+            (action, str(payment_id)),
+        )
+        return not df.empty
+    except Exception:
+        return False
+
+
 def _record_transaction(data: dict[str, Any], event_type: str) -> None:
+    from utils.features import FEATURE_EXTRA_COL
+
     metadata = data.get("metadata", {}) or {}
     user_id = metadata.get("user_id")
     is_addon = metadata.get("is_addon") == "true"
     status = data.get("status") or event_type
+    payment_id = data.get("payment_id") or data.get("id")
 
     if is_addon and status in {"paid", "succeeded"} and user_id:
-        safe_execute("UPDATE qto_users SET extra_projects_allowance = extra_projects_allowance + 1 WHERE id = %s", (user_id,))
-        audit_log("addon_purchased", int(user_id), "user", int(user_id), {"provider": "dodopayments", "status": status})
+        # +1 project for the SPECIFIC tool this add-on was bought for.
+        feature = metadata.get("feature") or "qto"
+        col = FEATURE_EXTRA_COL.get(feature, "extra_projects_allowance")
+        if _already_processed("addon_purchased", payment_id):
+            return
+        safe_execute(f"UPDATE qto_users SET {col} = COALESCE({col}, 0) + 1 WHERE id = %s", (user_id,))
+        audit_log("addon_purchased", int(user_id), "user", payment_id or int(user_id),
+                  {"provider": "dodopayments", "status": status, "feature": feature})
         return
 
     # Per-project module tools (Work Programme / Cash Flow) — grant 1 feature credit for one-time purchases.
     feature = metadata.get("feature")
     has_tier = "plan_tier" in metadata or "metadata_plan_tier" in metadata
     if feature in {"programme", "cashflow"} and not has_tier and status in {"paid", "succeeded"} and user_id:
+        if _already_processed("feature_purchased", payment_id):
+            return
         from utils.features import grant_credit
         grant_credit(int(user_id), feature, 1)
-        audit_log("feature_purchased", int(user_id), "user", int(user_id), {"provider": "dodopayments", "feature": feature, "status": status})
+        audit_log("feature_purchased", int(user_id), "user", payment_id or int(user_id), {"provider": "dodopayments", "feature": feature, "status": status})
         return
 
     subscription_id = data.get("subscription_id")

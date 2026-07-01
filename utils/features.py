@@ -15,6 +15,29 @@ from utils.db import safe_query, safe_execute
 # feature key -> credits column on qto_users
 FEATURES = {"programme": "programme_credits", "cashflow": "cashflow_credits"}
 
+# Every tool has its OWN purchasable "extra project" (+1) allowance. This maps a
+# feature to the qto_users column that stores that allowance, so the add-on for
+# one tool never leaks into another tool's limit.
+FEATURE_EXTRA_COL = {
+    "qto": "extra_projects_allowance",
+    "programme": "programme_credits",
+    "cashflow": "cashflow_credits",
+}
+
+
+def extra_projects_for(user_id: int, feature: str) -> int:
+    """Purchasable +1 project add-ons the user owns for THIS tool."""
+    col = FEATURE_EXTRA_COL.get(feature)
+    if not col:
+        return 0
+    df = safe_query(f"SELECT {col} AS c FROM qto_users WHERE id=%s", (user_id,))
+    if df.empty:
+        return 0
+    try:
+        return int(df.iloc[0]["c"] or 0)
+    except Exception:
+        return 0
+
 
 def _credit_col(feature: str) -> str:
     col = FEATURES.get(feature)

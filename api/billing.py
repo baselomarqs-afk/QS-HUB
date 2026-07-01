@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from api.auth import get_current_user
-from utils.payments import create_checkout_session, auto_sync_user_subscriptions
+from utils.payments import create_checkout_session, auto_sync_user_subscriptions, force_activate_subscription
 from utils.plans import PLANS, get_active_subscription, get_plan_for_user
 from utils.usage import monthly_usage, EVENT_AI_CALL, EVENT_EXPORT, EVENT_PROJECT
 from utils.settings import get_setting
-from utils.db import safe_query
+from utils.db import safe_query, safe_execute
 from utils.features import FEATURES, get_credits, count_projects
 
 router = APIRouter()
@@ -27,19 +27,22 @@ async def feature_access(feature: str = Query(...), current_user: dict = Depends
     except Exception:
         pass
 
-    projects = count_projects(user_id, feature)
     plan = get_plan_for_user(user_id, role, feature)
-    
-    extra_projects = 0
-    try:
-        df_extra = safe_query("SELECT extra_projects_allowance FROM qto_users WHERE id=%s", (user_id,))
-        if not df_extra.empty:
-            extra_projects = int(df_extra.iloc[0]["extra_projects_allowance"] or 0)
-    except:
-        pass
-        
+
+    # Per-tool add-on allowance (qto -> extra_projects_allowance,
+    # programme -> programme_credits, cashflow -> cashflow_credits).
+    from utils.features import extra_projects_for
+    extra_projects = 0 if is_admin else extra_projects_for(user_id, feature)
+
+    # "used" is the SAME monthly count the creation gate (check_limit) uses, so
+    # the "X / limit" shown on the dashboard always matches when the button flips.
+    projects = monthly_usage(user_id, EVENT_PROJECT, feature)
+
     limit = 999999 if is_admin else (plan.projects + extra_projects)
     can_create = is_admin or (projects < limit)
+    # Keep access to previously-saved projects even after the monthly quota
+    # resets or the subscription lapses (viewing history must not disappear).
+    total_saved = count_projects(user_id, feature)
     has_had_trial = False
     try:
         df_past = safe_query("SELECT id FROM qto_subscriptions WHERE user_id=%s AND feature=%s LIMIT 1", (user_id, feature))
@@ -49,7 +52,7 @@ async def feature_access(feature: str = Query(...), current_user: dict = Depends
         
     return {
         "feature": feature,
-        "access": can_create or projects > 0,
+        "access": is_admin or can_create or total_saved > 0,
         "credits": extra_projects,
         "projects": projects,
         "limit": limit,
@@ -57,6 +60,18 @@ async def feature_access(feature: str = Query(...), current_user: dict = Depends
         "plan_tier": plan.tier,
         "has_had_trial": has_had_trial,
     }
+
+@router.post("/activate")
+async def activate_after_payment(feature: str = Query("qto"), current_user: dict = Depends(get_current_user)):
+    """Called by the frontend the moment the user returns from Dodo checkout.
+
+    Synchronous + uncached: pulls the subscription straight from Dodo, writes it,
+    clears the plan caches, and returns the confirmed status. This is the
+    authoritative activation path — it does not depend on the webhook arriving.
+    """
+    result = force_activate_subscription(current_user["id"], current_user["email"], feature)
+    return result
+
 
 @router.get("/subscription")
 async def get_subscription_details(feature: str = Query("qto"), current_user: dict = Depends(get_current_user)):
@@ -75,15 +90,9 @@ async def get_subscription_details(feature: str = Query("qto"), current_user: di
     sub = get_active_subscription(user_id, feature)
     plan = get_plan_for_user(user_id, role, feature)
     
-    # Extra projects
-    extra_projects = 0
-    if feature == "qto":
-        try:
-            df_extra = safe_query("SELECT extra_projects_allowance FROM qto_users WHERE id=%s", (user_id,))
-            if not df_extra.empty:
-                extra_projects = int(df_extra.iloc[0]["extra_projects_allowance"] or 0)
-        except:
-            pass
+    # Extra projects (per-tool add-on allowance)
+    from utils.features import extra_projects_for
+    extra_projects = extra_projects_for(user_id, feature)
         
     usage_projects = monthly_usage(user_id, EVENT_PROJECT, feature)
     usage_exports = monthly_usage(user_id, EVENT_EXPORT, feature)
@@ -136,7 +145,9 @@ async def get_checkout_url(
         # If Dodo payments api is not configured, fall back to mock checkout
         user_id = current_user["id"]
         if tier == "addon":
-            safe_execute("UPDATE qto_users SET extra_projects_allowance = COALESCE(extra_projects_allowance, 0) + 1 WHERE id=%s", (user_id,))
+            from utils.features import FEATURE_EXTRA_COL
+            col = FEATURE_EXTRA_COL.get(feature, "extra_projects_allowance")
+            safe_execute(f"UPDATE qto_users SET {col} = COALESCE({col}, 0) + 1 WHERE id=%s", (user_id,))
         elif tier == "programme":
             safe_execute("UPDATE qto_users SET programme_credits = COALESCE(programme_credits, 0) + 1 WHERE id=%s", (user_id,))
         elif tier == "cashflow":

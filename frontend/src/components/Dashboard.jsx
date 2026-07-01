@@ -27,18 +27,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
       setPaymentMsg(isArabic
         ? '⚡ جاري تفعيل اشتراكك، قد يستغرق بضع ثوانٍ...'
         : '⚡ Activating your subscription, please wait a few seconds...');
-      // Poll every 3 seconds for up to 30 seconds to pick up new subscription
-      let attempts = 0;
-      const poll = setInterval(async () => {
-        attempts++;
-        await fetchModuleAccess();
-        await fetchSubscriptionDetails();
-        if (attempts >= 10) {
-          clearInterval(poll);
-          setPaymentMsg(isArabic ? '✅ تم تحديث الاشتراك!' : '✅ Subscription updated!');
-          setTimeout(() => setPaymentMsg(''), 4000);
-        }
-      }, 3000);
+      activateAfterPayment();
     }
 
     // When user returns to this tab (from payment tab), refresh data
@@ -51,6 +40,45 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, []);
+
+  const activateAfterPayment = async () => {
+    // Authoritative, synchronous activation — hits Dodo directly for each
+    // feature so we don't depend on the webhook. Retries a few times because
+    // Dodo may take a second or two to mark the subscription active.
+    const features = ['qto', 'programme', 'cashflow'];
+    for (let attempt = 0; attempt < 8; attempt++) {
+      let anyActive = false;
+      for (const feature of features) {
+        try {
+          const res = await fetch(`/api/billing/activate?feature=${feature}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            // Either a live subscription or a freshly-granted add-on counts as
+            // "something changed" — stop retrying and show success.
+            if (data.active || data.addons > 0) anyActive = true;
+          }
+        } catch (err) {
+          console.error('activate error', err);
+        }
+      }
+      await fetchSubscriptionDetails();
+      await fetchModuleAccess();
+      if (anyActive) {
+        setPaymentMsg(isArabic ? '✅ تم تفعيل اشتراكك!' : '✅ Your subscription is active!');
+        setTimeout(() => setPaymentMsg(''), 5000);
+        return;
+      }
+      // wait 2.5s before retrying
+      await new Promise(r => setTimeout(r, 2500));
+    }
+    // Gave up — tell the user to refresh rather than silently doing nothing.
+    setPaymentMsg(isArabic
+      ? '⚠️ تم الدفع لكن التفعيل يتأخر. حدّث الصفحة بعد دقيقة، وإن استمر تواصل معنا.'
+      : '⚠️ Payment received but activation is delayed. Refresh in a minute; contact us if it persists.');
+  };
 
   const fetchSubscriptionDetails = async () => {
     try {
@@ -506,7 +534,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                   transition: 'all 0.2s ease',
                   marginTop: '5px'
                 }}
-                onClick={() => handleCheckout('addon')}
+                onClick={() => handleCheckout('addon', 'qto')}
                 onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)' }}
                 onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.05)' }}
               >
@@ -676,7 +704,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                   transition: 'all 0.2s ease',
                   marginTop: '5px'
                 }}
-                onClick={() => handleCheckout(1, 'programme')}
+                onClick={() => handleCheckout('addon', 'programme')}
                 onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)' }}
                 onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.05)' }}
               >
@@ -846,7 +874,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                   transition: 'all 0.2s ease',
                   marginTop: '5px'
                 }}
-                onClick={() => handleCheckout(1, 'cashflow')}
+                onClick={() => handleCheckout('addon', 'cashflow')}
                 onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)' }}
                 onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.05)' }}
               >

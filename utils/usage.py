@@ -81,15 +81,14 @@ def check_limit(user: dict, event_type: str, amount: int = 1, feature: str = "qt
     user_id = int(user.get("id"))
     role = user.get("role")
     plan = get_plan_for_user(user_id, role, feature)
-    
-    extra_projects = 0
-    if feature == "qto":
-        try:
-            df_extra = safe_query("SELECT extra_projects_allowance FROM qto_users WHERE id=%s", (user_id,))
-            if not df_extra.empty:
-                extra_projects = int(df_extra.iloc[0]["extra_projects_allowance"] or 0)
-        except Exception as e:
-            print(f"Error fetching extra projects: {e}")
+
+    # Per-tool add-on allowance (each tool has its own +1 project products).
+    from utils.features import extra_projects_for
+    try:
+        extra_projects = extra_projects_for(user_id, feature)
+    except Exception as e:
+        print(f"Error fetching extra projects: {e}")
+        extra_projects = 0
 
     limits = {
         EVENT_PROJECT: plan.projects + extra_projects,
@@ -101,9 +100,9 @@ def check_limit(user: dict, event_type: str, amount: int = 1, feature: str = "qt
         return True, "OK"
     used = monthly_usage(user_id, event_type, feature)
     if used + amount > limit:
-        # Check if they are just blocked by base plan or also exhausted extras
-        if event_type == EVENT_PROJECT and feature == "qto" and used >= (plan.projects + extra_projects):
-            return False, f"Plan limit reached for {event_type}: {used}/{limit}. You have 0 Extra Projects remaining."
+        # Distinguish "base plan exhausted" from "extras also exhausted".
+        if event_type == EVENT_PROJECT and used >= (plan.projects + extra_projects):
+            return False, f"Plan limit reached for {event_type} ({feature}): {used}/{limit}. You have 0 extra projects remaining."
         return False, f"Plan limit reached for {event_type} ({feature}): {used}/{limit}"
     return True, "OK"
 
