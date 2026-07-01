@@ -300,13 +300,15 @@ export default function Billing({ token, isArabic, user, onLogout }) {
                       left: isArabic ? '12px' : 'auto',
                       backgroundColor: 'var(--success)',
                       color: 'white',
-                      fontSize: '0.7rem',
+                      fontSize: '0.85rem',
                       fontWeight: 'bold',
-                      padding: '2px 8px',
-                      borderRadius: '10px'
+                      padding: '6px 14px',
+                      borderRadius: '16px',
+                      boxShadow: '0 4px 10px rgba(16, 185, 129, 0.3)',
+                      zIndex: 10
                     }}>
                       🌟 {isArabic ? 'شهر مجاني!' : '1 Month Free!'}
-                      <div style={{ fontSize: '0.55rem', textAlign: 'center', marginTop: '2px', opacity: 0.9 }}>
+                      <div style={{ fontSize: '0.75rem', textAlign: 'center', marginTop: '2px', opacity: 0.95 }}>
                         {isArabic ? 'مشروعين للشهر الأول' : '2 Projects 1st Month'}
                       </div>
                     </div>
@@ -333,25 +335,34 @@ export default function Billing({ token, isArabic, user, onLogout }) {
                   <div>
                     <h4 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '10px' }}>{p.name}</h4>
                     
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '15px' }}>
-                      {showDiscount && (
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '15px', flexWrap: 'wrap' }}>
+                      {(showDiscount || p.tier === 1) && (
                         <span style={{ fontSize: '0.9rem', textDecoration: 'line-through', color: 'var(--text-muted)' }}>
                           {p.price_aed} AED
                         </span>
                       )}
                       <span style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--primary)' }}>
-                        {discountedPrice} AED
+                        {p.tier === 1 ? 'Free' : `${discountedPrice} AED`}
                       </span>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>/ mo</span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        {p.tier === 1 ? (isArabic ? 'للشهر الأول' : '1st month') : '/ mo'}
+                      </span>
                     </div>
 
                     <ul style={{ listStyle: 'none', padding: 0, margin: '20px 0', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.88rem' }}>
                       <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Check size={14} color="var(--success)" />
                         <span>
-                          {activeTab === 'qto' && (isArabic ? `حصر المشاريع: ${p.projects_limit}` : `Projects Takeoffs: ${p.projects_limit}`)}
-                          {activeTab === 'programme' && (isArabic ? `برامج العمل: ${p.projects_limit}` : `Programmes: ${p.projects_limit}`)}
-                          {activeTab === 'cashflow' && (isArabic ? `التدفقات المالية: ${p.projects_limit}` : `Cash Flows: ${p.projects_limit}`)}
+                          {activeTab === 'qto' && (isArabic ? 'حصر المشاريع: ' : 'Projects Takeoffs: ')}
+                          {activeTab === 'programme' && (isArabic ? 'برامج العمل: ' : 'Programmes: ')}
+                          {activeTab === 'cashflow' && (isArabic ? 'التدفقات المالية: ' : 'Cash Flows: ')}
+                          
+                          {p.tier === 1 ? (
+                            <>
+                              <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', margin: '0 4px' }}>{p.projects_limit}</span>
+                              <span style={{ color: 'var(--success)', fontWeight: 'bold' }}>2</span>
+                            </>
+                          ) : p.projects_limit}
                         </span>
                       </li>
                       <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

@@ -266,21 +266,28 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
               transform: 'translateX(-50%)',
               backgroundColor: 'var(--success)',
               color: 'white',
-              fontSize: '0.75rem',
+              fontSize: '0.85rem',
               fontWeight: 'bold',
-              padding: '4px 12px',
-              borderRadius: '20px',
+              padding: '6px 14px',
+              borderRadius: '16px',
               whiteSpace: 'nowrap',
-              boxShadow: '0 4px 10px rgba(16, 185, 129, 0.3)'
+              boxShadow: '0 4px 10px rgba(16, 185, 129, 0.3)',
+              zIndex: 10
             }}>
               🌟 {isArabic ? 'شهر مجاني (مشروعين)' : '1 Month Free (2 Projects)'}
             </div>
             
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginTop: '10px' }}>TIER 1</span>
-            <h3 style={{ fontSize: '2rem', fontWeight: 800, margin: '10px 0 5px' }}>50 AED</h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '15px' }}>{isArabic ? 'لكل شهر' : 'per month'}</p>
+            
+            <div style={{ textDecoration: 'line-through', opacity: 0.5, fontSize: '0.9rem', marginTop: '5px' }}>50 AED</div>
+            <h3 style={{ fontSize: '2rem', fontWeight: 800, margin: '5px 0', color: 'var(--primary)' }}>Free</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '15px' }}>{isArabic ? 'للشهر الأول' : '1st month'}</p>
+            
             <hr style={{ border: 'none', height: '1px', backgroundColor: 'var(--border-color)', margin: '15px 0' }} />
-            <h4 style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{isArabic ? 'مشروع واحد' : '1 Project'}</h4>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+              <h4 style={{ fontWeight: 700, color: 'var(--text-muted)', textDecoration: 'line-through' }}>{isArabic ? 'مشروع واحد' : '1 Project'}</h4>
+              <h4 style={{ fontWeight: 800, color: 'var(--success)' }}>{isArabic ? 'مشروعين' : '2 Projects'}</h4>
+            </div>
           </div>
 
           <div className="glass-card" style={{ textAlign: 'center', padding: '25px 15px', border: '2px solid #3b82f6', borderRadius: '12px' }}>
