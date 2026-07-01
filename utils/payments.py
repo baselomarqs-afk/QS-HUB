@@ -228,6 +228,102 @@ def _upsert_subscription_from_dodo(data: dict[str, Any]) -> None:
     get_plan_for_user.clear()
 
 
+def auto_sync_user_subscriptions(user_id: int, user_email: str) -> int:
+    """
+    Pull the user's active subscriptions directly from Dodo Payments API
+    and sync any missing ones to the local database.
+    This is called every time the billing page loads — so even if a webhook
+    was missed, the subscription is automatically detected and activated.
+    Returns the number of subscriptions synced.
+    """
+    import requests as _requests
+    synced = 0
+    try:
+        api_key = get_setting("DODO_PAYMENTS_API_KEY")
+        if not api_key:
+            return 0
+        env = get_setting("DODO_ENVIRONMENT", "test_mode").lower()
+        base_url = "https://live.dodopayments.com" if env in ["live_mode", "production", "live"] else "https://test.dodopayments.com"
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+
+        # Fetch all subscriptions from Dodo
+        r = _requests.get(f"{base_url}/subscriptions?limit=50", headers=headers, timeout=8)
+        if r.status_code != 200:
+            return 0
+
+        data = r.json()
+        items = data.get("items", data.get("data", []))
+
+        for item in items:
+            # Only process subscriptions belonging to this user
+            item_email = item.get("customer", {}).get("email", "")
+            item_metadata = item.get("metadata") or {}
+            item_user_id = int(item_metadata.get("user_id", 0) or 0)
+
+            if item_email != user_email and item_user_id != user_id:
+                continue
+
+            sub_id = item.get("subscription_id") or item.get("id", "")
+            status = item.get("status", "")
+            product_id = item.get("product_id", "")
+            customer_id = item.get("customer", {}).get("customer_id", "")
+
+            if not sub_id or status not in ("active", "trialing"):
+                continue
+
+            # Map product_id → feature + tier
+            feature = item_metadata.get("feature") or "qto"
+            tier_raw = item_metadata.get("plan_tier")
+            try:
+                tier = int(tier_raw) if tier_raw else 1
+            except Exception:
+                tier = 1
+
+            # If metadata didn't have it, try to infer from product_id
+            if not item_metadata.get("feature"):
+                for f in ["qto", "programme", "cashflow"]:
+                    for t in [1, 2, 3, 4]:
+                        try:
+                            if dodo_product_for_tier(t, f) == product_id:
+                                feature, tier = f, t
+                                break
+                        except Exception:
+                            pass
+
+            # Check if already in DB
+            existing = safe_query(
+                "SELECT id, status FROM qto_subscriptions WHERE provider='dodopayments' AND provider_subscription_id=%s",
+                (sub_id,)
+            )
+            if existing.empty:
+                safe_execute(
+                    """INSERT INTO qto_subscriptions
+                       (user_id, feature, plan_tier, provider, provider_customer_id,
+                        provider_subscription_id, status, cancel_at_period_end)
+                       VALUES (%s, %s, %s, 'dodopayments', %s, %s, %s, 0)""",
+                    (user_id, feature, tier, customer_id, sub_id, status)
+                )
+                audit_log("subscription_synced", user_id, "subscription", sub_id,
+                          {"provider": "dodopayments", "status": status, "feature": feature, "source": "auto_sync"})
+                synced += 1
+            elif existing.iloc[0]["status"] != status:
+                safe_execute(
+                    "UPDATE qto_subscriptions SET status=%s, user_id=%s, feature=%s, plan_tier=%s, provider_customer_id=%s WHERE provider_subscription_id=%s",
+                    (status, user_id, feature, tier, customer_id, sub_id)
+                )
+                synced += 1
+
+        if synced > 0:
+            from utils.plans import get_active_subscription, get_plan_for_user
+            get_active_subscription.clear()
+            get_plan_for_user.clear()
+
+    except Exception:
+        pass  # Auto-sync is best-effort; never crash the billing page
+
+    return synced
+
+
 def _record_transaction(data: dict[str, Any], event_type: str) -> None:
     metadata = data.get("metadata", {}) or {}
     user_id = metadata.get("user_id")

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from api.auth import get_current_user
-from utils.payments import create_checkout_session
+from utils.payments import create_checkout_session, auto_sync_user_subscriptions
 from utils.plans import PLANS, get_active_subscription, get_plan_for_user
 from utils.usage import monthly_usage, EVENT_AI_CALL, EVENT_EXPORT, EVENT_PROJECT
 from utils.settings import get_setting
@@ -56,7 +56,15 @@ async def get_subscription_details(feature: str = Query("qto"), current_user: di
     user_id = current_user["id"]
     role = current_user["role"]
     email = current_user["email"]
-    
+
+    # Auto-sync: pull subscriptions from Dodo API and sync any missing ones.
+    # This ensures that even if a webhook was missed, the user's subscription
+    # is detected and activated automatically on next page load.
+    try:
+        auto_sync_user_subscriptions(user_id, email)
+    except Exception:
+        pass
+
     sub = get_active_subscription(user_id, feature)
     plan = get_plan_for_user(user_id, role, feature)
     
