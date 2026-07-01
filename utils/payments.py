@@ -63,48 +63,38 @@ def create_checkout_session(user: dict, tier: int | str, feature: str = "qto") -
     client = _get_dodo_client()
     product_id = dodo_product_for_tier(tier, feature)
 
+    custom_data = {"user_id": str(user["id"])}
     if tier in ONE_TIME_TIERS:
-        custom_data = {"user_id": str(user["id"])}
         if tier == "addon":
             custom_data["is_addon"] = "true"
         else:
             custom_data["feature"] = tier  # "programme" | "cashflow"
-        kwargs = {
-            "product_cart": [{"product_id": product_id, "quantity": 1}],
-            "customer": {"email": user["email"]},
-            "return_url": app_base_url(),
-        }
-        try:
-            session = client.checkout_sessions.create(metadata=custom_data, **kwargs)
-        except Exception:
-            # Fallback if metadata fails
-            session = client.checkout_sessions.create(**kwargs)
-            
-        checkout_url = getattr(session, "checkout_url", None)
-        if not checkout_url:
-            raise RuntimeError("Dodo Payments did not return a checkout URL.")
-        
-        audit_log("checkout_session_created", user["id"], "subscription", tier, {"provider": "dodopayments"})
-        return checkout_url
     else:
-        # Subscriptions must use static payment links as checkout_sessions API only supports one-time products
-        import urllib.parse
-        params = {
-            "email": user["email"],
-            "metadata_user_id": str(user["id"]),
-            "metadata_plan_tier": str(tier),
-            "metadata_feature": feature
-        }
+        custom_data["plan_tier"] = str(tier)
+        custom_data["feature"] = feature
+
+    kwargs = {
+        "product_cart": [{"product_id": product_id, "quantity": 1}],
+        "customer": {"email": user["email"]},
+        "return_url": app_base_url(),
+    }
+    
+    # Apply discount code QTO2026 for tier 2 and 3 subscriptions
+    if tier not in ONE_TIME_TIERS and tier in [2, 3, "2", "3"]:
+        kwargs["discount_code"] = "QTO2026"
+
+    try:
+        session = client.checkout_sessions.create(metadata=custom_data, **kwargs)
+    except Exception:
+        # Fallback if metadata fails
+        session = client.checkout_sessions.create(**kwargs)
         
-        # Apply discount code QTO2026 for tier 2 and 3
-        if tier in [2, 3, "2", "3"]:
-            params["discount_code"] = "QTO2026"
-            
-        query_string = urllib.parse.urlencode(params)
-        checkout_url = f"https://checkout.dodopayments.com/buy/{product_id}?{query_string}"
-        
-        audit_log("checkout_session_created", user["id"], "subscription", tier, {"provider": "dodopayments"})
-        return checkout_url
+    checkout_url = getattr(session, "checkout_url", None)
+    if not checkout_url:
+        raise RuntimeError("Dodo Payments did not return a checkout URL.")
+    
+    audit_log("checkout_session_created", user["id"], "subscription", tier, {"provider": "dodopayments"})
+    return checkout_url
 
 
 def create_portal_session(user_id: int) -> str:
@@ -142,17 +132,30 @@ def _parse_rfc3339(value: str | None) -> str | None:
 
 
 def _upsert_subscription_from_dodo(data: dict[str, Any]) -> None:
+    product_id = data.get("product_id") or data.get("product", {}).get("product_id")
+    inferred_feature, inferred_tier = "qto", 0
+    if product_id:
+        # Find feature and tier by matching product_id
+        for f in ["qto", "programme", "cashflow"]:
+            for t in [1, 2, 3, 4]:
+                try:
+                    if dodo_product_for_tier(t, f) == product_id:
+                        inferred_feature, inferred_tier = f, t
+                        break
+                except Exception:
+                    pass
+
     metadata = data.get("metadata") or {}
     user_id = int(metadata.get("user_id", 0) or data.get("metadata_user_id", 0) or 0)
     
     # Support both Dodo metadata formats (nested or flat with prefix)
-    tier_raw = metadata.get("plan_tier") or metadata.get("metadata_plan_tier") or data.get("metadata_plan_tier") or 0
+    tier_raw = metadata.get("plan_tier") or metadata.get("metadata_plan_tier") or data.get("metadata_plan_tier")
     try:
-        tier = int(tier_raw)
+        tier = int(tier_raw) if tier_raw is not None else inferred_tier
     except Exception:
-        tier = 0
+        tier = inferred_tier
         
-    feature = metadata.get("feature") or metadata.get("metadata_feature") or data.get("metadata_feature") or "qto"
+    feature = metadata.get("feature") or metadata.get("metadata_feature") or data.get("metadata_feature") or inferred_feature
     
     subscription_id = data.get("subscription_id")
     status = data.get("status", "inactive")

@@ -62,7 +62,7 @@ def test_create_checkout_session_uses_dodo_product(monkeypatch):
 
     assert url == "https://checkout.dodo.test/abc"
     assert captured["product_cart"][0]["product_id"] == "pdt_123"
-    assert captured["metadata"] == {"user_id": "7", "plan_tier": "2"}
+    assert captured["metadata"] == {"user_id": "7", "plan_tier": "2", "feature": "qto"}
 
 
 def test_handle_dodo_webhook_routes_subscription(monkeypatch):
