@@ -207,7 +207,14 @@ export default function Billing({ token, isArabic, user, onLogout }) {
               <button 
                 className="btn btn-primary" 
                 onClick={() => {
-                  document.getElementById('subscription-catalog').scrollIntoView({ behavior: 'smooth' });
+                  if (!details || !details.plans_catalog) return;
+                  const nextPlan = details.plans_catalog.find(p => p.tier > details.plan_tier);
+                  if (nextPlan) {
+                    handleCheckout(nextPlan.tier, activeTab);
+                  } else {
+                    setMessage(isArabic ? 'أنت بالفعل على أعلى باقة متاحة.' : 'You are already on the highest available plan.');
+                    document.getElementById('subscription-catalog')?.scrollIntoView({ behavior: 'smooth' });
+                  }
                 }}
                 style={{ padding: '10px 20px', borderRadius: '8px', fontWeight: 600 }}
               >
