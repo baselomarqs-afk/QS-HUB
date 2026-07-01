@@ -23,12 +23,25 @@ export default function App() {
   const [page, setPage] = useState('dashboard');
   const [pageParams, setPageParams] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
-  const [isArabic, setIsArabic] = useState(false); // Default to English as requested
+  const [isArabic, setIsArabic] = useState(false);
   const [isDark, setIsDark] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [moduleProjectName, setModuleProjectName] = useState({ programme: '', cashflow: '' });
   const [activeModules, setActiveModules] = useState({ programme: false, cashflow: false });
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+
+  useEffect(() => {
+    // Detect return from Dodo payment page
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment_success') === '1') {
+      setPaymentSuccess(true);
+      // Clean the URL
+      window.history.replaceState({}, '', window.location.pathname);
+      // Navigate to billing page to show activated subscription
+      setPage('billing');
+    }
+  }, []);
 
   useEffect(() => {
     if (token) {
@@ -528,7 +541,7 @@ export default function App() {
         )}
         {page === 'market' && <MarketPrices token={token} isArabic={isArabic} />}
         {page === 'compare' && <PlanComparison token={token} isArabic={isArabic} />}
-        {page === 'billing' && <Billing token={token} isArabic={isArabic} user={user} onLogout={handleLogout} />}
+        {page === 'billing' && <Billing token={token} isArabic={isArabic} user={user} onLogout={handleLogout} paymentSuccess={paymentSuccess} onPaymentSuccessHandled={() => setPaymentSuccess(false)} />}
         {page === 'qs_assistant' && <QsAssistant token={token} isArabic={isArabic} />}
         {page === 'admin' && <Admin token={token} isArabic={isArabic} />}
       </main>

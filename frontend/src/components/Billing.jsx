@@ -1,15 +1,67 @@
-import React, { useState, useEffect } from 'react';
-import { CreditCard, Check, AlertCircle, Sparkles, Layers, Briefcase, DollarSign } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { CreditCard, Check, AlertCircle, Sparkles, Layers, Briefcase, DollarSign, CheckCircle, Loader } from 'lucide-react';
 
-export default function Billing({ token, isArabic, user, onLogout }) {
+export default function Billing({ token, isArabic, user, onLogout, paymentSuccess, onPaymentSuccessHandled }) {
   const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [message, setMessage] = useState('');
   const [activeTab, setActiveTab] = useState('qto');
-  
+
+  // Payment activation state
+  const [activating, setActivating] = useState(false);
+  const [activated, setActivated] = useState(false);
+  const [activatedPlan, setActivatedPlan] = useState(null);
+  const pollRef = useRef(null);
+  const pollCountRef = useRef(0);
+
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(user?.name || '');
+
+  // When paymentSuccess prop arrives, start polling for activation
+  useEffect(() => {
+    if (paymentSuccess) {
+      setActivating(true);
+      pollCountRef.current = 0;
+      startPolling();
+    }
+  }, [paymentSuccess]);
+
+  const startPolling = () => {
+    // Poll every 2.5 seconds for up to 40 seconds (16 attempts)
+    pollRef.current = setInterval(async () => {
+      pollCountRef.current += 1;
+      if (pollCountRef.current > 16) {
+        clearInterval(pollRef.current);
+        // Even if not confirmed, refresh and stop
+        setActivating(false);
+        fetchSubscriptionDetails(activeTab);
+        if (onPaymentSuccessHandled) onPaymentSuccessHandled();
+        return;
+      }
+      try {
+        // Check all 3 features for any new active subscription
+        const features = ['qto', 'cashflow', 'programme'];
+        for (const feat of features) {
+          const res = await fetch(`/api/billing/subscription?feature=${feat}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await res.json();
+          if (res.ok && data.subscription_status === 'active' && data.plan_tier > 0) {
+            // Found an active subscription!
+            clearInterval(pollRef.current);
+            setActivating(false);
+            setActivated(true);
+            setActivatedPlan({ feature: feat, plan: data.plan_name, tier: data.plan_tier, limit: data.project_limit });
+            fetchSubscriptionDetails(feat);
+            setActiveTab(feat);
+            if (onPaymentSuccessHandled) onPaymentSuccessHandled();
+            return;
+          }
+        }
+      } catch (e) { /* ignore */ }
+    }, 2500);
+  };
 
   useEffect(() => {
     fetchSubscriptionDetails(activeTab);
@@ -42,6 +94,10 @@ export default function Billing({ token, isArabic, user, onLogout }) {
       const data = await res.json();
       if (res.ok && data.checkout_url) {
         window.open(data.checkout_url, '_blank');
+        // Show a tip to the user to come back after payment
+        setMessage(isArabic
+          ? '✅ تم فتح صفحة الدفع. بعد إتمام الدفع، ارجع لهذه الصفحة وسيتم تفعيل اشتراكك تلقائياً!'
+          : '✅ Payment page opened. After completing payment, return here and your subscription will activate automatically!');
       } else {
         throw new Error(data.detail || 'Could not generate checkout link.');
       }
@@ -51,6 +107,7 @@ export default function Billing({ token, isArabic, user, onLogout }) {
       setLoading(false);
     }
   };
+
 
   const handleSaveName = async () => {
     setLoading(true);
@@ -119,6 +176,53 @@ export default function Billing({ token, isArabic, user, onLogout }) {
       setDeleting(false);
     }
   };
+
+  // === ACTIVATING OVERLAY ===
+  if (activating) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', textAlign: 'center', padding: '40px' }}>
+        <div style={{ width: '80px', height: '80px', border: '6px solid var(--border-color)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '30px' }} />
+        <h2 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '12px' }}>
+          {isArabic ? '⚡ جاري تفعيل اشتراكك...' : '⚡ Activating your subscription...'}
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', maxWidth: '400px' }}>
+          {isArabic
+            ? 'تم استلام الدفع بنجاح. نحن الآن نفعّل اشتراكك ونفتح المشاريع لحسابك.'
+            : 'Payment received. We are now activating your subscription and unlocking your projects.'}
+        </p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '16px' }}>
+          {isArabic ? 'قد يستغرق هذا بضع ثوانٍ...' : 'This may take a few seconds...'}
+        </p>
+      </div>
+    );
+  }
+
+  // === SUCCESS OVERLAY ===
+  if (activated && activatedPlan) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', textAlign: 'center', padding: '40px' }}>
+        <div style={{ width: '100px', height: '100px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--success), #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '30px', boxShadow: '0 0 40px rgba(16, 185, 129, 0.4)' }}>
+          <Check size={50} color="white" strokeWidth={3} />
+        </div>
+        <h2 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--success)', marginBottom: '12px' }}>
+          {isArabic ? '🎉 تم تفعيل اشتراكك!' : '🎉 Subscription Activated!'}
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', marginBottom: '8px' }}>
+          {isArabic ? `خطتك الجديدة: ${activatedPlan.plan}` : `Your plan: ${activatedPlan.plan}`}
+        </p>
+        <p style={{ color: 'var(--text-primary)', fontSize: '1rem', fontWeight: 700, marginBottom: '30px' }}>
+          {isArabic ? `تم فتح ${activatedPlan.limit} مشاريع لحسابك!` : `${activatedPlan.limit} projects unlocked for your account!`}
+        </p>
+        <button
+          onClick={() => setActivated(false)}
+          className="btn btn-primary"
+          style={{ padding: '14px 40px', fontSize: '1rem', fontWeight: 700, borderRadius: '12px' }}
+        >
+          {isArabic ? 'ابدأ الآن! 🚀' : 'Start Now! 🚀'}
+        </button>
+      </div>
+    );
+  }
 
   if (loading && !details) {
     return (

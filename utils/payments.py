@@ -76,7 +76,7 @@ def create_checkout_session(user: dict, tier: int | str, feature: str = "qto") -
     kwargs = {
         "product_cart": [{"product_id": product_id, "quantity": 1}],
         "customer": {"email": user["email"]},
-        "return_url": app_base_url(),
+        "return_url": app_base_url() + "/?payment_success=1",
     }
     if str(tier).isdigit():
         from utils.db import safe_query
