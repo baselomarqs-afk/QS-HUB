@@ -365,22 +365,6 @@ export default function Billing({ token, isArabic, user, onLogout }) {
                           ) : p.projects_limit}
                         </span>
                       </li>
-                      <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Check size={14} color="var(--success)" />
-                        <span>
-                          {activeTab === 'qto' && (isArabic ? `استعلامات ذكاء اصطناعي: ${p.ai_calls}` : `AI Queries: ${p.ai_calls}`)}
-                          {activeTab === 'programme' && (isArabic ? `تعديلات ذكاء اصطناعي: ${p.ai_calls}` : `AI Modifications: ${p.ai_calls}`)}
-                          {activeTab === 'cashflow' && (isArabic ? `تحليلات مالية: ${p.ai_calls}` : `Financial Analysis: ${p.ai_calls}`)}
-                        </span>
-                      </li>
-                      <li style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Check size={14} color="var(--success)" />
-                        <span>
-                          {activeTab === 'qto' && (isArabic ? `عمليات تصدير: ${p.exports}` : `Exports limit: ${p.exports}`)}
-                          {activeTab === 'programme' && (isArabic ? `تصدير مخططات: ${p.exports}` : `Exports limit: ${p.exports}`)}
-                          {activeTab === 'cashflow' && (isArabic ? `تصدير تقارير: ${p.exports}` : `Exports limit: ${p.exports}`)}
-                        </span>
-                      </li>
                     </ul>
                   </div>
 
