@@ -15,18 +15,29 @@ async def feature_access(feature: str = Query(...), current_user: dict = Depends
     """Whether the user can use a per-project tool (programme / cashflow)."""
     if feature not in FEATURES:
         raise HTTPException(status_code=404, detail="Unknown feature.")
-    is_admin = current_user["role"] == "admin"
-    credits = get_credits(current_user["id"], feature)
-    projects = count_projects(current_user["id"], feature)
     
-    # 1st project is free trial (projects < 1). Subsequent require credits.
-    can_create = bool(is_admin or credits > 0 or projects < 1)
-    limit = 999999 if is_admin else (1 + credits + max(0, projects - 1))
+    user_id = current_user["id"]
+    role = current_user["role"]
+    is_admin = role == "admin"
+    projects = count_projects(user_id, feature)
+    
+    plan = get_plan_for_user(user_id, role, feature)
+    
+    extra_projects = 0
+    try:
+        df_extra = safe_query("SELECT extra_projects_allowance FROM qto_users WHERE id=%s", (user_id,))
+        if not df_extra.empty:
+            extra_projects = int(df_extra.iloc[0]["extra_projects_allowance"] or 0)
+    except:
+        pass
+        
+    limit = 999999 if is_admin else (plan.projects + extra_projects)
+    can_create = is_admin or (projects < limit)
     
     return {
         "feature": feature,
-        "access": bool(is_admin or credits > 0 or projects > 0 or projects < 1),
-        "credits": credits,
+        "access": can_create or projects > 0,
+        "credits": 0,
         "projects": projects,
         "limit": limit,
         "can_create": can_create,
