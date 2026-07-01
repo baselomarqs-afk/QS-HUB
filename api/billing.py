@@ -41,7 +41,9 @@ async def feature_access(feature: str = Query(...), current_user: dict = Depends
     projects = monthly_usage(user_id, EVENT_PROJECT, feature)
 
     limit = 999999 if is_admin else (plan.projects + extra_projects)
-    can_create = is_admin or (projects < limit)
+    # Consumable model: can create if there's room in the monthly tier quota OR
+    # the user still holds an unused one-time add-on credit.
+    can_create = is_admin or (projects < plan.projects) or (extra_projects > 0)
     # Keep access to previously-saved projects even after the monthly quota
     # resets or the subscription lapses (viewing history must not disappear).
     total_saved = count_projects(user_id, feature)
@@ -109,6 +111,10 @@ async def get_subscription_details(feature: str = Query("qto"), current_user: di
     except:
         pass
 
+    is_admin = role == "admin"
+    # Consumable model: create if there's monthly room OR an unused add-on credit.
+    can_create = is_admin or (usage_projects < plan.projects) or (extra_projects > 0)
+
     return {
         "plan_name": plan.name,
         "plan_tier": plan.tier,
@@ -116,6 +122,8 @@ async def get_subscription_details(feature: str = Query("qto"), current_user: di
         "current_period_end": sub.get("current_period_end") if sub else None,
         "extra_projects": extra_projects,
         "project_limit": plan.projects + extra_projects,
+        "can_create": can_create,
+        "monthly_base": plan.projects,
         "has_had_trial": has_had_trial,
         "usage": {
             "projects": usage_projects,
@@ -146,20 +154,24 @@ async def get_checkout_url(
         url = create_checkout_session(current_user, req_tier, feature)
         return {"checkout_url": url}
     except Exception as e:
-        # If Dodo payments api is not configured, fall back to mock checkout
+        # DANGER ZONE: never grant a subscription/credit for free when Dodo is
+        # actually configured. Doing so on a transient Dodo error used to create
+        # phantom "manual" subscriptions (e.g. a tier-2 plan the user never paid
+        # for). The mock path is ONLY for local/dev where no Dodo key exists.
+        if get_setting("DODO_PAYMENTS_API_KEY"):
+            raise HTTPException(
+                status_code=502,
+                detail="Could not start checkout. Please try again in a moment.",
+            )
+        # --- Local/dev only (no Dodo key): mock checkout so tests can run ---
         user_id = current_user["id"]
         if tier == "addon":
             from utils.features import FEATURE_EXTRA_COL
             col = FEATURE_EXTRA_COL.get(feature, "extra_projects_allowance")
             safe_execute(f"UPDATE qto_users SET {col} = COALESCE({col}, 0) + 1 WHERE id=%s", (user_id,))
-        elif tier == "programme":
-            safe_execute("UPDATE qto_users SET programme_credits = COALESCE(programme_credits, 0) + 1 WHERE id=%s", (user_id,))
-        elif tier == "cashflow":
-            safe_execute("UPDATE qto_users SET cashflow_credits = COALESCE(cashflow_credits, 0) + 1 WHERE id=%s", (user_id,))
         elif str(tier).isdigit():
-            # Mock checkout for tests
             safe_execute("INSERT INTO qto_subscriptions (user_id, feature, plan_tier, provider, provider_subscription_id, status) VALUES (%s, %s, %s, 'manual', 'mock_123', 'active')", (user_id, feature, int(tier)))
-            
+
         return {"checkout_url": "/"}
 
 @router.get("/portal")

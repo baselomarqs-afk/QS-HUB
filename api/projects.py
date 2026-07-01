@@ -148,8 +148,8 @@ async def save_project_route(req: SaveProjectReq, current_user: dict = Depends(g
         )
         
     if is_new_project:
-        from utils.usage import EVENT_PROJECT, log_usage
-        log_usage(current_user["id"], EVENT_PROJECT, metadata={"project_id": pid, "project_name": req.project_name})
+        from utils.usage import settle_project_creation
+        settle_project_creation(current_user, "qto", {"project_id": pid, "project_name": req.project_name})
     
     return {"message": "Project saved successfully.", "project_id": pid}
 

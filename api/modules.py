@@ -59,8 +59,8 @@ async def save(feature: str, req: SaveModuleReq, current_user: dict = Depends(ge
         raise HTTPException(status_code=500, detail="Failed to save.")
         
     if is_new and not is_admin:
-        from utils.usage import log_usage, EVENT_PROJECT
-        log_usage(user_id, EVENT_PROJECT, metadata={"feature": feature, "project_id": pid, "project_name": req.name})
+        from utils.usage import settle_project_creation
+        settle_project_creation(current_user, feature, {"project_id": pid, "project_name": req.name})
             
     return {"message": "Saved.", "project_id": pid}
 

@@ -249,7 +249,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
       console.error(err);
     }
   };
-  const limitReached = details && (details.usage.projects >= details.project_limit);
+  const limitReached = details && details.can_create === false;
   const isAdmin = user && user.role === 'admin';
 
   let userName = '';
@@ -469,7 +469,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                     {details?.has_had_trial ? (isArabic ? '50 درهم شهرياً' : '50 AED / month') : (isArabic ? '(يمكنك الإلغاء في أي وقت، بدون رسوم!)' : '(Cancel anytime, no charges applied!)')}
                   </div>
                 </button>
-              ) : (!isAdmin && details && details.usage.projects >= details.project_limit) ? (
+              ) : (!isAdmin && details && details.can_create === false) ? (
                 <div style={{
                   padding: '10px',
                   backgroundColor: 'rgba(239, 68, 68, 0.08)',

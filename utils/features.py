@@ -26,7 +26,11 @@ FEATURE_EXTRA_COL = {
 
 
 def extra_projects_for(user_id: int, feature: str) -> int:
-    """Purchasable +1 project add-ons the user owns for THIS tool."""
+    """Purchasable +1 project add-ons the user still has (UNUSED) for THIS tool.
+
+    These are ONE-TIME credits: each is consumed when a project is created beyond
+    the monthly tier quota. They are NOT a permanent bump to the monthly limit.
+    """
     col = FEATURE_EXTRA_COL.get(feature)
     if not col:
         return 0
@@ -37,6 +41,22 @@ def extra_projects_for(user_id: int, feature: str) -> int:
         return int(df.iloc[0]["c"] or 0)
     except Exception:
         return 0
+
+
+def consume_extra_project(user_id: int, feature: str, n: int = 1) -> bool:
+    """Atomically spend ONE one-time '+1 project' add-on for this tool.
+
+    The guarded `>= n` clause makes it safe under concurrency and never lets the
+    balance go negative. Returns whether the row still had enough to spend.
+    """
+    col = FEATURE_EXTRA_COL.get(feature)
+    if not col:
+        return False
+    ok, _ = safe_execute(
+        f"UPDATE qto_users SET {col} = {col} - %s WHERE id=%s AND {col} >= %s",
+        (n, user_id, n),
+    )
+    return bool(ok)
 
 
 def _credit_col(feature: str) -> str:

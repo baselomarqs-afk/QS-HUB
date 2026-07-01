@@ -77,21 +77,51 @@ def monthly_usage(user_id: int, event_type: str, feature: str = "qto") -> int:
     return total
 
 
+def project_entitlement(user: dict, feature: str = "qto") -> dict:
+    """Single source of truth for 'can this user create a project right now?'.
+
+    Monthly model: the tier gives `base` projects PER MONTH (resets monthly).
+    Add-ons are ONE-TIME credits consumed only when creating beyond the monthly
+    base — they are not a permanent bump. So a user can create when they still
+    have room in the month OR they hold at least one unused add-on credit.
+    """
+    user_id = int(user.get("id"))
+    role = user.get("role")
+    is_admin = role == "admin"
+    plan = get_plan_for_user(user_id, role, feature)
+    base = plan.projects
+    from utils.features import extra_projects_for
+    try:
+        credits = 0 if is_admin else extra_projects_for(user_id, feature)
+    except Exception as e:
+        print(f"Error fetching extra projects: {e}")
+        credits = 0
+    used = monthly_usage(user_id, EVENT_PROJECT, feature)
+    can_create = is_admin or (used < base) or (credits > 0)
+    return {"base": base, "used": used, "credits": credits, "can_create": can_create, "is_admin": is_admin}
+
+
 def check_limit(user: dict, event_type: str, amount: int = 1, feature: str = "qto") -> tuple[bool, str]:
     user_id = int(user.get("id"))
     role = user.get("role")
     plan = get_plan_for_user(user_id, role, feature)
 
-    # Per-tool add-on allowance (each tool has its own +1 project products).
+    if event_type == EVENT_PROJECT:
+        ent = project_entitlement(user, feature)
+        if ent["can_create"]:
+            return True, "OK"
+        return False, (
+            f"Monthly project limit reached for {feature}: {ent['used']}/{ent['base']} this month, "
+            f"and you have 0 extra projects left. Add a project or upgrade your plan."
+        )
+
+    # AI calls / exports still scale with any unused add-ons the user holds.
     from utils.features import extra_projects_for
     try:
         extra_projects = extra_projects_for(user_id, feature)
-    except Exception as e:
-        print(f"Error fetching extra projects: {e}")
+    except Exception:
         extra_projects = 0
-
     limits = {
-        EVENT_PROJECT: plan.projects + extra_projects,
         EVENT_AI_CALL: plan.ai_calls + (extra_projects * 20),
         EVENT_EXPORT: plan.exports + (extra_projects * 5),
     }
@@ -100,11 +130,33 @@ def check_limit(user: dict, event_type: str, amount: int = 1, feature: str = "qt
         return True, "OK"
     used = monthly_usage(user_id, event_type, feature)
     if used + amount > limit:
-        # Distinguish "base plan exhausted" from "extras also exhausted".
-        if event_type == EVENT_PROJECT and used >= (plan.projects + extra_projects):
-            return False, f"Plan limit reached for {event_type} ({feature}): {used}/{limit}. You have 0 extra projects remaining."
         return False, f"Plan limit reached for {event_type} ({feature}): {used}/{limit}"
     return True, "OK"
+
+
+def settle_project_creation(user: dict, feature: str = "qto", metadata: dict | None = None) -> None:
+    """Log a newly-created project AND spend one add-on credit if it went beyond
+    the monthly tier quota. Call this INSTEAD of log_usage at creation time.
+    """
+    user_id = int(user.get("id"))
+    role = user.get("role")
+    md = dict(metadata or {})
+    if feature != "qto":
+        md.setdefault("feature", feature)
+
+    # Count what existed BEFORE this project (fresh, not the 60s-cached value).
+    monthly_usage.clear()
+    used_before = monthly_usage(user_id, EVENT_PROJECT, feature)
+
+    log_usage(user_id, EVENT_PROJECT, metadata=md)
+    monthly_usage.clear()
+
+    if role != "admin":
+        plan = get_plan_for_user(user_id, role, feature)
+        if used_before >= plan.projects:
+            # Monthly quota was already full → this one is covered by a one-time add-on.
+            from utils.features import consume_extra_project
+            consume_extra_project(user_id, feature, 1)
 
 
 def check_file_size(user: dict, size_bytes: int) -> tuple[bool, str]:

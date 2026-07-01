@@ -28,19 +28,41 @@ def test_check_file_size_blocks_large_file(monkeypatch):
 
 def test_check_limit_blocks_when_monthly_usage_exceeded(monkeypatch):
     import utils.usage as usage
+    import utils.features as features
     from utils.plans import PlanLimits
 
     monkeypatch.setattr(
         usage,
         "get_plan_for_user",
-        lambda user_id, role=None: PlanLimits(1, "Starter", 50, 1, 40, 5, 25),
+        lambda user_id, role=None, feature="qto": PlanLimits(1, "Starter", 50, 1, 40, 5, 25),
     )
-    monkeypatch.setattr(usage, "monthly_usage", lambda user_id, event_type: 1)
+    monkeypatch.setattr(usage, "monthly_usage", lambda user_id, event_type, feature="qto": 1)
+    # No unused add-on credits, so hitting the monthly base must block.
+    monkeypatch.setattr(features, "extra_projects_for", lambda user_id, feature: 0)
 
     ok, msg = usage.check_limit({"id": 1, "role": "user"}, usage.EVENT_PROJECT)
 
     assert ok is False
-    assert "Plan limit" in msg
+    assert "limit" in msg.lower()
+
+
+def test_check_limit_allows_when_addon_credit_available(monkeypatch):
+    """One-time add-on credit lets the user create beyond the monthly base."""
+    import utils.usage as usage
+    import utils.features as features
+    from utils.plans import PlanLimits
+
+    monkeypatch.setattr(
+        usage,
+        "get_plan_for_user",
+        lambda user_id, role=None, feature="qto": PlanLimits(1, "Starter", 50, 1, 40, 5, 25),
+    )
+    monkeypatch.setattr(usage, "monthly_usage", lambda user_id, event_type, feature="qto": 1)
+    monkeypatch.setattr(features, "extra_projects_for", lambda user_id, feature: 2)
+
+    ok, _ = usage.check_limit({"id": 1, "role": "user"}, usage.EVENT_PROJECT)
+
+    assert ok is True
 
 
 def test_local_storage_writes_file(monkeypatch, tmp_path):
