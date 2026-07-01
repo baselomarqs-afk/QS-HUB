@@ -78,6 +78,14 @@ def create_checkout_session(user: dict, tier: int | str, feature: str = "qto") -
         "customer": {"email": user["email"]},
         "return_url": app_base_url(),
     }
+    if str(tier).isdigit():
+        from utils.db import safe_query
+        try:
+            df_past = safe_query("SELECT id FROM qto_subscriptions WHERE user_id=%s AND feature=%s LIMIT 1", (user["id"], feature))
+            if not df_past.empty:
+                kwargs["subscription_data"] = {"trial_period_days": 0}
+        except:
+            pass
     
     # Apply discount code QTO2026 for tier 2 and 3 subscriptions
     if tier not in ONE_TIME_TIERS and tier in [2, 3, "2", "3"]:
@@ -231,9 +239,10 @@ def _record_transaction(data: dict[str, Any], event_type: str) -> None:
         audit_log("addon_purchased", int(user_id), "user", int(user_id), {"provider": "dodopayments", "status": status})
         return
 
-    # Per-project module tools (Work Programme / Cash Flow) — grant 1 feature credit.
+    # Per-project module tools (Work Programme / Cash Flow) — grant 1 feature credit for one-time purchases.
     feature = metadata.get("feature")
-    if feature in {"programme", "cashflow"} and status in {"paid", "succeeded"} and user_id:
+    has_tier = "plan_tier" in metadata or "metadata_plan_tier" in metadata
+    if feature in {"programme", "cashflow"} and not has_tier and status in {"paid", "succeeded"} and user_id:
         from utils.features import grant_credit
         grant_credit(int(user_id), feature, 1)
         audit_log("feature_purchased", int(user_id), "user", int(user_id), {"provider": "dodopayments", "feature": feature, "status": status})

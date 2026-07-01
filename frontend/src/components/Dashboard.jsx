@@ -385,9 +385,9 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                   onClick={() => handleCheckout(1, 'qto')}
                   style={{ width: '100%', padding: '10px', backgroundColor: 'var(--success)', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 4px 10px rgba(16, 185, 129, 0.3)' }}
                 >
-                  {isArabic ? 'اشترك لمشروعين مجاناً بالشهر الأول!' : 'Subscribe for 2 free projects in 1st month!'}
+                  {details?.has_had_trial ? (isArabic ? 'اشترك في باقة Starter' : 'Subscribe to Starter Tier') : (isArabic ? 'اشترك لمشروعين مجاناً بالشهر الأول!' : 'Subscribe for 2 free projects in 1st month!')}
                   <div style={{ fontSize: '0.7rem', marginTop: '3px', fontWeight: 'normal' }}>
-                    {isArabic ? '(يمكنك الإلغاء في أي وقت، بدون رسوم!)' : '(Cancel anytime, no charges applied!)'}
+                    {details?.has_had_trial ? (isArabic ? '50 درهم شهرياً' : '50 AED / month') : (isArabic ? '(يمكنك الإلغاء في أي وقت، بدون رسوم!)' : '(Cancel anytime, no charges applied!)')}
                   </div>
                 </button>
               ) : (!isAdmin && details && details.usage.projects >= details.project_limit) ? (
@@ -551,9 +551,9 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                   onClick={() => handleCheckout(1, 'programme')}
                   style={{ width: '100%', padding: '10px', backgroundColor: 'var(--success)', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 4px 10px rgba(16, 185, 129, 0.3)' }}
                 >
-                  {isArabic ? 'اشترك لمشروعين مجاناً بالشهر الأول!' : 'Subscribe for 2 free projects in 1st month!'}
+                  {programmeAccess?.has_had_trial ? (isArabic ? 'اشترك في باقة Starter' : 'Subscribe to Starter Tier') : (isArabic ? 'اشترك لمشروعين مجاناً بالشهر الأول!' : 'Subscribe for 2 free projects in 1st month!')}
                   <div style={{ fontSize: '0.7rem', marginTop: '3px', fontWeight: 'normal' }}>
-                    {isArabic ? '(يمكنك الإلغاء في أي وقت، بدون رسوم!)' : '(Cancel anytime, no charges applied!)'}
+                    {programmeAccess?.has_had_trial ? (isArabic ? '50 درهم شهرياً' : '50 AED / month') : (isArabic ? '(يمكنك الإلغاء في أي وقت، بدون رسوم!)' : '(Cancel anytime, no charges applied!)')}
                   </div>
                 </button>
               ) : (!isAdmin && programmeAccess && !programmeAccess.can_create) ? (
@@ -721,9 +721,9 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                   onClick={() => handleCheckout(1, 'cashflow')}
                   style={{ width: '100%', padding: '10px', backgroundColor: 'var(--success)', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 4px 10px rgba(16, 185, 129, 0.3)' }}
                 >
-                  {isArabic ? 'اشترك لمشروعين مجاناً بالشهر الأول!' : 'Subscribe for 2 free projects in 1st month!'}
+                  {cashflowAccess?.has_had_trial ? (isArabic ? 'اشترك في باقة Starter' : 'Subscribe to Starter Tier') : (isArabic ? 'اشترك لمشروعين مجاناً بالشهر الأول!' : 'Subscribe for 2 free projects in 1st month!')}
                   <div style={{ fontSize: '0.7rem', marginTop: '3px', fontWeight: 'normal' }}>
-                    {isArabic ? '(يمكنك الإلغاء في أي وقت، بدون رسوم!)' : '(Cancel anytime, no charges applied!)'}
+                    {cashflowAccess?.has_had_trial ? (isArabic ? '50 درهم شهرياً' : '50 AED / month') : (isArabic ? '(يمكنك الإلغاء في أي وقت، بدون رسوم!)' : '(Cancel anytime, no charges applied!)')}
                   </div>
                 </button>
               ) : (!isAdmin && cashflowAccess && !cashflowAccess.can_create) ? (

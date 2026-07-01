@@ -33,7 +33,13 @@ async def feature_access(feature: str = Query(...), current_user: dict = Depends
         
     limit = 999999 if is_admin else (plan.projects + extra_projects)
     can_create = is_admin or (projects < limit)
-    
+    has_had_trial = False
+    try:
+        df_past = safe_query("SELECT id FROM qto_subscriptions WHERE user_id=%s AND feature=%s LIMIT 1", (user_id, feature))
+        has_had_trial = not df_past.empty
+    except:
+        pass
+        
     return {
         "feature": feature,
         "access": can_create or projects > 0,
@@ -42,6 +48,7 @@ async def feature_access(feature: str = Query(...), current_user: dict = Depends
         "limit": limit,
         "can_create": can_create,
         "plan_tier": plan.tier,
+        "has_had_trial": has_had_trial,
     }
 
 @router.get("/subscription")
@@ -67,6 +74,13 @@ async def get_subscription_details(feature: str = Query("qto"), current_user: di
     usage_exports = monthly_usage(user_id, EVENT_EXPORT, feature)
     usage_ai = monthly_usage(user_id, EVENT_AI_CALL, feature)
     
+    has_had_trial = False
+    try:
+        df_past = safe_query("SELECT id FROM qto_subscriptions WHERE user_id=%s AND feature=%s LIMIT 1", (user_id, feature))
+        has_had_trial = not df_past.empty
+    except:
+        pass
+
     return {
         "plan_name": plan.name,
         "plan_tier": plan.tier,
@@ -74,6 +88,7 @@ async def get_subscription_details(feature: str = Query("qto"), current_user: di
         "current_period_end": sub.get("current_period_end") if sub else None,
         "extra_projects": extra_projects,
         "project_limit": plan.projects + extra_projects,
+        "has_had_trial": has_had_trial,
         "usage": {
             "projects": usage_projects,
             "exports": usage_exports,
