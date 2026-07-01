@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from api.auth import get_current_user
-from utils.payments import create_checkout_session, auto_sync_user_subscriptions, force_activate_subscription
+from utils.payments import create_checkout_session, auto_sync_user_subscriptions, force_activate_subscription, sync_user_addons
 from utils.plans import PLANS, get_active_subscription, get_plan_for_user
 from utils.usage import monthly_usage, EVENT_AI_CALL, EVENT_EXPORT, EVENT_PROJECT
 from utils.settings import get_setting
@@ -21,7 +21,9 @@ async def feature_access(feature: str = Query(...), current_user: dict = Depends
     email = current_user["email"]
     is_admin = role == "admin"
 
-    # Auto-sync from Dodo API — so even if webhook was missed, subscription activates on next Dashboard load
+    # Auto-sync from Dodo API — so even if webhook was missed, subscription activates on next Dashboard load.
+    # (Add-on reconciliation is done only in /subscription to avoid concurrent double-grants, since that
+    # endpoint runs once per load and sync_user_addons already grants add-ons for ALL tools in one pass.)
     try:
         auto_sync_user_subscriptions(user_id, email)
     except Exception:
@@ -79,11 +81,13 @@ async def get_subscription_details(feature: str = Query("qto"), current_user: di
     role = current_user["role"]
     email = current_user["email"]
 
-    # Auto-sync: pull subscriptions from Dodo API and sync any missing ones.
-    # This ensures that even if a webhook was missed, the user's subscription
-    # is detected and activated automatically on next page load.
+    # Auto-sync on every load: pull subscriptions AND add-ons from Dodo and
+    # reconcile any missing ones. This is the authoritative recovery path — it
+    # does not rely on the webhook OR on the post-payment redirect reaching the
+    # app (which it doesn't, since the app is embedded in an iframe).
     try:
         auto_sync_user_subscriptions(user_id, email)
+        sync_user_addons(user_id, email)
     except Exception:
         pass
 
