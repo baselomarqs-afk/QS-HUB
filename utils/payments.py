@@ -124,7 +124,7 @@ def create_portal_session(user_id: int) -> str:
             return_url=app_base_url()
         )
         # Using getattr since dodopayments SDK returns a Pydantic model (CustomerPortalSession)
-        portal_url = getattr(session, "url", None)
+        portal_url = getattr(session, "link", None)
         if not portal_url:
             raise RuntimeError("Dodo Payments did not return a portal URL.")
         return portal_url
