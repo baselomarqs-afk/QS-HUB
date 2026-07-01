@@ -388,6 +388,8 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                   {isArabic ? 'اشترك لمشروعين مجاناً بالشهر الأول!' : 'Subscribe for 2 free projects in 1st month!'}
                   <div style={{ fontSize: '0.7rem', marginTop: '3px', fontWeight: 'normal' }}>
                     {isArabic ? '(تطبق الرسوم بعد 30 يوم)' : '(Charges apply after 30 days)'}
+                    <br />
+                    <span style={{ fontSize: '0.65rem', opacity: 0.9 }}>{isArabic ? 'يمكنك الإلغاء في أي وقت، بدون رسوم!' : 'Cancel anytime, no charges applied!'}</span>
                   </div>
                 </button>
               ) : (!isAdmin && details && details.usage.projects >= details.project_limit) ? (
@@ -554,6 +556,8 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                   {isArabic ? 'اشترك لمشروعين مجاناً بالشهر الأول!' : 'Subscribe for 2 free projects in 1st month!'}
                   <div style={{ fontSize: '0.7rem', marginTop: '3px', fontWeight: 'normal' }}>
                     {isArabic ? '(تطبق الرسوم بعد 30 يوم)' : '(Charges apply after 30 days)'}
+                    <br />
+                    <span style={{ fontSize: '0.65rem', opacity: 0.9 }}>{isArabic ? 'يمكنك الإلغاء في أي وقت، بدون رسوم!' : 'Cancel anytime, no charges applied!'}</span>
                   </div>
                 </button>
               ) : (!isAdmin && programmeAccess && !programmeAccess.can_create) ? (
@@ -724,6 +728,8 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                   {isArabic ? 'اشترك لمشروعين مجاناً بالشهر الأول!' : 'Subscribe for 2 free projects in 1st month!'}
                   <div style={{ fontSize: '0.7rem', marginTop: '3px', fontWeight: 'normal' }}>
                     {isArabic ? '(تطبق الرسوم بعد 30 يوم)' : '(Charges apply after 30 days)'}
+                    <br />
+                    <span style={{ fontSize: '0.65rem', opacity: 0.9 }}>{isArabic ? 'يمكنك الإلغاء في أي وقت، بدون رسوم!' : 'Cancel anytime, no charges applied!'}</span>
                   </div>
                 </button>
               ) : (!isAdmin && cashflowAccess && !cashflowAccess.can_create) ? (
