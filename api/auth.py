@@ -22,10 +22,12 @@ if not SECRET_KEY:
 class UserRegister(BaseModel):
     email: EmailStr
     password: str
+    name: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
 
 class ResetPasswordReq(BaseModel):
     email: EmailStr
@@ -53,14 +55,16 @@ def verify_session_token(token: str) -> dict:
         if int(expiry) < time.time():
             raise HTTPException(status_code=401, detail="Session expired")
         # Check token_version against DB to allow instant revocation
-        df = safe_query("SELECT email, COALESCE(token_version, 0) as tv FROM qto_users WHERE id=%s", (user_id,))
+        df = safe_query("SELECT email, name, COALESCE(token_version, 0) as tv FROM qto_users WHERE id=%s", (user_id,))
         if df.empty:
             raise HTTPException(status_code=401, detail="User not found")
         db_version = int(df.iloc[0]["tv"])
         if int(token_version) != db_version:
             raise HTTPException(status_code=401, detail="Session revoked — please log in again")
         email = df.iloc[0]["email"]
-        return {"id": int(user_id), "role": role, "email": email}
+        raw_name = df.iloc[0]["name"]
+        name = str(raw_name) if raw_name is not None and str(raw_name).lower() != "nan" else None
+        return {"id": int(user_id), "role": role, "email": email, "name": name}
     except HTTPException:
         raise
     except Exception:
@@ -104,8 +108,8 @@ async def register(req: UserRegister):
     
     hashed = password_hash(req.password)
     success, err = safe_execute(
-        "INSERT INTO qto_users (email, password_hash, role, extra_projects_allowance) VALUES (%s, %s, %s, %s)",
-        (email, hashed, "user", 1)
+        "INSERT INTO qto_users (email, password_hash, role, extra_projects_allowance, name) VALUES (%s, %s, %s, %s, %s)",
+        (email, hashed, "user", 1, req.name)
     )
     if not success:
         raise HTTPException(status_code=500, detail=f"Database insertion failed: {err}")

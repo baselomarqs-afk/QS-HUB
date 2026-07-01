@@ -192,8 +192,15 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
   const limitReached = details && (details.usage.projects >= details.project_limit);
   const isAdmin = user && user.role === 'admin';
 
-  const userName = user && user.email ? user.email.split('@')[0] : '';
-  const displayUserName = userName.charAt(0).toUpperCase() + userName.slice(1);
+  let userName = '';
+  if (user) {
+    if (user.name) {
+      userName = user.name;
+    } else if (user.email) {
+      userName = user.email.split('@')[0];
+    }
+  }
+  const displayUserName = userName ? userName.charAt(0).toUpperCase() + userName.slice(1) : '';
 
   return (
     <div className="dashboard-content" style={{ padding: '30px', textAlign: isArabic ? 'right' : 'left', direction: isArabic ? 'rtl' : 'ltr' }}>

@@ -6,6 +6,7 @@ export default function Auth({ onLoginSuccess, isArabic }) {
   const [isLogin, setIsLogin] = useState(true);
   const [isForgot, setIsForgot] = useState(false);
   const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [token, setToken] = useState('');
   const [error, setError] = useState('');
@@ -54,7 +55,7 @@ export default function Auth({ onLoginSuccess, isArabic }) {
         const res = await fetch(`${API_URL}/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password, name }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Registration failed.');
@@ -144,6 +145,20 @@ export default function Auth({ onLoginSuccess, isArabic }) {
 
         {!isForgot ? (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            {!isLogin && (
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 500 }}>
+                  {isArabic ? 'الاسم الكامل' : 'Full Name'}
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={isArabic ? 'الاسم' : 'John Doe'}
+                />
+              </div>
+            )}
             <div>
               <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 500 }}>
                 {isArabic ? 'البريد الإلكتروني' : 'Email Address'}
