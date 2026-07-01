@@ -295,6 +295,26 @@ def auto_sync_user_subscriptions(user_id: int, user_email: str) -> int:
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
         product_map = build_product_map()
 
+        # Self-heal: cancel phantom "mock" subscriptions that an old checkout-
+        # fallback bug created without a real payment. These are the only rows
+        # tagged with provider_subscription_id='mock_123', so this is safe and
+        # never touches a genuine Dodo-backed subscription. Only act (and bust
+        # the cache) when such a phantom actually exists.
+        phantom = safe_query(
+            "SELECT id FROM qto_subscriptions "
+            "WHERE user_id=%s AND provider_subscription_id='mock_123' AND status='active' LIMIT 1",
+            (user_id,),
+        )
+        if not phantom.empty:
+            safe_execute(
+                "UPDATE qto_subscriptions SET status='canceled' "
+                "WHERE user_id=%s AND provider_subscription_id='mock_123' AND status='active'",
+                (user_id,),
+            )
+            from utils.plans import get_active_subscription, get_plan_for_user
+            get_active_subscription.clear()
+            get_plan_for_user.clear()
+
         # Fetch all subscriptions from Dodo
         r = _requests.get(f"{base_url}/subscriptions?limit=50", headers=headers, timeout=8)
         if r.status_code != 200:
