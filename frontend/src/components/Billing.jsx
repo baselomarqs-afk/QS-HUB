@@ -292,6 +292,26 @@ export default function Billing({ token, isArabic, user, onLogout }) {
                   border: '2px solid var(--primary)',
                   overflow: 'hidden'
                 }}>
+                  {p.tier === 1 && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '12px',
+                      right: isArabic ? 'auto' : '12px',
+                      left: isArabic ? '12px' : 'auto',
+                      backgroundColor: 'var(--success)',
+                      color: 'white',
+                      fontSize: '0.7rem',
+                      fontWeight: 'bold',
+                      padding: '2px 8px',
+                      borderRadius: '10px'
+                    }}>
+                      🌟 {isArabic ? 'شهر مجاني!' : '1 Month Free!'}
+                      <div style={{ fontSize: '0.55rem', textAlign: 'center', marginTop: '2px', opacity: 0.9 }}>
+                        {isArabic ? 'مشروعين للشهر الأول' : '2 Projects 1st Month'}
+                      </div>
+                    </div>
+                  )}
+
                   {showDiscount && (
                     <div style={{
                       position: 'absolute',

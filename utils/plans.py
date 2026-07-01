@@ -72,4 +72,28 @@ def get_plan_for_user(user_id: int, role: str | None = None, feature: str = "qto
     if role == "admin":
         return PlanLimits(99, "Admin", 0, 999999, 999999, 999999, 500)
     sub = get_active_subscription(user_id, feature)
-    return PLANS.get(int(sub.get("plan_tier", 0)), PLANS[0]) if sub else PLANS[0]
+    if not sub:
+        return PLANS[0]
+        
+    base_plan = PLANS.get(int(sub.get("plan_tier", 0)), PLANS[0])
+    
+    try:
+        import pandas as pd
+        created_at = sub.get("created_at")
+        if pd.notna(created_at):
+            dt = pd.to_datetime(created_at).tz_localize(None)
+            now = pd.Timestamp.utcnow().tz_localize(None)
+            if (now - dt).days < 30:
+                return PlanLimits(
+                    tier=base_plan.tier,
+                    name=base_plan.name,
+                    monthly_price_aed=base_plan.monthly_price_aed,
+                    projects=base_plan.projects + 1,
+                    ai_calls=base_plan.ai_calls,
+                    exports=base_plan.exports,
+                    max_file_mb=base_plan.max_file_mb
+                )
+    except Exception:
+        pass
+        
+    return base_plan
