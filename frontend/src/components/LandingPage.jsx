@@ -258,8 +258,25 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
         </h3>
         
         <div className="pricing-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-          <div className="glass-card" style={{ textAlign: 'center', padding: '25px 15px', border: '2px solid #3b82f6', borderRadius: '12px' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>TIER 1</span>
+          <div className="glass-card" style={{ position: 'relative', textAlign: 'center', padding: '25px 15px', border: '2px solid #3b82f6', borderRadius: '12px' }}>
+            <div style={{
+              position: 'absolute',
+              top: '-12px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              backgroundColor: 'var(--success)',
+              color: 'white',
+              fontSize: '0.75rem',
+              fontWeight: 'bold',
+              padding: '4px 12px',
+              borderRadius: '20px',
+              whiteSpace: 'nowrap',
+              boxShadow: '0 4px 10px rgba(16, 185, 129, 0.3)'
+            }}>
+              🌟 {isArabic ? 'شهر مجاني (مشروعين)' : '1 Month Free (2 Projects)'}
+            </div>
+            
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginTop: '10px' }}>TIER 1</span>
             <h3 style={{ fontSize: '2rem', fontWeight: 800, margin: '10px 0 5px' }}>50 AED</h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '15px' }}>{isArabic ? 'لكل شهر' : 'per month'}</p>
             <hr style={{ border: 'none', height: '1px', backgroundColor: 'var(--border-color)', margin: '15px 0' }} />
