@@ -1,6 +1,11 @@
 import warnings
 warnings.filterwarnings("ignore", module="streamlit")
 
+# Make the app's own loggers (qto.*) actually emit — without this, all the
+# diagnostic logging added across the codebase would be silently dropped.
+import logging as _logging
+_logging.getLogger("qto").setLevel(_logging.INFO)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles

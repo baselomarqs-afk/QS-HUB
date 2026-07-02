@@ -28,7 +28,7 @@ async def feature_access(feature: str = Query(...), current_user: dict = Depends
     try:
         auto_sync_user_subscriptions(user_id, email)
     except Exception:
-        pass
+        logging.getLogger("qto.billing").exception("feature-access auto_sync failed for user %s", user_id)
 
     plan = get_plan_for_user(user_id, role, feature)
 
@@ -92,7 +92,7 @@ async def get_subscription_details(feature: str = Query("qto"), current_user: di
         auto_sync_user_subscriptions(user_id, email)
         sync_user_addons(user_id, email)
     except Exception:
-        pass
+        logging.getLogger("qto.billing").exception("subscription reconcile failed for user %s", user_id)
 
     sub = get_active_subscription(user_id, feature)
     plan = get_plan_for_user(user_id, role, feature)
