@@ -54,17 +54,23 @@ def verify_session_token(token: str) -> dict:
             raise HTTPException(status_code=401, detail="Session signature mismatch")
         if int(expiry) < time.time():
             raise HTTPException(status_code=401, detail="Session expired")
-        # Check token_version against DB to allow instant revocation
-        df = safe_query("SELECT email, name, COALESCE(token_version, 0) as tv FROM qto_users WHERE id=%s", (user_id,))
+        # Check token_version against DB to allow instant revocation.
+        # IMPORTANT: role is read from the DB, NOT trusted from the token — so a
+        # demotion/suspension takes effect immediately instead of persisting until
+        # the token expires.
+        df = safe_query("SELECT email, name, role, COALESCE(token_version, 0) as tv FROM qto_users WHERE id=%s", (user_id,))
         if df.empty:
             raise HTTPException(status_code=401, detail="User not found")
         db_version = int(df.iloc[0]["tv"])
         if int(token_version) != db_version:
             raise HTTPException(status_code=401, detail="Session revoked — please log in again")
+        db_role = df.iloc[0]["role"]
+        if db_role == "blocked":
+            raise HTTPException(status_code=403, detail="Your account has been suspended.")
         email = df.iloc[0]["email"]
         raw_name = df.iloc[0]["name"]
         name = str(raw_name) if raw_name is not None and str(raw_name).lower() != "nan" else None
-        return {"id": int(user_id), "role": role, "email": email, "name": name}
+        return {"id": int(user_id), "role": db_role, "email": email, "name": name}
     except HTTPException:
         raise
     except Exception:
@@ -222,10 +228,22 @@ async def update_profile(req: UserProfileUpdate, current_user: dict = Depends(ge
 async def delete_account(current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
     email = current_user["email"]
-    
-    safe_execute("INSERT INTO qto_deleted_accounts (email) VALUES (%s)", (email,))
-    
-    success, err = safe_execute("DELETE FROM qto_users WHERE id=%s", (user_id,))
-    if not success:
+
+    # Stop all future billing BEFORE removing the account, otherwise the user
+    # keeps getting charged by Dodo after deleting their account.
+    try:
+        from utils.payments import cancel_user_subscriptions
+        cancel_user_subscriptions(user_id)
+    except Exception:
+        import logging
+        logging.getLogger("qto").exception("Failed to cancel subscriptions on account delete for %s", user_id)
+
+    # Record the deletion and remove the user atomically (all-or-nothing).
+    try:
+        from utils.db import transaction
+        with transaction() as cur:
+            cur.execute("INSERT INTO qto_deleted_accounts (email) VALUES (%s)", (email,))
+            cur.execute("DELETE FROM qto_users WHERE id=%s", (user_id,))
+    except Exception as err:
         raise HTTPException(status_code=500, detail=f"Database deletion failed: {err}")
     return {"message": "Account deleted successfully."}

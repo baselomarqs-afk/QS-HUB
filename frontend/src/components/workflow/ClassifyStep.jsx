@@ -1,5 +1,6 @@
 import React from 'react';
 import { ZoomIn, ZoomOut, Plus, Trash2, Info } from 'lucide-react';
+import { cacheUrl } from '../../cacheUrl';
 
 export default function ClassifyStep({
   classifiedPages,
@@ -66,7 +67,7 @@ export default function ClassifyStep({
         <div style={{ flex: 1, overflow: 'auto', backgroundColor: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '15px' }}>
           {classifiedPages[selectedPageIndex] && (
             <img 
-              src={`${classifiedPages[selectedPageIndex].image_url}`}
+              src={cacheUrl(classifiedPages[selectedPageIndex].image_url)}
               alt="Page preview"
               style={{ transform: `scale(${zoom})`, transformOrigin: 'center center', maxWidth: '100%', height: 'auto', transition: 'transform 0.1s ease', borderRadius: '4px' }}
             />

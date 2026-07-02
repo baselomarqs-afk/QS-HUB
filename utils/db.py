@@ -26,8 +26,11 @@ import pandas as pd
 from contextlib import contextmanager
 from utils.settings import DbSettings
 import sqlite3
+import logging
 import re
 import os
+
+logger = logging.getLogger("qto.db")
 
 def is_sqlite() -> bool:
     try:
@@ -456,7 +459,10 @@ def safe_query(sql: str, params=None) -> pd.DataFrame:
                 rows = cur.fetchall()
         return pd.DataFrame(rows) if rows else pd.DataFrame()
     except Exception as e:
-        print(f"[DB Query Error] {e}")
+        # Log the real error instead of silently returning "no rows" — an empty
+        # DataFrame from a transient failure has caused bugs where users looked
+        # unsubscribed / access was wrongly denied.
+        logger.error("safe_query failed: %s | sql=%s", e, sql.strip().split("\n")[0][:200])
         return pd.DataFrame()
 
 
@@ -484,5 +490,34 @@ def safe_execute(sql: str, params=None, many=False, data_list=None) -> tuple:
             conn.commit()
         return True, "OK"
     except Exception as e:
-        print(f"[DB Execute Error] {e}")
+        logger.error("safe_execute failed: %s | sql=%s", e, sql.strip().split("\n")[0][:200])
         return False, str(e)
+
+
+@contextmanager
+def transaction():
+    """Run several writes atomically — commits on success, rolls back on error.
+
+    Usage:
+        with transaction() as cur:
+            cur.execute("UPDATE ...", (...))
+            cur.execute("INSERT ...", (...))
+    Either all statements land or none do.
+    """
+    with get_connection() as conn:
+        cur = conn.cursor()
+        try:
+            yield cur
+            conn.commit()
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            logger.exception("transaction rolled back")
+            raise
+        finally:
+            try:
+                cur.close()
+            except Exception:
+                pass

@@ -67,12 +67,22 @@ _RATE_WINDOW = 60.0
 _rate_hits = defaultdict(deque)
 
 
+def _client_ip(request: Request) -> str:
+    # Behind Cloudflare/Render the socket peer is the proxy, so the real client
+    # IP is in these headers. Without this, every user shares one rate-limit
+    # bucket (collective throttling) and the limit is effectively useless.
+    fwd = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 @app.middleware("http")
 async def _rate_limit(request: Request, call_next):
     path = request.url.path
     if path == "/api/health" or not path.startswith("/api/"):
         return await call_next(request)
-    ip = request.client.host if request.client else "unknown"
+    ip = _client_ip(request)
     now = _time.time()
     dq = _rate_hits[ip]
     while dq and dq[0] < now - _RATE_WINDOW:
@@ -104,10 +114,54 @@ async def dodo_webhook(request: Request):
     except Exception as exc:
         return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
 
-# Serve static files for PDF page images cache if directory exists
+# Cached PDF page images. These are CONFIDENTIAL engineering drawings, so the
+# folder is NOT served as public static files. Access requires a valid session
+# and (for project-scoped paths) ownership of that project.
 cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "_qto_cache")
 os.makedirs(cache_dir, exist_ok=True)
-app.mount("/cache", StaticFiles(directory=cache_dir), name="cache")
+
+from fastapi import HTTPException as _HTTPException
+from fastapi.responses import FileResponse
+
+
+@app.get("/cache/{file_path:path}")
+async def serve_cache(file_path: str, request: Request):
+    from api.auth import verify_session_token
+    from utils.db import safe_query
+
+    # Token from ?token= / ?Authorization= (img tags can't set headers) or header.
+    token = request.query_params.get("token") or request.query_params.get("Authorization")
+    if not token:
+        auth = request.headers.get("authorization", "")
+        token = auth
+    if token and token.startswith("Bearer "):
+        token = token.split(" ", 1)[1]
+    if not token:
+        raise _HTTPException(status_code=401, detail="Authentication required.")
+    user = verify_session_token(token)  # raises 401 on invalid/expired
+
+    # Path-traversal protection.
+    rel = os.path.normpath(file_path).replace("\\", "/")
+    full = os.path.abspath(os.path.join(cache_dir, rel))
+    if not full.startswith(os.path.abspath(cache_dir) + os.sep):
+        raise _HTTPException(status_code=400, detail="Invalid path.")
+
+    # Ownership: cache images live under /cache/{project_id}/... — verify the
+    # requester owns that project (admins bypass).
+    parts = rel.split("/")
+    if len(parts) >= 2 and parts[0].isdigit() and user.get("role") != "admin":
+        pid = int(parts[0])
+        owned = safe_query(
+            "SELECT 1 FROM qto_projects WHERE id=%s AND user_id=%s "
+            "UNION SELECT 1 FROM qto_active_projects WHERE project_id=%s AND user_id=%s",
+            (pid, user["id"], pid, user["id"]),
+        )
+        if owned.empty:
+            raise _HTTPException(status_code=403, detail="Access denied.")
+
+    if not os.path.isfile(full):
+        raise _HTTPException(status_code=404, detail="Not found.")
+    return FileResponse(full)
 
 SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user_settings.json")
 

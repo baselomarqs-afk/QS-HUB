@@ -31,3 +31,28 @@ test_keys.py
 frontend/node_modules/
 frontend/dist/
 node_modules/
+
+# Local virtualenv
+test_env/
+.venv/
+venv/
+env/
+
+# Local scratch / debug scripts (frequently contain hardcoded secrets — never commit)
+test_db*.py
+test_webhook.py
+test_hf_webhook.py
+test_audit.py
+check_*.py
+debug_*.py
+fix_*.py
+fix_upgrade.js
+sync_*.py
+fetch_*.py
+insert_*.py
+force_*.py
+get_hf_logs.py
+update_*.py
+audit_output.txt
+keyys.txt
+*.local

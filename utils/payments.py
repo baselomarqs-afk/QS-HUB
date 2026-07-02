@@ -436,6 +436,8 @@ def sync_user_addons(user_id: int, user_email: str) -> int:
             payment_id = item.get("payment_id") or item.get("id")
             if _already_processed("addon_purchased", payment_id):
                 continue
+            if not _claim_payment(payment_id, "addon"):
+                continue
 
             feature = metadata.get("feature") or "qto"
             col = FEATURE_EXTRA_COL.get(feature, "extra_projects_allowance")
@@ -501,6 +503,68 @@ def _already_processed(action: str, payment_id: str | None) -> bool:
         return False
 
 
+def _claim_payment(payment_id: str | None, kind: str) -> bool:
+    """Atomically claim a payment for processing. Returns True only for the FIRST
+    caller; concurrent webhook + on-load-sync calls for the same payment can't
+    both win, so an add-on is never granted twice. Backed by a PRIMARY KEY.
+    """
+    if not payment_id:
+        return True  # nothing to dedup on; allow (rare)
+    safe_execute(
+        "CREATE TABLE IF NOT EXISTS qto_processed_payments ("
+        "payment_id VARCHAR(80) PRIMARY KEY, kind VARCHAR(32), "
+        "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
+    )
+    ok, _ = safe_execute(
+        "INSERT INTO qto_processed_payments (payment_id, kind) VALUES (%s, %s)",
+        (str(payment_id), kind),
+    )
+    return bool(ok)  # False => PK conflict => already claimed by someone else
+
+
+def cancel_user_subscriptions(user_id: int) -> int:
+    """Cancel all of a user's active Dodo subscriptions (at next billing date) —
+    called on account deletion so they are never billed again. Best-effort."""
+    cancelled = 0
+    try:
+        api_key = get_setting("DODO_PAYMENTS_API_KEY")
+        if not api_key:
+            return 0
+        import requests as _requests
+        base_url = _dodo_base_url()
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        df = safe_query(
+            "SELECT provider_subscription_id FROM qto_subscriptions "
+            "WHERE user_id=%s AND provider='dodopayments' AND status IN ('active','trialing') "
+            "AND provider_subscription_id IS NOT NULL",
+            (user_id,),
+        )
+        for _, row in df.iterrows():
+            sub_id = row.get("provider_subscription_id")
+            if not sub_id or sub_id == "mock_123":
+                continue
+            try:
+                r = _requests.patch(
+                    f"{base_url}/subscriptions/{sub_id}",
+                    headers=headers,
+                    json={"cancel_at_next_billing_date": True},
+                    timeout=8,
+                )
+                if r.status_code < 300:
+                    cancelled += 1
+                else:
+                    logger.warning("cancel sub %s returned %s: %s", sub_id, r.status_code, r.text[:200])
+            except Exception:
+                logger.exception("cancel_user_subscriptions: PATCH %s failed", sub_id)
+        safe_execute(
+            "UPDATE qto_subscriptions SET status='canceled' WHERE user_id=%s AND provider='dodopayments'",
+            (user_id,),
+        )
+    except Exception:
+        logger.exception("cancel_user_subscriptions failed for user_id=%s", user_id)
+    return cancelled
+
+
 def _record_transaction(data: dict[str, Any], event_type: str) -> None:
     from utils.features import FEATURE_EXTRA_COL
 
@@ -516,6 +580,8 @@ def _record_transaction(data: dict[str, Any], event_type: str) -> None:
         col = FEATURE_EXTRA_COL.get(feature, "extra_projects_allowance")
         if _already_processed("addon_purchased", payment_id):
             return
+        if not _claim_payment(payment_id, "addon"):
+            return
         safe_execute(f"UPDATE qto_users SET {col} = COALESCE({col}, 0) + 1 WHERE id = %s", (user_id,))
         audit_log("addon_purchased", int(user_id), "user", payment_id or int(user_id),
                   {"provider": "dodopayments", "status": status, "feature": feature})
@@ -526,6 +592,8 @@ def _record_transaction(data: dict[str, Any], event_type: str) -> None:
     has_tier = "plan_tier" in metadata or "metadata_plan_tier" in metadata
     if feature in {"programme", "cashflow"} and not has_tier and status in {"paid", "succeeded"} and user_id:
         if _already_processed("feature_purchased", payment_id):
+            return
+        if not _claim_payment(payment_id, "feature"):
             return
         from utils.features import grant_credit
         grant_credit(int(user_id), feature, 1)

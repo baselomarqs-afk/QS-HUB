@@ -19,3 +19,29 @@ frontend/node_modules
 frontend/dist
 *.db
 *.sqlite3
+
+# Local virtualenv — must never be copied into the image (huge + irrelevant)
+test_env/
+.venv/
+venv/
+env/
+
+# Local scratch / debug scripts (often contain hardcoded secrets — keep OUT of the image)
+test_db*.py
+test_webhook.py
+test_hf_webhook.py
+test_audit.py
+check_*.py
+debug_*.py
+fix_*.py
+fix_upgrade.js
+sync_*.py
+fetch_*.py
+insert_*.py
+force_*.py
+get_hf_logs.py
+update_*.py
+audit_output.txt
+keyys.txt
+*.local
+_qto_cache/

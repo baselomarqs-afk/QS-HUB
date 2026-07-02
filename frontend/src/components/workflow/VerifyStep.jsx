@@ -1,5 +1,6 @@
 import React from 'react';
 import { Trash2, Plus, Info } from 'lucide-react';
+import { cacheUrl } from '../../cacheUrl';
 
 const ScheduleTableEditorModal = ({ isArabic, schedules, onSave, onClose }) => {
   const [footings, setFootings] = React.useState(schedules?.foundation?.footings || []);
@@ -186,7 +187,7 @@ export default function VerifyStep({
                     return (
                       <div key={idx} style={{ border: '2px solid #333', borderRadius: '8px', padding: '10px', background: '#222' }}>
                         <h4 style={{ color: '#60a5fa', margin: '0 0 10px 0' }}>{res.detected_type || 'Markup'}</h4>
-                        <img src={imgUrl} alt="Takeoff Markup" style={{ maxWidth: '100%', objectFit: 'contain' }} />
+                        <img src={cacheUrl(imgUrl)} alt="Takeoff Markup" style={{ maxWidth: '100%', objectFit: 'contain' }} />
                       </div>
                     );
                   })
