@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from api.auth import get_current_user
 from utils.payments import create_checkout_session, auto_sync_user_subscriptions, force_activate_subscription, sync_user_addons
@@ -153,15 +154,20 @@ async def get_checkout_url(
         req_tier = int(tier) if tier.isdigit() else tier
         url = create_checkout_session(current_user, req_tier, feature)
         return {"checkout_url": url}
+    except HTTPException:
+        raise
     except Exception as e:
         # DANGER ZONE: never grant a subscription/credit for free when Dodo is
         # actually configured. Doing so on a transient Dodo error used to create
         # phantom "manual" subscriptions (e.g. a tier-2 plan the user never paid
         # for). The mock path is ONLY for local/dev where no Dodo key exists.
         if get_setting("DODO_PAYMENTS_API_KEY"):
+            logging.getLogger("qto.billing").exception(
+                "checkout failed tier=%s feature=%s user=%s: %s", tier, feature, current_user.get("id"), e
+            )
             raise HTTPException(
                 status_code=502,
-                detail="Could not start checkout. Please try again in a moment.",
+                detail=f"Could not start checkout ({type(e).__name__}: {str(e)[:200]}).",
             )
         # --- Local/dev only (no Dodo key): mock checkout so tests can run ---
         user_id = current_user["id"]
