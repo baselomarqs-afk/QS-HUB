@@ -13,7 +13,10 @@ router = APIRouter()
 CACHE_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "_qto_cache")
 os.makedirs(CACHE_ROOT, exist_ok=True)
 
-MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_MB", "50")) * 1024 * 1024
+# Absolute safety ceiling (memory-DoS guard). The REAL per-file limit is the
+# user's plan (max_file_mb) — this just caps truly absurd uploads. Keep it above
+# the highest plan (admin = 500 MB) so it never overrides a legitimate plan.
+MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_MB", "512")) * 1024 * 1024
 
 @router.post("/upload")
 async def upload_drawings(
@@ -58,15 +61,16 @@ async def upload_drawings(
         ctype = (file_obj.content_type or "").lower()
         if not fname.endswith(".pdf") and "pdf" not in ctype:
             raise HTTPException(status_code=400, detail=f"Only PDF drawings are accepted (got '{file_obj.filename}').")
-        # Cap the read so an oversized upload can't exhaust memory. Reading one
-        # byte past the limit is enough to detect "too large" cheaply.
-        content = file_obj.file.read(MAX_UPLOAD_BYTES + 1)
-        if len(content) > MAX_UPLOAD_BYTES:
-            raise HTTPException(status_code=413, detail=f"File too large. Maximum upload size is {MAX_UPLOAD_BYTES // (1024*1024)} MB.")
-        from utils.usage import check_file_size
-        ok, msg = check_file_size(current_user, len(content))
-        if not ok:
-            raise HTTPException(status_code=413, detail=msg)
+        # Cap the read at the user's PLAN file limit (bounded by an absolute
+        # ceiling) so an oversized upload can't exhaust memory — and so a
+        # higher-tier plan (Studio 200 MB / admin 500 MB) is never wrongly
+        # blocked by a fixed number. Reading one byte past the cap is enough.
+        from utils.plans import get_plan_for_user
+        plan = get_plan_for_user(current_user["id"], current_user.get("role"))
+        cap = min(plan.max_file_mb * 1024 * 1024, MAX_UPLOAD_BYTES)
+        content = file_obj.file.read(cap + 1)
+        if len(content) > cap:
+            raise HTTPException(status_code=413, detail=f"File too large. Your plan allows up to {plan.max_file_mb} MB per file.")
         
         # Save to permanent storage
         save_file(current_user["id"], file_obj.filename, content, "application/pdf", project_id)
