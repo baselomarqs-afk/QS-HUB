@@ -260,6 +260,7 @@ export default function Admin({ token, isArabic }) {
                     <thead>
                       <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
                         <th style={{ padding: '12px 8px', fontWeight: 700 }}>User Email</th>
+                        <th style={{ padding: '12px 8px', fontWeight: 700 }}>Tool</th>
                         <th style={{ padding: '12px 8px', fontWeight: 700 }}>Tier</th>
                         <th style={{ padding: '12px 8px', fontWeight: 700 }}>Provider</th>
                         <th style={{ padding: '12px 8px', fontWeight: 700 }}>Status</th>
@@ -273,6 +274,18 @@ export default function Admin({ token, isArabic }) {
                       {subscriptions.map(s => (
                         <tr key={s.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                           <td style={{ padding: '12px 8px', fontWeight: 600 }}>{s.user_email}</td>
+                          <td style={{ padding: '12px 8px' }}>
+                            <span style={{
+                              padding: '3px 8px',
+                              borderRadius: '8px',
+                              fontSize: '0.78rem',
+                              fontWeight: 700,
+                              background: s.feature === 'programme' ? 'rgba(16, 185, 129, 0.15)' : s.feature === 'cashflow' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                              color: s.feature === 'programme' ? 'var(--success)' : s.feature === 'cashflow' ? 'var(--warning)' : 'var(--primary)'
+                            }}>
+                              {s.feature === 'programme' ? 'Work Programme' : s.feature === 'cashflow' ? 'Cash Flow' : 'QTO'}
+                            </span>
+                          </td>
                           <td style={{ padding: '12px 8px' }}>
                             <span style={{ fontWeight: 700 }}>Tier {s.plan_tier}</span>
                           </td>

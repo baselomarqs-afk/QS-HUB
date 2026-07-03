@@ -34,7 +34,7 @@ async def get_users(admin: dict = Depends(verify_admin)):
 async def get_subscriptions(admin: dict = Depends(verify_admin)):
     df = safe_query(
         """
-        SELECT s.id, s.user_id, u.email as user_email, s.plan_tier, s.provider, s.status, 
+        SELECT s.id, s.user_id, u.email as user_email, s.feature, s.plan_tier, s.provider, s.status,
                s.current_period_end, s.projects_used, s.ai_calls_used, s.exports_used, s.created_at
         FROM qto_subscriptions s
         JOIN qto_users u ON s.user_id = u.id
