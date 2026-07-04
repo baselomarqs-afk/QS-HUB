@@ -521,6 +521,32 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
             "doors_deduction_count": base["total_doors_count"] * area_ratio,
         }
 
+        # ── Anti-over-estimation guard for internal walls ──────────────────
+        # The internal partition-wall length of a villa floor is empirically
+        # bounded by the floor area. A cross-page bug (the SAME floor plan
+        # classified on two pages and its wall lengths summed) can inflate these
+        # values several-fold — e.g. internal blockwork reading 5000+ m² on a
+        # 270 m² floor. Clamp the 10 cm / 20 cm split (and the total) to a
+        # generous floor-area ceiling; realistic, well-under-the-cap layouts are
+        # left untouched, so this only ever REDUCES a gross over-estimate.
+        _fa = floors[fk]["floor_area"] or 0.0
+        if _fa > 0:
+            _cap = _fa * 0.8            # generous: typical internal walls ≈ 0.3–0.5 × area
+            _iwl10 = floors[fk]["int_walls_10cm"] or 0.0
+            _iwl20 = floors[fk]["int_walls_20cm"] or 0.0
+            _split = _iwl10 + _iwl20
+            if _split > _cap:
+                _s = _cap / _split
+                floors[fk]["int_walls_10cm"] = round(_iwl10 * _s, 2)
+                floors[fk]["int_walls_20cm"] = round(_iwl20 * _s, 2)
+                estimates.append(
+                    f"{fk}: internal wall length looked inflated "
+                    f"({round(_split)} m on a {round(_fa)} m² floor) — capped to "
+                    f"{round(_cap)} m; confirm in review."
+                )
+            if (floors[fk]["int_walls_length"] or 0.0) > _cap:
+                floors[fk]["int_walls_length"] = round(_cap, 2)
+
     meta = {"needs_input": needs_input, "estimates": estimates}
     return base, floors, meta
 
