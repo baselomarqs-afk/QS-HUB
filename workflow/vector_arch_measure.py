@@ -50,20 +50,37 @@ def extract_arch_vectors(pdf_path: str, page_index: int, scale_ratio: int = None
     ratio = scale_ratio or detect_page_scale(page)
     pt_to_m = _pt_to_m(ratio)
 
-    segments = []
+    # Collect every straight edge together with its stroke line-weight. Walls are
+    # drawn heavier than furniture / fixtures / hatching / dimension lines, so the
+    # weight lets us keep wall geometry and drop the rest — which is what used to
+    # inflate the wall length several-fold.
+    raw = []  # (x1, y1, x2, y2, width)
     for d in page.get_drawings():
+        wt = float(d.get("width") or 0) or 0.0
         for it in d["items"]:
             if it[0] == "l":
-                segments.append((it[1].x, it[1].y, it[2].x, it[2].y))
+                raw.append((it[1].x, it[1].y, it[2].x, it[2].y, wt))
             elif it[0] == "re":
                 r = it[1]
-                segments.extend([
-                    (r.x0, r.y0, r.x1, r.y0),
-                    (r.x1, r.y0, r.x1, r.y1),
-                    (r.x1, r.y1, r.x0, r.y1),
-                    (r.x0, r.y1, r.x0, r.y0)
+                raw.extend([
+                    (r.x0, r.y0, r.x1, r.y0, wt),
+                    (r.x1, r.y0, r.x1, r.y1, wt),
+                    (r.x1, r.y1, r.x0, r.y1, wt),
+                    (r.x0, r.y1, r.x0, r.y0, wt),
                 ])
     doc.close()
+
+    # Line-weight filter: keep only the heavier (wall-weight) lines — but ONLY
+    # when there is a clear weight distinction AND enough lines survive, otherwise
+    # fall back to using everything (never risk under-counting walls).
+    widths = sorted(w for *_ , w in raw if w > 0)
+    segments = [(a, b, cc, d2) for a, b, cc, d2, _w in raw]
+    if len(widths) >= 12:
+        thr = widths[len(widths) // 2]  # median weight
+        if thr > 0:
+            heavy = [(a, b, cc, d2) for a, b, cc, d2, w in raw if w >= thr]
+            if len(heavy) >= 8:
+                segments = heavy
 
     h_lines = defaultdict(list)
     v_lines = defaultdict(list)
