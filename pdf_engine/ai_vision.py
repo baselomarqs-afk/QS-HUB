@@ -146,6 +146,7 @@ def analyze_drawing_page(
     drawing_type: str = "architectural",
     floor_name: str = "Ground Floor",
     pixels_per_meter: float = 0.0,
+    geometry_context: str = "",
 ) -> Dict:
     """
     Sends a drawing page to AI and extracts QTO data.
@@ -186,6 +187,11 @@ def analyze_drawing_page(
         floor_name=floor_name,
         scale_info=scale_info,
     )
+
+    # Give the model the deterministic vector measurements as grounding so it
+    # reasons over real geometry, not only pixels (improves scale/size reading).
+    if geometry_context:
+        prompt = prompt + "\n\n" + geometry_context
 
     png_bytes = _page_to_png_bytes(page_array)
 

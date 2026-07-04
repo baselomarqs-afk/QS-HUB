@@ -484,6 +484,23 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
         if raw_csv:
             csv_injection = f"\n\n[DETERMINISTIC PDF EXTRACTION OVERRIDE]\nThe following is the raw CSV data of the tables extracted perfectly from the PDF using OCR. Rely on this text heavily for counts and dimensions, and use the image only as a visual reference:\n```csv\n{raw_csv}\n```\n"
 
+        # Ground the model with deterministic vector geometry (scale, footprint,
+        # closed-polygon area, dimension labels) read straight from the PDF paths.
+        # Purely additive: it only appends context; failure leaves the prompt as-is.
+        try:
+            import fitz as _fitz
+            from pdf_engine.vector_intelligence import build_geometry_context
+            from workflow.vector_area_measure import detect_page_scale as _dps
+            _doc = _fitz.open(pdf_path)
+            if internal_page_idx < len(_doc):
+                _pg = _doc[internal_page_idx]
+                _geo = build_geometry_context(_pg, _dps(_pg))
+                if _geo:
+                    csv_injection += "\n\n" + _geo + "\n"
+            _doc.close()
+        except Exception:
+            pass
+
     """
     Extract the values a drawing's formulas need.
     Uses AI Vision for complex readings, and strict Vector Math (PyMuPDF) for beam lengths.

@@ -53,11 +53,19 @@ def detect_page_scale(page) -> int:
     """
     txt = page.get_text("text")
     ratios = [int(m) for m in re.findall(r"1\s*[:/]\s*(\d{2,3})", txt)]
-    if not ratios:
-        return 100
-    if 100 in ratios:
-        return 100
-    return max(ratios)
+    if ratios:
+        # An explicit "1:N" label is authoritative — never override it.
+        return 100 if 100 in ratios else max(ratios)
+    # No scale label on the sheet: self-calibrate from the drawing's own
+    # dimension chains instead of blindly assuming 1:100. Falls back to 100.
+    try:
+        from pdf_engine.vector_intelligence import calibrate_scale_from_dimensions
+        cal = calibrate_scale_from_dimensions(page)
+        if cal:
+            return cal["ratio"]
+    except Exception:
+        pass
+    return 100
 
 
 def _segments(page, pt_to_m: float) -> list[tuple]:
