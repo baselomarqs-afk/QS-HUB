@@ -26,8 +26,13 @@ try:
 except Exception:  # pragma: no cover
     fitz = None
 
-# Standard architectural plot scales — calibration snaps to the nearest of these.
+# Standard architectural plot scales.
 _STANDARD_SCALES = (20, 25, 50, 75, 100, 125, 150, 200, 250)
+# FLOOR-PLAN scales only — calibration snaps to these. Detail scales (1:20/1:25)
+# are deliberately excluded: a floor plan is never 1:20, so a stray match there
+# must be rejected (falling back to the safe 1:100 default) rather than shrink
+# every quantity ~5×.
+_PLAN_SCALES = (50, 75, 100, 125, 150, 200)
 _PT_PER_M_BASE = 72.0 / 25.4 * 1000.0  # points per metre at 1:1
 
 
@@ -128,14 +133,15 @@ def calibrate_scale_from_dimensions(page) -> Optional[dict]:
             return None
         candidates.sort()
         med = candidates[len(candidates) // 2]
-        # snap to nearest standard scale within 12 %
-        snapped = min(_STANDARD_SCALES, key=lambda s: abs(s - med))
-        if abs(snapped - med) / snapped > 0.12:
+        # snap to nearest FLOOR-PLAN scale within 10 % (reject detail/odd scales)
+        snapped = min(_PLAN_SCALES, key=lambda s: abs(s - med))
+        if abs(snapped - med) / snapped > 0.10:
             return None
-        # agreement: how many candidates are within 15 % of the snapped scale
-        agree = sum(1 for c in candidates if abs(c - snapped) / snapped <= 0.15)
+        # agreement: how many candidates are within 12 % of the snapped scale
+        agree = sum(1 for c in candidates if abs(c - snapped) / snapped <= 0.12)
         conf = round(agree / len(candidates), 2)
-        if agree < 3 or conf < 0.5:
+        # Only override the safe default when strongly supported.
+        if agree < 4 or conf < 0.6:
             return None
         return {"ratio": int(snapped), "confidence": conf, "samples": len(candidates)}
     except Exception:
