@@ -436,6 +436,28 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
         "block_thickness":   project.get("block_thickness") or "200mm",
     }
 
+    # ── Guard: overall footprint (longest_length/width) over-read ─────────────
+    # longest_length/longest_width are the building's overall bounding box. The
+    # extractor sometimes latches onto the largest dimension line on the sheet —
+    # a plot boundary, a setback/road chain, a scale bar — giving a box several
+    # times the real footprint. That single mis-read then explodes EVERY item
+    # derived from it: excavation = (L+2)(W+2)*depth, backfill, anti-termite
+    # spray, and road-base sub-grade. The bounding box of a real floor of area A
+    # is at worst ~1.4*A (an L-shaped plan); anything larger is a mis-read, so
+    # scale both sides back to ~1.25*A keeping the detected aspect ratio. The
+    # ground-floor area is the reliable anchor. General for every villa.
+    _LL, _LW = base["longest_length"], base["longest_width"]
+    if gf_area > 0 and _LL > 0 and _LW > 0 and (_LL * _LW) > gf_area * 1.4:
+        _sc = (gf_area * 1.25 / (_LL * _LW)) ** 0.5
+        base["longest_length"] = round(_LL * _sc, 2)
+        base["longest_width"]  = round(_LW * _sc, 2)
+        estimates.append(
+            f"Overall footprint looked over-read ({round(_LL)}x{round(_LW)} m = "
+            f"{round(_LL * _LW)} m2 vs a {round(gf_area)} m2 ground floor) - scaled to "
+            f"{base['longest_length']}x{base['longest_width']} m so excavation / backfill "
+            f"aren't inflated; confirm in review."
+        )
+
     # ── Guard: roof-slab area over-read ───────────────────────────────────────
     # A villa roof covers ONE floor's footprint — it is never close to the total
     # built-up area of all floors. If the roof-plan extraction captured the whole
@@ -453,6 +475,37 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
                 f"Roof slab area looked over-read ({round(_rs)} m2 vs a ~{round(_footprint)} m2 "
                 f"footprint) - capped to {_roof_cap} m2; confirm in review."
             )
+        elif base["roof_slab_area"] <= 0:
+            # Roof plan wasn't classified/extracted (roof_slab_area 0) -> roof
+            # waterproofing and roof-slab concrete would come out as ZERO, which
+            # under-quotes a whole trade. The roof covers ~the top-floor footprint,
+            # so fall back to the ground-floor area as a safe estimate.
+            base["roof_slab_area"] = round(_footprint, 2)
+            estimates.append(
+                f"Roof plan not detected - roof area estimated from the "
+                f"{round(_footprint)} m2 footprint; confirm in review."
+            )
+
+    # ── Guard: tie-beam total length under-read ──────────────────────────────
+    # Tie beams run under EVERY external wall (the full perimeter) AND across the
+    # internal column grid. The vector measure only tags beam segments that sit
+    # within ~0.5 m of a printed "TBn" label, so on sparsely-labelled plans it
+    # captures a few fragments and grossly under-reads the run length (and if the
+    # labels aren't vector text it finds nothing and the AI under-reads) — either
+    # way tie-beam concrete/PCC/bitumen come out far too small. A length below
+    # ~1.5x the perimeter is physically impossible for a tie-beam network, so
+    # floor it to a realistic value. The 2.2x factor is calibrated from a
+    # well-labelled reference villa whose measured network was 2.23x its
+    # perimeter (57.8 m perimeter -> 128.6 m of tie beam). General, not per-villa.
+    _ep = base["ext_perimeter"] or 0.0
+    if _ep > 0 and base["tb_total_length"] < _ep * 1.5:
+        _tb_est = round(_ep * 2.2, 2)
+        if _tb_est > base["tb_total_length"]:
+            estimates.append(
+                f"Tie-beam length looked under-read ({round(base['tb_total_length'])} m vs a "
+                f"~{round(_ep)} m perimeter) - raised to {_tb_est} m; confirm in review."
+            )
+            base["tb_total_length"] = _tb_est
 
     if nc_estimated and base["foundations_schedule"]:
         estimates.append("neck columns (typical 0.30×0.40 m section × footing count)")
