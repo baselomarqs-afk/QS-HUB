@@ -436,6 +436,21 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
         "block_thickness":   project.get("block_thickness") or "200mm",
     }
 
+    # ── Guard: roof-slab area over-read ───────────────────────────────────────
+    # A villa roof is bounded by the building footprint. If the roof-plan
+    # extraction captured the whole sheet / site plan, roof_slab_area comes out
+    # several-fold too big and inflates BOTH roof waterproofing (× 1.2) and roof
+    # slab concrete (× thickness). Clamp it to a generous multiple of the
+    # ground-floor area (the reliable anchor), falling back to the plan bbox.
+    _footprint = gf_area or (base["longest_length"] * base["longest_width"]) or 0.0
+    if _footprint > 0 and base["roof_slab_area"] > _footprint * 1.6:
+        _rs = base["roof_slab_area"]
+        base["roof_slab_area"] = round(_footprint, 2)
+        estimates.append(
+            f"Roof slab area looked over-read ({round(_rs)} m2 vs ~{round(_footprint)} m2 "
+            f"footprint) - capped to the footprint; confirm in review."
+        )
+
     if nc_estimated and base["foundations_schedule"]:
         estimates.append("neck columns (typical 0.30×0.40 m section × footing count)")
     if not base["foundations_schedule"]:
@@ -460,7 +475,8 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
             continue
         f = proj_floors.get(fk, {}) or {}
         w = walls.get(fk, {}) or {}
-        area = f.get("area") or (project.get("roof_slab_area") if fk == "roof" else 0.0) or 0.0
+        # Roof uses the already-clamped base value (not the raw project value).
+        area = f.get("area") or (base["roof_slab_area"] if fk == "roof" else 0.0) or 0.0
 
         slab_key  = slab_keys[fk]
         # Check if slab plan extracted an area
@@ -471,6 +487,16 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
                 if sa:
                     area = safe_float(sa)
                     break
+
+        # Clamp any grossly over-read floor/roof slab area to the footprint — the
+        # same site-plan/whole-sheet over-read that hits the roof also hits floor
+        # slabs (inflating slab concrete, rebar, finishes and waterproofing).
+        if _footprint > 0 and area > _footprint * 1.6:
+            estimates.append(
+                f"{fk}: slab area over-read ({round(area)} m2 vs ~{round(_footprint)} m2 "
+                f"footprint) - capped; confirm in review."
+            )
+            area = round(_footprint, 2)
 
         # Suspended slabs (1F/2F/roof): thickness READ FROM THE DRAWING, with a
         # 0.25 m (25 cm) minimum per the QS spec. (Slab-on-grade is 10 cm, handled
