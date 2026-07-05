@@ -17,6 +17,13 @@ Then, list EVERY room/space shown on the plan. For each room:
 - "width_m": Width of the room (meters) if stated.
 - "area_m2": Area of the room if explicitly stated, otherwise estimate from L*W.
 
+CRITICAL - WET ROOMS: You MUST include EVERY wet room, each with its length_m and
+width_m: the KITCHEN, ALL bathrooms/baths (one per bedroom + guest), the W.C /
+toilet, any powder room, the LAUNDRY / WASH room, and the PANTRY. These rooms
+drive the waterproofing and wall-tiling quantities - if you skip any of them the
+wet-area quantities come out wrong. Read each small room's dimension lines; do
+NOT merge or omit small wet rooms.
+
 Return ONLY this JSON (no markdown):
 {
   "overall_length_m": 0.0,
