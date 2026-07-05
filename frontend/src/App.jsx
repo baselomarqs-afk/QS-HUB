@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
+import About from './components/About';
 import Workflow from './components/Workflow';
 import MarketPrices from './components/MarketPrices';
 import PlanComparison from './components/PlanComparison';
@@ -14,7 +15,7 @@ import Projects from './components/Projects';
 import Programme from './components/Programme';
 import CashFlow from './components/CashFlow';
 import {
-  LayoutDashboard, Folder, Play, BarChart2, Eye, LogOut, Globe, Moon, Sun, CreditCard, Shield, Bot, Menu, X, CalendarDays, Wallet
+  LayoutDashboard, Folder, Play, BarChart2, Eye, LogOut, Globe, Moon, Sun, CreditCard, Shield, Bot, Menu, X, CalendarDays, Wallet, Info
 } from 'lucide-react';
 
 export default function App() {
@@ -213,6 +214,30 @@ export default function App() {
             >
               <LayoutDashboard size={18} />
               {isArabic ? 'لوحة التحكم' : 'Dashboard'}
+            </button>
+
+            {/* About / Overview Link */}
+            <button
+              onClick={() => { setPage('about'); setMobileMenuOpen(false); }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                width: '100%',
+                padding: '12px 15px',
+                borderRadius: '8px',
+                border: 'none',
+                background: page === 'about' ? 'var(--primary-glow)' : 'transparent',
+                color: page === 'about' ? 'var(--primary)' : 'var(--text-secondary)',
+                fontWeight: page === 'about' ? 700 : 500,
+                fontSize: '0.92rem',
+                cursor: 'pointer',
+                textAlign: isArabic ? 'right' : 'left',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <Info size={18} />
+              {isArabic ? 'نبذة عن المنصة' : 'About'}
             </button>
 
             {/* Projects Link */}
@@ -543,6 +568,7 @@ export default function App() {
         {page === 'compare' && <PlanComparison token={token} isArabic={isArabic} />}
         {page === 'billing' && <Billing token={token} isArabic={isArabic} user={user} onLogout={handleLogout} paymentSuccess={paymentSuccess} onPaymentSuccessHandled={() => setPaymentSuccess(false)} />}
         {page === 'qs_assistant' && <QsAssistant token={token} isArabic={isArabic} />}
+        {page === 'about' && <About isArabic={isArabic} onNavigate={setPage} />}
         {page === 'admin' && <Admin token={token} isArabic={isArabic} />}
       </main>
 
