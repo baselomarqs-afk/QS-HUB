@@ -437,19 +437,22 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
     }
 
     # ── Guard: roof-slab area over-read ───────────────────────────────────────
-    # A villa roof is bounded by the building footprint. If the roof-plan
-    # extraction captured the whole sheet / site plan, roof_slab_area comes out
-    # several-fold too big and inflates BOTH roof waterproofing (× 1.2) and roof
-    # slab concrete (× thickness). Clamp it to a generous multiple of the
-    # ground-floor area (the reliable anchor), falling back to the plan bbox.
+    # A villa roof covers ONE floor's footprint — it is never close to the total
+    # built-up area of all floors. If the roof-plan extraction captured the whole
+    # sheet / site plan, roof_slab_area comes out several-fold too big and
+    # inflates BOTH roof waterproofing (× 1.2) and roof slab concrete. The ground
+    # floor area is the reliable footprint anchor, so the roof can be at most a
+    # small margin (1.2×) above it. This holds for EVERY villa, not one project.
     _footprint = gf_area or (base["longest_length"] * base["longest_width"]) or 0.0
-    if _footprint > 0 and base["roof_slab_area"] > _footprint * 1.6:
-        _rs = base["roof_slab_area"]
-        base["roof_slab_area"] = round(_footprint, 2)
-        estimates.append(
-            f"Roof slab area looked over-read ({round(_rs)} m2 vs ~{round(_footprint)} m2 "
-            f"footprint) - capped to the footprint; confirm in review."
-        )
+    if _footprint > 0:
+        _roof_cap = round(_footprint * 1.2, 2)
+        if base["roof_slab_area"] > _roof_cap:
+            _rs = base["roof_slab_area"]
+            base["roof_slab_area"] = _roof_cap
+            estimates.append(
+                f"Roof slab area looked over-read ({round(_rs)} m2 vs a ~{round(_footprint)} m2 "
+                f"footprint) - capped to {_roof_cap} m2; confirm in review."
+            )
 
     if nc_estimated and base["foundations_schedule"]:
         estimates.append("neck columns (typical 0.30×0.40 m section × footing count)")
@@ -488,15 +491,17 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
                     area = safe_float(sa)
                     break
 
-        # Clamp any grossly over-read floor/roof slab area to the footprint — the
-        # same site-plan/whole-sheet over-read that hits the roof also hits floor
-        # slabs (inflating slab concrete, rebar, finishes and waterproofing).
-        if _footprint > 0 and area > _footprint * 1.6:
+        # Clamp any over-read floor/roof slab area to the footprint — the same
+        # site-plan/whole-sheet over-read that hits the roof also hits floor slabs
+        # (inflating slab concrete, rebar, floor/ceiling finishes, waterproofing).
+        # A villa's upper floor stays within ~25% of the ground-floor footprint.
+        if _footprint > 0 and area > _footprint * 1.3:
+            _a = area
+            area = round(_footprint * 1.15, 2)
             estimates.append(
-                f"{fk}: slab area over-read ({round(area)} m2 vs ~{round(_footprint)} m2 "
-                f"footprint) - capped; confirm in review."
+                f"{fk}: slab area over-read ({round(_a)} m2 vs a ~{round(_footprint)} m2 "
+                f"footprint) - capped to {area} m2; confirm in review."
             )
-            area = round(_footprint, 2)
 
         # Suspended slabs (1F/2F/roof): thickness READ FROM THE DRAWING, with a
         # 0.25 m (25 cm) minimum per the QS spec. (Slab-on-grade is 10 cm, handled
