@@ -671,7 +671,13 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
         # left untouched, so this only ever REDUCES a gross over-estimate.
         _fa = floors[fk]["floor_area"] or 0.0
         if _fa > 0:
-            _cap = _fa * 0.8            # generous: typical internal walls ≈ 0.3–0.5 × area
+            # Internal partition-wall RUN of a villa floor is empirically ~0.4–0.5
+            # of the floor area; 0.55 is a realistic ceiling. The vector wall
+            # measurement over-reads (double face-lines, gridlines, a floor plan
+            # classified on two pages and summed) and can report 2x the floor area
+            # in metres (e.g. 707 m on a 355 m2 floor). Bound to 0.55x and flag as
+            # ESTIMATED. Layouts already under the ceiling are left untouched.
+            _cap = _fa * 0.55
             _iwl10 = floors[fk]["int_walls_10cm"] or 0.0
             _iwl20 = floors[fk]["int_walls_20cm"] or 0.0
             _split = _iwl10 + _iwl20
@@ -680,9 +686,9 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
                 floors[fk]["int_walls_10cm"] = round(_iwl10 * _s, 2)
                 floors[fk]["int_walls_20cm"] = round(_iwl20 * _s, 2)
                 estimates.append(
-                    f"{fk}: internal wall length looked inflated "
-                    f"({round(_split)} m on a {round(_fa)} m² floor) — capped to "
-                    f"{round(_cap)} m; confirm in review."
+                    f"ESTIMATED - {fk} internal wall length could not be measured "
+                    f"reliably ({round(_split)} m on a {round(_fa)} m2 floor) - bounded "
+                    f"to {round(_cap)} m; please confirm."
                 )
             if (floors[fk]["int_walls_length"] or 0.0) > _cap:
                 floors[fk]["int_walls_length"] = round(_cap, 2)
