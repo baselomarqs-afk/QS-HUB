@@ -556,6 +556,21 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
                 f"footprint) - capped to {area} m2; confirm in review."
             )
 
+        # Lower bound: an upper floor / roof of a villa is never a tiny fraction
+        # of the ground-floor footprint. If the floor-plan area came out far too
+        # small (e.g. the extractor caught one room, or a detail), slab concrete,
+        # rebar and floor/ceiling finishes for that level collapse to almost zero
+        # (the "Slab (1st Floor) = 3.75 m3 while Roof = 106" case). Bound it to the
+        # footprint and flag it clearly as ESTIMATED for the reviewer.
+        if fk != "gf" and _footprint > 0 and 0 <= area < _footprint * 0.35:
+            _a = area
+            area = round(_footprint * 0.95, 2)
+            estimates.append(
+                f"ESTIMATED - {fk} floor/slab area could not be measured reliably "
+                f"({round(_a)} m2 on a ~{round(_footprint)} m2 building) - set to {area} m2; "
+                f"please confirm or correct."
+            )
+
         # Suspended slabs (1F/2F/roof): thickness READ FROM THE DRAWING, with a
         # 0.25 m (25 cm) minimum per the QS spec. (Slab-on-grade is 10 cm, handled
         # separately by _calc_sog.)
@@ -581,7 +596,48 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
                 estimates.append(f"{slab_key} some beam lengths not measured — "
                                  f"fell back to count × typical bay (confirm in review)")
 
+            # Sanity-bound beam lengths: every beam on a floor sits on the column
+            # grid, whose total run is at most ~2.5x the external perimeter. A beam
+            # length far above that is a mis-read — the vector engine can't find
+            # the beam's text mark (so no geometric length) and the AI then reads a
+            # cumulative/near-total figure (e.g. B1 = 369 m on an 83 m-perimeter
+            # villa). Scale the floor's beams back to the grid limit and flag as
+            # ESTIMATED. Clean drawings stay below the limit and are untouched.
+            _grid_cap = ext_perim * 2.5
+            _beam_sum = sum(safe_float(b.get("length_m")) for b in beams)
+            if _grid_cap > 0 and _beam_sum > _grid_cap:
+                _sc = _grid_cap / _beam_sum
+                for b in beams:
+                    b["length_m"] = round(safe_float(b.get("length_m")) * _sc, 2)
+                estimates.append(
+                    f"ESTIMATED - {slab_key} beam lengths could not be measured "
+                    f"geometrically and looked over-read ({round(_beam_sum)} m vs a "
+                    f"~{round(_grid_cap)} m grid limit) - scaled to fit; please confirm."
+                )
+
         area_ratio = area / total_area if fk != "roof" else 0.0
+
+        # Sanity-bound column volume: villa columns sit on the structural grid
+        # (~1 per 12-16 m2) with sections up to ~0.3 m2, so column concrete per
+        # floor is at most ~0.06 m3 per m2 of footprint. A schedule that yields
+        # far more (a mis-read count, an oversized or double-counted section) is
+        # scaled back to the grid limit and flagged as ESTIMATED. Clean schedules
+        # (e.g. 12 cols x 0.6x0.2 = 5.8 m3 on a 368 m2 floor) stay untouched.
+        _cols = _columns_for_floor(project, fk)
+        _fh_col = project.get(heights.get(fk, ""), 0.0) or f.get("height") or 4.0
+        _col_xsec = sum(safe_float(c.get("length_m")) * safe_float(c.get("width_m"))
+                        * safe_float(c.get("count")) for c in _cols)
+        _col_vol = _col_xsec * _fh_col
+        _col_cap = (_footprint or 0.0) * 0.06
+        if _col_cap > 0 and _col_vol > _col_cap and _col_xsec > 0:
+            _sc = _col_cap / _col_vol
+            for c in _cols:
+                c["count"] = round(safe_float(c.get("count")) * _sc, 2)
+            estimates.append(
+                f"ESTIMATED - {fk} columns looked over-read ({round(_col_vol)} m3 vs a "
+                f"~{round(_col_cap)} m3 grid limit for a {round(_footprint)} m2 floor) - "
+                f"scaled to fit; please confirm."
+            )
 
         floors[fk] = {
             "floor_id":         fk,
@@ -600,7 +656,7 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
             "dry_perimeter":    f.get("dry_perimeter") or 0.0,
             "balcony_area":     f.get("balcony_area") or 0.0,
             "beams_schedule":   beams,
-            "columns_schedule": _columns_for_floor(project, fk),
+            "columns_schedule": _cols,
             "windows_deduction": base["total_windows_area"] * area_ratio,
             "doors_deduction_count": base["total_doors_count"] * area_ratio,
         }

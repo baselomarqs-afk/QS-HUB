@@ -62,7 +62,7 @@ def calculate_item(item_key: str, inputs: Dict[str, Any]) -> Optional[float]:
         "dry_ceiling_", "wet_ceiling_", "balcony_wp_", "wet_wp_",
         "beam_concrete_", "beam_rebar_", "beam_formwork_",
         "slab_concrete_", "slab_rebar_", "slab_formwork_",
-        "col_gf_", "col_1st_", "col_2nd_", "col_roof_", "col_rebar_", "col_formwork_",
+        "col_gf_", "col_1st_", "col_2nd_", "col_roof", "col_rebar_", "col_formwork_",
         "staircase_",
     )
     for prefix in _FLOOR_PREFIXES:
@@ -86,7 +86,16 @@ def calculate_item(item_key: str, inputs: Dict[str, Any]) -> Optional[float]:
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _g(inputs, key, default=0.0):
-    return float(inputs.get(key) or default)
+    # Robust numeric read: extraction sometimes puts a non-numeric string (e.g.
+    # "VARIES", "TYP", "-") into a field. float() on that raised and the whole
+    # item returned None -> the UI showed "Err". Fall back to the default instead.
+    v = inputs.get(key)
+    if v is None or v == "":
+        return float(default)
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return float(default)
 
 
 def _lst(inputs, key):
