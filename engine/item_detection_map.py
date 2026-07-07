@@ -315,6 +315,15 @@ DRAWING_ITEMS_MAP = {
                 "inputs_needed": ["roof_perimeter"],
                 "ai_question":   "What is the roof slab perimeter (m)?",
             },
+            {
+                "key":           "staircase_1st",
+                "name_en":       "Staircase Concrete",
+                "name_ar":       "خرسانة السلم",
+                "unit":          "m³",
+                "formula_str":   "volume per level × (levels − 1)",
+                "inputs_needed": ["structural_levels"],
+                "ai_question":   "How many structural floors does the villa have?",
+            },
         ],
     },
 
