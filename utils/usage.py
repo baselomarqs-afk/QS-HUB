@@ -77,13 +77,40 @@ def monthly_usage(user_id: int, event_type: str, feature: str = "qto") -> int:
     return total
 
 
+def lifetime_usage(user_id: int, event_type: str, feature: str = "qto") -> int:
+    """Total count of an event for a feature over the account's whole lifetime
+    (no monthly reset). Used for the one-time free project each new user gets."""
+    df = safe_query(
+        "SELECT quantity, metadata FROM qto_usage_logs WHERE user_id=%s AND event_type=%s",
+        (user_id, event_type),
+    )
+    if df.empty:
+        return 0
+    total = 0
+    for _, row in df.iterrows():
+        try:
+            meta = json.loads(row["metadata"] or "{}")
+            if meta.get("feature", "qto") == feature:
+                total += int(row["quantity"] or 0)
+        except Exception:
+            pass
+    return total
+
+
+# Every new user gets this many free projects PER TOOL, once (lifetime), before
+# they ever subscribe — so they can try each tool on a real project for free.
+FREE_PROJECTS_PER_FEATURE = 1
+
+
 def project_entitlement(user: dict, feature: str = "qto") -> dict:
     """Single source of truth for 'can this user create a project right now?'.
 
     Monthly model: the tier gives `base` projects PER MONTH (resets monthly).
     Add-ons are ONE-TIME credits consumed only when creating beyond the monthly
-    base — they are not a permanent bump. So a user can create when they still
-    have room in the month OR they hold at least one unused add-on credit.
+    base — they are not a permanent bump. On top of that, an unsubscribed user
+    (no paid tier) gets ONE free project per tool for their whole lifetime, so a
+    user can create when they still have monthly room OR hold an unused add-on
+    credit OR still have their free project.
     """
     user_id = int(user.get("id"))
     role = user.get("role")
@@ -97,8 +124,18 @@ def project_entitlement(user: dict, feature: str = "qto") -> dict:
         print(f"Error fetching extra projects: {e}")
         credits = 0
     used = monthly_usage(user_id, EVENT_PROJECT, feature)
-    can_create = is_admin or (used < base) or (credits > 0)
-    return {"base": base, "used": used, "credits": credits, "can_create": can_create, "is_admin": is_admin}
+
+    # One-time free project for users without a paid plan (base == 0).
+    free_base = FREE_PROJECTS_PER_FEATURE if (base == 0 and not is_admin) else 0
+    free_used = lifetime_usage(user_id, EVENT_PROJECT, feature) if free_base else 0
+    free_left = max(free_base - free_used, 0)
+
+    can_create = is_admin or (used < base) or (credits > 0) or (free_left > 0)
+    return {
+        "base": base, "used": used, "credits": credits,
+        "free_base": free_base, "free_left": free_left,
+        "can_create": can_create, "is_admin": is_admin,
+    }
 
 
 def check_limit(user: dict, event_type: str, amount: int = 1, feature: str = "qto") -> tuple[bool, str]:

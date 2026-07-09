@@ -113,8 +113,12 @@ async def get_subscription_details(feature: str = Query("qto"), current_user: di
         pass
 
     is_admin = role == "admin"
-    # Consumable model: create if there's monthly room OR an unused add-on credit.
-    can_create = is_admin or (usage_projects < plan.projects) or (extra_projects > 0)
+    # Single source of truth for entitlement (monthly room OR add-on credit OR
+    # the one-time free project every new user gets before subscribing).
+    from utils.usage import project_entitlement
+    ent = project_entitlement({"id": user_id, "role": role}, feature)
+    free_left = ent.get("free_left", 0)
+    can_create = ent["can_create"]
 
     return {
         "plan_name": plan.name,
@@ -122,7 +126,8 @@ async def get_subscription_details(feature: str = Query("qto"), current_user: di
         "subscription_status": sub.get("status") if sub else "inactive",
         "current_period_end": sub.get("current_period_end") if sub else None,
         "extra_projects": extra_projects,
-        "project_limit": plan.projects + extra_projects,
+        "free_projects": free_left,
+        "project_limit": plan.projects + extra_projects + free_left,
         "can_create": can_create,
         "monthly_base": plan.projects,
         "has_had_trial": has_had_trial,
@@ -139,7 +144,7 @@ async def get_subscription_details(feature: str = Query("qto"), current_user: di
                 "projects_limit": p.projects,
                 "ai_calls": p.ai_calls,
                 "exports": p.exports
-            } for tier, p in PLANS.items() if tier > 0
+            } for tier, p in PLANS.items() if tier > 1   # tier 1 (Starter) retired -> 3 paid tiers
         ]
     }
 
@@ -152,6 +157,9 @@ async def get_checkout_url(
     try:
         # Map tier back to int if it's a digit
         req_tier = int(tier) if tier.isdigit() else tier
+        # Starter (tier 1, 50 AED) has been retired — only 3 paid tiers remain.
+        if req_tier == 1:
+            raise HTTPException(status_code=400, detail="The Starter plan is no longer available. Please choose Professional, Business or Studio.")
         url = create_checkout_session(current_user, req_tier, feature)
         return {"checkout_url": url}
     except HTTPException:

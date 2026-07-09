@@ -63,7 +63,7 @@ export default function About({ isArabic, onNavigate }) {
   ];
 
   const plans = [
-    ['Starter', '1', t('project / month', 'مشروع / شهر')],
+    [t('Free', 'مجاني'), '1', t('1st project / tool', 'مشروع أول / أداة')],
     ['Professional', '3', t('projects / month', 'مشاريع / شهر')],
     ['Business', '8', t('projects / month', 'مشاريع / شهر')],
     ['Studio', '20', t('projects / month', 'مشاريع / شهر')],
@@ -145,8 +145,8 @@ export default function About({ isArabic, onNavigate }) {
       {/* Plans */}
       <h2 style={h2}>{t('Plans', 'الباقات')}</h2>
       <p style={{ ...p, margin: '4px 0 16px', fontSize: '0.9rem' }}>
-        {t('Each tool is sold independently across four monthly tiers, plus a one-time “extra project” add-on. The first subscription includes 2 free projects in the first month — cancellable anytime.',
-           'كل أداة تُباع مستقلة عبر أربع باقات شهرية، بالإضافة لمشروع إضافي لمرة واحدة. أول اشتراك يشمل مشروعين مجاناً في الشهر الأول — قابل للإلغاء في أي وقت.')}
+        {t('Each tool is sold independently across three monthly tiers, plus a one-time “extra project” add-on. Every new user gets their first project free on each tool — no subscription needed to start.',
+           'كل أداة تُباع مستقلة عبر ثلاث باقات شهرية، بالإضافة لمشروع إضافي لمرة واحدة. كل مستخدم جديد بياخد مشروعه الأول مجاناً على كل أداة — من غير اشتراك.')}
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 32 }}>
         {plans.map(([name, n, unit]) => (
