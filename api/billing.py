@@ -41,10 +41,13 @@ async def feature_access(feature: str = Query(...), current_user: dict = Depends
     # the "X / limit" shown on the dashboard always matches when the button flips.
     projects = monthly_usage(user_id, EVENT_PROJECT, feature)
 
-    limit = 999999 if is_admin else (plan.projects + extra_projects)
-    # Consumable model: can create if there's room in the monthly tier quota OR
-    # the user still holds an unused one-time add-on credit.
-    can_create = is_admin or (projects < plan.projects) or (extra_projects > 0)
+    # Single source of truth for entitlement — includes the one-time free project
+    # every new user gets per tool (same as the QTO /subscription endpoint).
+    from utils.usage import project_entitlement
+    ent = project_entitlement({"id": user_id, "role": role}, feature)
+    free_left = ent.get("free_left", 0)
+    limit = 999999 if is_admin else (plan.projects + extra_projects + free_left)
+    can_create = ent["can_create"]
     # Keep access to previously-saved projects even after the monthly quota
     # resets or the subscription lapses (viewing history must not disappear).
     total_saved = count_projects(user_id, feature)
@@ -59,6 +62,7 @@ async def feature_access(feature: str = Query(...), current_user: dict = Depends
         "feature": feature,
         "access": is_admin or can_create or total_saved > 0,
         "credits": extra_projects,
+        "free_projects": free_left,
         "projects": projects,
         "limit": limit,
         "can_create": can_create,
