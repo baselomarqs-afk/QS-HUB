@@ -128,11 +128,31 @@ os.makedirs(cache_dir, exist_ok=True)
 from fastapi import HTTPException as _HTTPException
 from fastapi.responses import FileResponse
 
+# ── Cache-image serving speedup ──
+# A drawing page fires one <img> request per preview, so this route runs in a
+# burst of dozens of hits. The security-hardening pass replaced the old instant
+# StaticFiles mount with per-request DB auth (token check + ownership check),
+# which turned every image into 2 remote-DB round-trips and made previews slow.
+# We keep the exact same security, but:
+#   1. run as a plain `def` (FastAPI runs it in a threadpool, so the blocking DB
+#      calls no longer freeze the whole server's event loop), and
+#   2. cache the token/ownership results in-memory for a few seconds so a burst
+#      of images for the same user/project doesn't re-hit the DB every time.
+# Revocation still takes effect after the short TTL expires.
+import time as _time
+
+_AUTH_TTL = 60           # seconds a verified token is trusted before re-checking
+_OWN_TTL = 300           # seconds an ownership result is cached
+_auth_cache: dict = {}   # token -> (expires_at, user_dict)
+_own_cache: dict = {}     # (user_id, pid) -> expires_at
+
 
 @app.get("/cache/{file_path:path}")
-async def serve_cache(file_path: str, request: Request):
+def serve_cache(file_path: str, request: Request):
     from api.auth import verify_session_token
     from utils.db import safe_query
+
+    now = _time.time()
 
     # Token from ?token= / ?Authorization= (img tags can't set headers) or header.
     token = request.query_params.get("token") or request.query_params.get("Authorization")
@@ -143,7 +163,13 @@ async def serve_cache(file_path: str, request: Request):
         token = token.split(" ", 1)[1]
     if not token:
         raise _HTTPException(status_code=401, detail="Authentication required.")
-    user = verify_session_token(token)  # raises 401 on invalid/expired
+
+    cached = _auth_cache.get(token)
+    if cached and cached[0] > now:
+        user = cached[1]
+    else:
+        user = verify_session_token(token)  # raises 401 on invalid/expired
+        _auth_cache[token] = (now + _AUTH_TTL, user)
 
     # Path-traversal protection.
     rel = os.path.normpath(file_path).replace("\\", "/")
@@ -156,17 +182,24 @@ async def serve_cache(file_path: str, request: Request):
     parts = rel.split("/")
     if len(parts) >= 2 and parts[0].isdigit() and user.get("role") != "admin":
         pid = int(parts[0])
-        owned = safe_query(
-            "SELECT 1 FROM qto_projects WHERE id=%s AND user_id=%s "
-            "UNION SELECT 1 FROM qto_active_projects WHERE project_id=%s AND user_id=%s",
-            (pid, user["id"], pid, user["id"]),
-        )
-        if owned.empty:
-            raise _HTTPException(status_code=403, detail="Access denied.")
+        own_key = (user["id"], pid)
+        own_exp = _own_cache.get(own_key)
+        if not (own_exp and own_exp > now):
+            owned = safe_query(
+                "SELECT 1 FROM qto_projects WHERE id=%s AND user_id=%s "
+                "UNION SELECT 1 FROM qto_active_projects WHERE project_id=%s AND user_id=%s",
+                (pid, user["id"], pid, user["id"]),
+            )
+            if owned.empty:
+                raise _HTTPException(status_code=403, detail="Access denied.")
+            _own_cache[own_key] = now + _OWN_TTL
 
     if not os.path.isfile(full):
         raise _HTTPException(status_code=404, detail="Not found.")
-    return FileResponse(full)
+    # Let the browser reuse the image instead of re-downloading it on every
+    # revisit. Short max-age + ETag revalidation means a re-upload to the same
+    # project (which reuses filenames) still gets picked up quickly.
+    return FileResponse(full, headers={"Cache-Control": "private, max-age=300"})
 
 SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user_settings.json")
 
