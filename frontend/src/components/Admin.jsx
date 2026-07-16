@@ -10,7 +10,8 @@ export default function Admin({ token, isArabic }) {
   const [systemStats, setSystemStats] = useState(null);
   const [rules, setRules] = useState({ pending: [], global: [] });
   const [complaints, setComplaints] = useState([]);
-  
+  const [feedback, setFeedback] = useState({ summary: [], items: [] });
+
   // Chat state
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState([
@@ -56,6 +57,11 @@ export default function Admin({ token, isArabic }) {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) setComplaints(await res.json());
+      } else if (activeTab === 'feedback') {
+        const res = await fetch('/api/admin/feedback', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) setFeedback(await res.json());
       }
     } catch (err) {
       console.error('Admin fetch error:', err);
@@ -179,7 +185,8 @@ export default function Admin({ token, isArabic }) {
           { id: 'system', label: isArabic ? '⚙️ حالة النظام' : '⚙️ System Health' },
           { id: 'chat', label: isArabic ? '🤖 AI Manager' : '🤖 AI Manager' },
           { id: 'rules', label: isArabic ? '🧠 قواعد التعلم' : '🧠 AI Learning' },
-          { id: 'complaints', label: isArabic ? '🚨 شكاوى العملاء' : '🚨 Complaints' }
+          { id: 'complaints', label: isArabic ? '🚨 شكاوى العملاء' : '🚨 Complaints' },
+          { id: 'feedback', label: isArabic ? '⭐ تقييمات الأدوات' : '⭐ Tool Feedback' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -630,6 +637,90 @@ export default function Admin({ token, isArabic }) {
                     ))
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* 7. TOOL FEEDBACK TAB */}
+            {activeTab === 'feedback' && (
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '20px' }}>
+                  ⭐ {isArabic ? 'تقييمات المستخدمين لكل أداة' : 'User Ratings per Tool'}
+                </h3>
+
+                {/* Per-tool summary cards */}
+                {feedback.summary && feedback.summary.length > 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px', marginBottom: '30px' }}>
+                    {feedback.summary.map(s => (
+                      <div key={s.tool_name} style={{
+                        padding: '18px',
+                        background: 'var(--bg-secondary)',
+                        borderRadius: '12px',
+                        border: '1px solid var(--border-color)'
+                      }}>
+                        <div style={{ fontWeight: 800, fontSize: '1rem', marginBottom: '8px', color: 'var(--text-primary)' }}>{s.tool_name}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '1.6rem', fontWeight: 800, color: '#eab308' }}>{Number(s.avg_rating).toFixed(2)}</span>
+                          <span style={{ color: '#eab308', fontSize: '1.1rem' }}>★</span>
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
+                            ({s.total} {isArabic ? 'تقييم' : 'ratings'})
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '12px', fontSize: '0.8rem' }}>
+                          <span style={{ color: 'var(--success)' }}>👍 {s.positive}</span>
+                          <span style={{ color: 'var(--error)' }}>👎 {s.negative}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ padding: '20px', background: 'var(--bg-secondary)', borderRadius: '12px', textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+                    {isArabic ? 'لا توجد تقييمات بعد.' : 'No feedback recorded yet.'}
+                  </div>
+                )}
+
+                {/* Individual feedback list */}
+                {feedback.items && feedback.items.length > 0 && (
+                  <>
+                    <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '15px' }}>
+                      {isArabic ? 'كل التقييمات' : 'All Feedback'}
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {feedback.items.map(f => (
+                        <div key={f.id} style={{
+                          padding: '16px',
+                          background: 'var(--bg-secondary)',
+                          borderRadius: '12px',
+                          border: '1px solid var(--border-color)',
+                          borderLeft: f.rating >= 4 ? '4px solid var(--success)' : '4px solid var(--error)'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ color: '#eab308', fontSize: '1rem', letterSpacing: '2px' }}>
+                                {'★'.repeat(f.rating)}{'☆'.repeat(5 - f.rating)}
+                              </span>
+                              <span style={{
+                                padding: '2px 10px', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 700,
+                                background: 'var(--primary-glow)', color: 'var(--primary)'
+                              }}>{f.tool_name}</span>
+                              <span style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>{f.project_name}</span>
+                            </div>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+                              {f.created_at ? new Date(f.created_at).toLocaleString() : ''}
+                            </span>
+                          </div>
+                          {f.reason && (
+                            <p style={{ margin: '8px 0 0', fontSize: '0.9rem', lineHeight: '1.5', color: 'var(--text-primary)' }}>
+                              {f.reason}
+                            </p>
+                          )}
+                          <div style={{ marginTop: '8px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                            {f.user_email || (isArabic ? 'مستخدم محذوف' : 'deleted user')}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </>

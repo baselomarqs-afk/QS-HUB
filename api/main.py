@@ -31,8 +31,53 @@ from utils.garbage_collection import cache_cleanup_task
 # This allows keeping the custom domain (qshub.online) while using 16GB RAM for processing!
 is_render = os.environ.get("RENDER") == "true" or os.environ.get("RENDER") == "1"
 
+def _ensure_feedback_tables():
+    """Ensure the ratings + complaints tables exist on MySQL.
+
+    These were only defined in the local SQLite bootstrap, so on the production
+    MySQL DB the "Rate Your Experience" insert (and the admin panel that reads
+    it) had no table to hit. This runs only the two idempotent CREATE TABLE IF
+    NOT EXISTS statements — it deliberately does NOT run the full migration
+    suite, because migration 008 drops qto_active_projects and would wipe every
+    user's in-progress project state on each startup.
+    """
+    from utils.db import is_sqlite, safe_execute
+    if is_sqlite():
+        return  # SQLite bootstrap (initialize_sqlite_db) already creates these.
+    safe_execute(
+        """
+        CREATE TABLE IF NOT EXISTS qto_project_feedback (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            tool_name VARCHAR(100) NOT NULL,
+            project_name VARCHAR(255) NOT NULL,
+            rating INT NOT NULL,
+            reason TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    safe_execute(
+        """
+        CREATE TABLE IF NOT EXISTS qto_customer_complaints (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            complaint_text TEXT NOT NULL,
+            status VARCHAR(50) DEFAULT 'open',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Make sure the feedback/complaints tables exist (MySQL prod). Best-effort:
+    # never let a DB hiccup stop the app from booting.
+    try:
+        _ensure_feedback_tables()
+    except Exception as _e:
+        _logging.getLogger("qto").warning("ensure feedback tables failed: %s", _e)
     # Start the garbage collection background task on startup
     task = asyncio.create_task(cache_cleanup_task())
     yield

@@ -216,6 +216,43 @@ async def resolve_complaint(req: ResolveComplaintReq, admin: dict = Depends(veri
     safe_execute("UPDATE qto_customer_complaints SET status='resolved' WHERE id=%s", (req.complaint_id,))
     return {"success": True, "message": "Complaint marked as resolved."}
 
+@router.get("/feedback")
+async def get_feedback(admin: dict = Depends(verify_admin)):
+    # Per-tool summary (count + average rating), so the admin sees how each tool
+    # is rated at a glance, plus the full list of individual ratings/reasons.
+    summary_df = safe_query(
+        """
+        SELECT tool_name,
+               COUNT(*) AS total,
+               AVG(rating) AS avg_rating,
+               SUM(CASE WHEN rating >= 4 THEN 1 ELSE 0 END) AS positive,
+               SUM(CASE WHEN rating <= 3 THEN 1 ELSE 0 END) AS negative
+        FROM qto_project_feedback
+        GROUP BY tool_name
+        ORDER BY total DESC
+        """
+    )
+    items_df = safe_query(
+        """
+        SELECT f.id, f.user_id, u.email AS user_email, f.tool_name, f.project_name,
+               f.rating, f.reason, f.created_at
+        FROM qto_project_feedback f
+        LEFT JOIN qto_users u ON f.user_id = u.id
+        ORDER BY f.id DESC
+        """
+    )
+    summary = summary_df.to_dict("records") if not summary_df.empty else []
+    for s in summary:
+        # Round the average for clean display.
+        try:
+            s["avg_rating"] = round(float(s["avg_rating"]), 2)
+        except (TypeError, ValueError):
+            s["avg_rating"] = 0
+    return {
+        "summary": summary,
+        "items": items_df.to_dict("records") if not items_df.empty else [],
+    }
+
 @router.post("/chat")
 def chat_with_manager(req: AdminChatReq, admin: dict = Depends(verify_admin)):
     # AI Manager chat interface
