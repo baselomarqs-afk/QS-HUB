@@ -19,7 +19,7 @@ const FeedbackModal = ({ isOpen, onClose, toolName, projectName, isArabic, inlin
 
     setSubmitting(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('qto_token');
       const res = await fetch('/api/feedback', {
         method: 'POST',
         headers: {
