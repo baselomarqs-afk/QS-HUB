@@ -289,31 +289,34 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
           </div>
 
           <div className="glass-card" style={{ textAlign: 'center', padding: '25px 15px', border: '2px solid #3b82f6', borderRadius: '12px' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary)' }}>{isArabic ? 'بروفيشنال' : 'PROFESSIONAL'}</span>
-            <h3 style={{ fontSize: '2rem', fontWeight: 800, margin: '5px 0', color: 'var(--text-primary)' }}>120 AED</h3>
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary)' }}>TIER 1</span>
+            <div style={{ textDecoration: 'line-through', opacity: 0.5, fontSize: '0.9rem', marginTop: '5px' }}>120 AED</div>
+            <h3 style={{ fontSize: '2rem', fontWeight: 800, margin: '5px 0', color: 'var(--success)' }}>60 AED</h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '15px' }}>{isArabic ? 'لكل شهر' : 'per month'}</p>
             <hr style={{ border: 'none', height: '1px', backgroundColor: 'var(--border-color)', margin: '15px 0' }} />
             <h4 style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{isArabic ? '3 مشاريع حصر' : '3 Projects'}</h4>
-          </div>
-
-          <div className="glass-card" style={{ position: 'relative', textAlign: 'center', padding: '25px 15px', border: '2px solid var(--success)', borderRadius: '12px' }}>
-            <div style={{
-              position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)',
-              backgroundColor: 'var(--success)', color: 'white', fontSize: '0.8rem', fontWeight: 'bold',
-              padding: '5px 14px', borderRadius: '16px', whiteSpace: 'nowrap', zIndex: 10
-            }}>
-              {isArabic ? 'الأكثر شيوعاً' : 'Most Popular'}
+            <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', fontSize: '0.75rem', fontWeight: 800, padding: '4px 8px', borderRadius: '10px', marginTop: '10px', display: 'inline-block' }}>
+              🔥 {isArabic ? 'خصم 50% لأول شهر' : '50% OFF 1ST MONTH'}
+              <div style={{ fontSize: '0.65rem', marginTop: '2px', opacity: 0.9 }}>{isArabic ? 'كود الخصم: QTO2026' : 'Code: QTO2026'}</div>
             </div>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginTop: '10px' }}>{isArabic ? 'بيزنس' : 'BUSINESS'}</span>
-            <h3 style={{ fontSize: '2rem', fontWeight: 800, margin: '5px 0', color: 'var(--text-primary)' }}>250 AED</h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '15px' }}>{isArabic ? 'لكل شهر' : 'per month'}</p>
-            <hr style={{ border: 'none', height: '1px', backgroundColor: 'var(--border-color)', margin: '15px 0' }} />
-            <h4 style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{isArabic ? '8 مشاريع حصر' : '8 Projects'}</h4>
           </div>
 
           <div className="glass-card" style={{ textAlign: 'center', padding: '25px 15px', border: '2px solid #3b82f6', borderRadius: '12px' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>{isArabic ? 'ستوديو' : 'STUDIO'}</span>
-            <h3 style={{ fontSize: '2rem', fontWeight: 800, margin: '5px 0', color: 'var(--text-primary)' }}>500 AED</h3>
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>TIER 2</span>
+            <div style={{ textDecoration: 'line-through', opacity: 0.5, fontSize: '0.9rem', marginTop: '5px' }}>250 AED</div>
+            <h3 style={{ fontSize: '2rem', fontWeight: 800, margin: '5px 0', color: 'var(--success)' }}>125 AED</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '15px' }}>{isArabic ? 'لكل شهر' : 'per month'}</p>
+            <hr style={{ border: 'none', height: '1px', backgroundColor: 'var(--border-color)', margin: '15px 0' }} />
+            <h4 style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{isArabic ? '8 مشاريع حصر' : '8 Projects'}</h4>
+            <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', fontSize: '0.75rem', fontWeight: 800, padding: '4px 8px', borderRadius: '10px', marginTop: '10px', display: 'inline-block' }}>
+              🔥 {isArabic ? 'خصم 50% لأول شهر' : '50% OFF 1ST MONTH'}
+              <div style={{ fontSize: '0.65rem', marginTop: '2px', opacity: 0.9 }}>{isArabic ? 'كود الخصم: QTO2026' : 'Code: QTO2026'}</div>
+            </div>
+          </div>
+
+          <div className="glass-card" style={{ textAlign: 'center', padding: '25px 15px', border: '2px solid #3b82f6', borderRadius: '12px' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>TIER 3</span>
+            <h3 style={{ fontSize: '2rem', fontWeight: 800, margin: '10px 0 5px' }}>500 AED</h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '15px' }}>{isArabic ? 'لكل شهر' : 'per month'}</p>
             <hr style={{ border: 'none', height: '1px', backgroundColor: 'var(--border-color)', margin: '15px 0' }} />
             <h4 style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{isArabic ? '20 مشروع حصر' : '20 Projects'}</h4>
