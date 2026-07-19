@@ -100,6 +100,11 @@ async def global_exception_handler(request: Request, exc: Exception):
     _logging.getLogger("qto").error("GLOBAL EXCEPTION: %s", err_str)
     return JSONResponse(status_code=200, content={"detail": "Internal Server Error", "traceback": err_str})
 
+@app.get("/test-health")
+def test_health():
+    return {"status": "ok"}
+
+
 
 # Enable CORS for the React frontend.
 # Restrict to explicit origins in production via CORS_ALLOW_ORIGINS (comma-separated).
