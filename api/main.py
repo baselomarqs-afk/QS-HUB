@@ -248,6 +248,39 @@ def test_html():
     print("HTML ENDPOINT HIT!")
     return "<html><body>Hello HF Space!</body></html>"
 
+@app.get("/test1", response_class=HTMLResponse)
+def test1():
+    index_path = os.path.join(_frontend_dist, "index.html")
+    with open(index_path, "r", encoding="utf-8") as f:
+        return f.read().replace("<!doctype html>", "")
+
+@app.get("/test2", response_class=HTMLResponse)
+def test2():
+    index_path = os.path.join(_frontend_dist, "index.html")
+    with open(index_path, "r", encoding="utf-8") as f:
+        return f.read().replace("crossorigin ", 'crossorigin="anonymous" ')
+
+@app.get("/test3", response_class=HTMLResponse)
+def test3():
+    index_path = os.path.join(_frontend_dist, "index.html")
+    with open(index_path, "r", encoding="utf-8") as f:
+        import re
+        return re.sub(r'<script.*?</script>', '', f.read())
+
+@app.get("/test4", response_class=HTMLResponse)
+def test4():
+    index_path = os.path.join(_frontend_dist, "index.html")
+    with open(index_path, "r", encoding="utf-8") as f:
+        import re
+        return re.sub(r'<link.*?>', '', f.read())
+
+@app.get("/test5", response_class=HTMLResponse)
+def test5():
+    index_path = os.path.join(_frontend_dist, "index.html")
+    with open(index_path, "r", encoding="utf-8") as f:
+        import re
+        return re.sub(r'\n', '', f.read())
+
 @app.get("/test-index-html", response_class=HTMLResponse)
 def test_index_html():
     index_path = os.path.join(_frontend_dist, "index.html")
