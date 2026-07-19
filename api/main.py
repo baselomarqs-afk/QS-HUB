@@ -248,6 +248,12 @@ def test_html():
     print("HTML ENDPOINT HIT!")
     return "<html><body>Hello HF Space!</body></html>"
 
+@app.get("/test-index-html", response_class=HTMLResponse)
+def test_index_html():
+    index_path = os.path.join(_frontend_dist, "index.html")
+    with open(index_path, "r", encoding="utf-8") as f:
+        return f.read()
+
 @app.get("/api/health")
 async def health():
     return {
