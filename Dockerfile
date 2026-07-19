@@ -50,4 +50,4 @@ RUN mkdir -p $HOME/app/.qto_cache $HOME/app/.qto_storage && chmod -R 777 $HOME/a
 
 EXPOSE 7860
 
-CMD uvicorn api.main:app --host 0.0.0.0 --port 7860
+CMD uvicorn api.main:app --host 0.0.0.0 --port 7860 --log-level debug
