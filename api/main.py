@@ -11,6 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 import json
+import traceback
+from fastapi.responses import JSONResponse
+from fastapi import Request
 
 import asyncio
 from contextlib import asynccontextmanager
@@ -90,6 +93,13 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    err_str = traceback.format_exc()
+    _logging.getLogger("qto").error("GLOBAL EXCEPTION: %s", err_str)
+    return JSONResponse(status_code=500, content={"detail": "Internal Server Error", "traceback": err_str})
+
 
 # Enable CORS for the React frontend.
 # Restrict to explicit origins in production via CORS_ALLOW_ORIGINS (comma-separated).
