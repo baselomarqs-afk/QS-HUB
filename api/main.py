@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 import json
 import traceback
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi import Request
 
 import asyncio
