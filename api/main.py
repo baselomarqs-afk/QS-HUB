@@ -338,7 +338,46 @@ elif os.path.isdir(_frontend_dist):
             return HTMLResponse(content=html_content)
         return {"detail": "Not Found"}
 
-    app.mount("/", StaticFiles(directory=_frontend_dist, html=False), name="frontend")
+    @app.get("/assets/{file_path:path}")
+    async def serve_assets(file_path: str):
+        full_path = os.path.join(_frontend_dist, "assets", file_path)
+        if os.path.isfile(full_path):
+            from fastapi.responses import Response
+            ext = os.path.splitext(full_path)[1].lower()
+            if ext == ".js": mime_type = "application/javascript"
+            elif ext == ".css": mime_type = "text/css"
+            elif ext == ".png": mime_type = "image/png"
+            elif ext == ".svg": mime_type = "image/svg+xml"
+            elif ext == ".html": mime_type = "text/html"
+            elif ext == ".json": mime_type = "application/json"
+            elif ext == ".ico": mime_type = "image/x-icon"
+            else: mime_type = "application/octet-stream"
+            
+            with open(full_path, "rb") as f:
+                content = f.read()
+            return Response(content=content, media_type=mime_type)
+        return {"detail": "Not Found"}
+
+    @app.get("/{file_name}")
+    async def serve_root_files(file_name: str):
+        # Serve files like vite.svg or favicon.ico in the root of dist
+        full_path = os.path.join(_frontend_dist, file_name)
+        if os.path.isfile(full_path):
+            from fastapi.responses import Response
+            ext = os.path.splitext(full_path)[1].lower()
+            if ext == ".js": mime_type = "application/javascript"
+            elif ext == ".css": mime_type = "text/css"
+            elif ext == ".png": mime_type = "image/png"
+            elif ext == ".svg": mime_type = "image/svg+xml"
+            elif ext == ".html": mime_type = "text/html"
+            elif ext == ".json": mime_type = "application/json"
+            elif ext == ".ico": mime_type = "image/x-icon"
+            else: mime_type = "application/octet-stream"
+            
+            with open(full_path, "rb") as f:
+                content = f.read()
+            return Response(content=content, media_type=mime_type)
+        return {"detail": "Not Found"}
 
 if __name__ == "__main__":
     import uvicorn
