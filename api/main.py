@@ -334,8 +334,20 @@ elif os.path.isdir(_frontend_dist):
     async def serve_static(file_path: str):
         full_path = os.path.join(_frontend_dist, file_path)
         if os.path.isfile(full_path):
-            from fastapi.responses import FileResponse
-            return FileResponse(full_path)
+            from fastapi.responses import Response
+            ext = os.path.splitext(full_path)[1].lower()
+            if ext == ".js": mime_type = "application/javascript"
+            elif ext == ".css": mime_type = "text/css"
+            elif ext == ".png": mime_type = "image/png"
+            elif ext == ".svg": mime_type = "image/svg+xml"
+            elif ext == ".html": mime_type = "text/html"
+            elif ext == ".json": mime_type = "application/json"
+            elif ext == ".ico": mime_type = "image/x-icon"
+            else: mime_type = "application/octet-stream"
+            
+            with open(full_path, "rb") as f:
+                content = f.read()
+            return Response(content=content, media_type=mime_type)
         return {"detail": "Not Found"}
 
 if __name__ == "__main__":
