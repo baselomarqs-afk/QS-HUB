@@ -248,32 +248,6 @@ def test_html():
     print("HTML ENDPOINT HIT!")
     return "<html><body>Hello HF Space!</body></html>"
 
-@app.get("/test1", response_class=HTMLResponse)
-def test1():
-    return '<html><head><script type="module" src="/assets/index-DpDCNWJi.js"></script></head><body></body></html>'
-
-@app.get("/test2", response_class=HTMLResponse)
-def test2():
-    return '<html><head><script type="module" crossorigin src="/assets/index-DpDCNWJi.js"></script></head><body></body></html>'
-
-@app.get("/test3", response_class=HTMLResponse)
-def test3():
-    return '<html><head><script src="/assets/index-DpDCNWJi.js"></script></head><body></body></html>'
-
-@app.get("/test4", response_class=HTMLResponse)
-def test4():
-    return '<html><head><script type="module">console.log("test")</script></head><body></body></html>'
-
-@app.get("/test5", response_class=HTMLResponse)
-def test5():
-    return '<html><head><script crossorigin></script></head><body></body></html>'
-
-@app.get("/test-index-html", response_class=HTMLResponse)
-def test_index_html():
-    index_path = os.path.join(_frontend_dist, "index.html")
-    with open(index_path, "r", encoding="utf-8") as f:
-        return f.read()
-
 @app.get("/api/health")
 async def health():
     return {
