@@ -114,43 +114,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Lightweight in-process rate limiting (per client IP, /api/* only) ──
-# Baseline abuse protection. For multi-instance deploys move this to Redis.
-# Tune with RATE_LIMIT_PER_MIN (default 120 req/min/IP).
-import time as _time
-from collections import defaultdict, deque
-from fastapi import Request
-from fastapi.responses import JSONResponse
-
-_RATE_LIMIT = int(os.environ.get("RATE_LIMIT_PER_MIN", "120"))
-_RATE_WINDOW = 60.0
-_rate_hits = defaultdict(deque)
-
-
-def _client_ip(request: Request) -> str:
-    # Behind Cloudflare/Render the socket peer is the proxy, so the real client
-    # IP is in these headers. Without this, every user shares one rate-limit
-    # bucket (collective throttling) and the limit is effectively useless.
-    fwd = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
-
-
-@app.middleware("http")
-async def _rate_limit(request: Request, call_next):
-    path = request.url.path
-    if path == "/api/health" or not path.startswith("/api/"):
-        return await call_next(request)
-    ip = _client_ip(request)
-    now = _time.time()
-    dq = _rate_hits[ip]
-    while dq and dq[0] < now - _RATE_WINDOW:
-        dq.popleft()
-    if len(dq) >= _RATE_LIMIT:
-        return JSONResponse(status_code=429, content={"detail": "Too many requests. Please slow down."})
-    dq.append(now)
-    return await call_next(request)
 
 
 # Include API Routers
