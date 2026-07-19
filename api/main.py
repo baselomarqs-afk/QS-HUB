@@ -302,7 +302,10 @@ elif os.path.isdir(_frontend_dist):
     async def serve_index():
         index_path = os.path.join(_frontend_dist, "index.html")
         if os.path.exists(index_path):
-            return FileResponse(index_path)
+            with open(index_path, "r", encoding="utf-8") as f:
+                html_content = f.read()
+            from fastapi.responses import HTMLResponse
+            return HTMLResponse(content=html_content)
         return {"detail": "Not Found"}
 
     app.mount("/", StaticFiles(directory=_frontend_dist, html=False), name="frontend")
