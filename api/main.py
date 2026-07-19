@@ -243,6 +243,10 @@ async def save_settings(request: Request, admin: dict = Depends(verify_admin)):
         json.dump(data, f, indent=2)
     return {"status": "success"}
 
+@app.get("/test-html", response_class=HTMLResponse)
+def test_html():
+    return "<html><body>Hello HF Space!</body></html>"
+
 @app.get("/api/health")
 async def health():
     return {
