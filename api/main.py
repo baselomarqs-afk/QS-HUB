@@ -304,6 +304,28 @@ elif os.path.isdir(_frontend_dist):
         if os.path.exists(index_path):
             with open(index_path, "r", encoding="utf-8") as f:
                 html_content = f.read()
+            
+            import re
+            # Extract and remove <script src="..."> and <link rel="stylesheet" href="...">
+            scripts = re.findall(r'<script.*?</script>', html_content)
+            html_content = re.sub(r'<script.*?</script>', '', html_content)
+            
+            links = re.findall(r'<link rel="stylesheet".*?>', html_content)
+            html_content = re.sub(r'<link rel="stylesheet".*?>', '', html_content)
+            
+            loader = "<script>\n"
+            for s in scripts:
+                match = re.search(r'src="([^"]+)"', s)
+                if match:
+                    loader += f'var s = document.createElement("script"); s.type = "module"; s.src = "{match.group(1)}"; document.head.appendChild(s);\n'
+            for l in links:
+                match = re.search(r'href="([^"]+)"', l)
+                if match:
+                    loader += f'var l = document.createElement("link"); l.rel = "stylesheet"; l.href = "{match.group(1)}"; document.head.appendChild(l);\n'
+            loader += "</script>\n"
+            
+            html_content = html_content.replace("</head>", loader + "</head>")
+
             from fastapi.responses import HTMLResponse
             return HTMLResponse(content=html_content)
         return {"detail": "Not Found"}
