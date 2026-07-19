@@ -298,7 +298,14 @@ if is_render:
         </html>
         """)
 elif os.path.isdir(_frontend_dist):
-    app.mount("/", StaticFiles(directory=_frontend_dist, html=True), name="frontend")
+    @app.get("/")
+    async def serve_index():
+        index_path = os.path.join(_frontend_dist, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+        return {"detail": "Not Found"}
+
+    app.mount("/", StaticFiles(directory=_frontend_dist, html=False), name="frontend")
 
 if __name__ == "__main__":
     import uvicorn
