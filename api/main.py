@@ -330,7 +330,13 @@ elif os.path.isdir(_frontend_dist):
             return HTMLResponse(content=html_content)
         return {"detail": "Not Found"}
 
-    app.mount("/", StaticFiles(directory=_frontend_dist, html=False), name="frontend")
+    @app.get("/{file_path:path}")
+    async def serve_static(file_path: str):
+        full_path = os.path.join(_frontend_dist, file_path)
+        if os.path.isfile(full_path):
+            from fastapi.responses import FileResponse
+            return FileResponse(full_path)
+        return {"detail": "Not Found"}
 
 if __name__ == "__main__":
     import uvicorn
