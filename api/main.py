@@ -245,6 +245,7 @@ async def save_settings(request: Request, admin: dict = Depends(verify_admin)):
 
 @app.get("/test-html", response_class=HTMLResponse)
 def test_html():
+    print("HTML ENDPOINT HIT!")
     return "<html><body>Hello HF Space!</body></html>"
 
 @app.get("/api/health")
