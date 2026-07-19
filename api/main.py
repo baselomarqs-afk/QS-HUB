@@ -248,6 +248,14 @@ def test_html():
     print("HTML ENDPOINT HIT!")
     return "<html><body>Hello HF Space!</body></html>"
 
+@app.get("/api/logs")
+async def get_logs():
+    try:
+        with open("app.log", "r") as f:
+            return {"logs": f.readlines()[-50:]}
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.get("/api/health")
 async def health():
     return {
