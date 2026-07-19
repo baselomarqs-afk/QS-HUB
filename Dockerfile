@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN pip install --upgrade pip && pip install -r requirements.txt gunicorn
 
 # Create a non-root user for HuggingFace Spaces compatibility
 RUN useradd -m -u 1000 user
@@ -50,4 +50,4 @@ RUN mkdir -p $HOME/app/.qto_cache $HOME/app/.qto_storage && chmod -R 777 $HOME/a
 
 EXPOSE 7860
 
-CMD uvicorn api.main:app --host 0.0.0.0 --port 7860 --log-level debug
+CMD gunicorn api.main:app --workers 1 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:7860
