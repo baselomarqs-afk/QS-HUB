@@ -1,6 +1,12 @@
 import warnings
 warnings.filterwarnings("ignore", module="streamlit")
 
+import logging
+import traceback
+logging.basicConfig(filename="app.log", level=logging.DEBUG)
+logger = logging.getLogger("uvicorn.error")
+logger.addHandler(logging.FileHandler("app.log"))
+
 # Make the app's own loggers (qto.*) actually emit — without this, all the
 # diagnostic logging added across the codebase would be silently dropped.
 import logging as _logging
