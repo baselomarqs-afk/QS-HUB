@@ -284,113 +284,29 @@ _frontend_dist = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist"
 )
 
-if is_render:
-    from fastapi.responses import HTMLResponse
-    @app.get("/{full_path:path}")
-    async def serve_iframe(full_path: str):
-        return HTMLResponse("""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>THE QS HUB</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-            <style>
-                body, html { 
-                    margin: 0; 
-                    padding: 0; 
-                    width: 100%;
-                    height: 100%; 
-                    height: -webkit-fill-available;
-                    overflow: hidden; 
-                    background: #0f172a; 
-                }
-                iframe { 
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    width: 100%; 
-                    height: 100%; 
-                    border: none; 
-                }
-            </style>
-        </head>
-        <body>
-            <iframe src="https://huggingface.co/spaces/Basel0/qshub"></iframe>
-        </body>
-        </html>
-        """)
-elif os.path.isdir(_frontend_dist):
+if os.path.isdir(_frontend_dist):
     @app.get("/")
     async def serve_index():
         index_path = os.path.join(_frontend_dist, "index.html")
         if os.path.exists(index_path):
-            with open(index_path, "r", encoding="utf-8") as f:
-                html_content = f.read()
-            
-            import re
-            # Extract and remove <script src="..."> and <link rel="stylesheet" href="...">
-            scripts = re.findall(r'<script.*?</script>', html_content)
-            html_content = re.sub(r'<script.*?</script>', '', html_content)
-            
-            links = re.findall(r'<link rel="stylesheet".*?>', html_content)
-            html_content = re.sub(r'<link rel="stylesheet".*?>', '', html_content)
-            
-            loader = "<script>\n"
-            for s in scripts:
-                match = re.search(r'src="([^"]+)"', s)
-                if match:
-                    loader += f'var s = document.createElement("script"); s.type = "module"; s.src = "{match.group(1)}"; document.head.appendChild(s);\n'
-            for l in links:
-                match = re.search(r'href="([^"]+)"', l)
-                if match:
-                    loader += f'var l = document.createElement("link"); l.rel = "stylesheet"; l.href = "{match.group(1)}"; document.head.appendChild(l);\n'
-            loader += "</script>\n"
-            
-            html_content = html_content.replace("</head>", loader + "</head>")
-
-            from fastapi.responses import HTMLResponse
-            return HTMLResponse(content=html_content)
+            return FileResponse(index_path)
         return {"detail": "Not Found"}
 
     @app.get("/assets/{file_path:path}")
     async def serve_assets(file_path: str):
         full_path = os.path.join(_frontend_dist, "assets", file_path)
         if os.path.isfile(full_path):
-            from fastapi.responses import Response
-            ext = os.path.splitext(full_path)[1].lower()
-            if ext == ".js": mime_type = "application/javascript"
-            elif ext == ".css": mime_type = "text/css"
-            elif ext == ".png": mime_type = "image/png"
-            elif ext == ".svg": mime_type = "image/svg+xml"
-            elif ext == ".html": mime_type = "text/html"
-            elif ext == ".json": mime_type = "application/json"
-            elif ext == ".ico": mime_type = "image/x-icon"
-            else: mime_type = "application/octet-stream"
-            
-            with open(full_path, "rb") as f:
-                content = f.read()
-            return Response(content=content, media_type=mime_type)
+            return FileResponse(full_path)
         return {"detail": "Not Found"}
 
     @app.get("/{file_name}")
     async def serve_root_files(file_name: str):
-        # Serve files like vite.svg or favicon.ico in the root of dist
         full_path = os.path.join(_frontend_dist, file_name)
         if os.path.isfile(full_path):
-            from fastapi.responses import Response
-            ext = os.path.splitext(full_path)[1].lower()
-            if ext == ".js": mime_type = "application/javascript"
-            elif ext == ".css": mime_type = "text/css"
-            elif ext == ".png": mime_type = "image/png"
-            elif ext == ".svg": mime_type = "image/svg+xml"
-            elif ext == ".html": mime_type = "text/html"
-            elif ext == ".json": mime_type = "application/json"
-            elif ext == ".ico": mime_type = "image/x-icon"
-            else: mime_type = "application/octet-stream"
-            
-            with open(full_path, "rb") as f:
-                content = f.read()
-            return Response(content=content, media_type=mime_type)
+            return FileResponse(full_path)
+        index_path = os.path.join(_frontend_dist, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
         return {"detail": "Not Found"}
 
 if __name__ == "__main__":
