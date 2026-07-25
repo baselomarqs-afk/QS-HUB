@@ -152,6 +152,8 @@ def initialize_sqlite_db(conn):
         last_login_at TEXT,
         google_id TEXT,
         microsoft_id TEXT,
+        extra_projects_allowance INTEGER DEFAULT 0,
+        name TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -345,15 +347,16 @@ def initialize_sqlite_db(conn):
     count = cur.fetchone()[0]
     if count == 0:
         import bcrypt
-        admin_email = os.environ.get("QTO_ADMIN_EMAIL") or "admin@qto.com"
-        admin_password = os.environ.get("QTO_ADMIN_PASSWORD") or "admin123"
+        admin_emails = ["basel00omar.92@gmail.com", "basel.omar.qs@gmail.com", "admin@qto.com"]
+        admin_password = os.environ.get("QTO_ADMIN_PASSWORD") or "Nodnod1606"
         hashed = bcrypt.hashpw(admin_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-        cur.execute(
-            "INSERT INTO qto_users (email, password_hash, role) VALUES (?, ?, ?)",
-            (admin_email, hashed, "admin")
-        )
+        for em in admin_emails:
+            cur.execute(
+                "INSERT INTO qto_users (email, password_hash, role) VALUES (?, ?, ?)",
+                (em, hashed, "admin")
+            )
         conn.commit()
-        print(f"Local SQLite database seeded with admin user: {admin_email} / {admin_password}")
+        print("Local SQLite database seeded with admin users.")
         
         # Seed default prices
         try:
