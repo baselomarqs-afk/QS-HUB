@@ -63,8 +63,7 @@ class DbSettings:
             "user": self.user,
             "password": self.password,
             "database": self.database,
-            "ssl_verify_cert": True,
-            "ssl_verify_identity": True,
+            "ssl": {"ssl_mode": "REQUIRED"},
             "cursorclass": pymysql.cursors.DictCursor,
         }
 
