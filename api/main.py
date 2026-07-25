@@ -71,6 +71,20 @@ def _ensure_feedback_tables():
         )
         """
     )
+    safe_execute(
+        """
+        CREATE TABLE IF NOT EXISTS qto_active_projects (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            project_id INT NOT NULL,
+            current_step INT DEFAULT 1,
+            state_data JSON,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_user_project (user_id, project_id)
+        )
+        """
+    )
 
 
 @asynccontextmanager
