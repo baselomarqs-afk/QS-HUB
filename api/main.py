@@ -315,7 +315,7 @@ if is_render:
             </style>
         </head>
         <body>
-            <iframe src="https://basel0-qshub.hf.space/?embed=true"></iframe>
+            <iframe src="https://huggingface.co/spaces/Basel0/qshub"></iframe>
         </body>
         </html>
         """)
