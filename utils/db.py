@@ -419,7 +419,12 @@ def get_connection():
     if use_sqlite:
         import sqlite3
         db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "qto_local.db")
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect(db_path, timeout=60.0, check_same_thread=False)
+        try:
+            conn.execute("PRAGMA journal_mode=WAL;")
+            conn.execute("PRAGMA synchronous=NORMAL;")
+        except Exception:
+            pass
         if not _SQLITE_INITIALIZED:
             initialize_sqlite_db(conn)
             _SQLITE_INITIALIZED = True
