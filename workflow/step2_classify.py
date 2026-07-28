@@ -41,13 +41,13 @@ def _ai_classify(page_arr, pdf_type: str):
             "Reply ONLY with valid JSON: {\"type\": \"<chosen_type>\"}"
         )
 
-        for attempt in range(5):
+        for attempt in range(2):
             api_key, current_model = mgr.get_key_and_model()
             if not api_key or api_key == "NO_API_KEY_FOUND":
                 return None
 
             try:
-                client = genai.Client(api_key=api_key, http_options={'timeout': 60})
+                client = genai.Client(api_key=api_key, http_options={'timeout': 10})
                 resp = client.models.generate_content(
                     model=current_model,
                     contents=[types.Part.from_bytes(data=img, mime_type="image/png"), prompt])
@@ -59,7 +59,7 @@ def _ai_classify(page_arr, pdf_type: str):
                 if any(code in last_err for code in ("429", "RESOURCE_EXHAUSTED", "quota")):
                     mgr.mark_rate_limited(api_key, current_model)
                     continue
-                time.sleep(2)
+                time.sleep(1)
 
         return None
     except Exception:
@@ -79,6 +79,6 @@ def _classify_single(text: str, pdf_type: str) -> dict:
     score = scores[best]
     return {
         "detected_type": best if score > 0 else "unknown",
-        "confidence": "high" if score >= 2 else "medium" if score == 1 else "low",
+        "confidence": "high" if score >= 1 else "low",
         "items": PAGE_ITEMS_MAP.get(best, {}).get("extract_items", []) if score > 0 else [],
     }
