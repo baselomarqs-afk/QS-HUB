@@ -82,46 +82,71 @@ async def auto_classify(req: RunExtractionReq, current_user: dict = Depends(get_
 
 @router.post("/classify/save")
 async def save_classification(req: SaveClassificationReq, current_user: dict = Depends(get_current_user)):
-    df_state = safe_query("SELECT state_data FROM qto_active_projects WHERE user_id=%s AND project_id=%s", (current_user["id"], req.project_id))
-    
-    state_data = {}
-    if not df_state.empty and df_state.iloc[0]["state_data"]:
-        try:
-            state_data = json.loads(df_state.iloc[0]["state_data"])
-        except Exception:
-            state_data = {}
-            
-    state_data["classified_pages"] = req.classified_pages
-    state_data["current_step"] = 3
-    
-    state_json = json.dumps(state_data, ensure_ascii=False, default=str)
-    
-    df_exists = safe_query("SELECT id FROM qto_active_projects WHERE user_id=%s AND project_id=%s", (current_user["id"], req.project_id))
-    if df_exists.empty:
-        success, msg = safe_execute(
-            "INSERT INTO qto_active_projects (user_id, project_id, current_step, state_data) VALUES (%s, %s, 3, %s)",
-            (current_user["id"], req.project_id, state_json)
-        )
-    else:
-        success, msg = safe_execute(
-            "UPDATE qto_active_projects SET current_step=3, state_data=%s WHERE user_id=%s AND project_id=%s",
-            (state_json, current_user["id"], req.project_id)
-        )
-
-    if not success:
-        raise HTTPException(status_code=500, detail=f"Failed to update database: {msg}")
-
-    # Learning loop (API path): capture the user-confirmed page classifications so
-    # the AI improves over time. Approved rules are injected back into extraction
-    # via engine.qto_memory.format_rules_for_prompt (already wired in step3_extract).
     try:
-        from engine.qto_memory import record_mapping
+        df_state = safe_query("SELECT state_data FROM qto_active_projects WHERE user_id=%s AND project_id=%s", (current_user["id"], req.project_id))
+        
+        state_data = {}
+        if not df_state.empty and df_state.iloc[0]["state_data"]:
+            try:
+                state_data = json.loads(df_state.iloc[0]["state_data"])
+            except Exception:
+                state_data = {}
+        
+        # Keep only essential fields from classified_pages to minimize payload size
+        clean_pages = []
         for p in (req.classified_pages or []):
-            dtype = (p.get("detected_type") or "").strip()
-            text = (p.get("text_preview") or "").strip()
-            if dtype and dtype != "unknown" and len(text) > 8:
-                record_mapping(current_user["id"], text[:120], dtype)
-    except Exception as e:
-        print(f"qto_memory record error: {e}")
+            clean_pages.append({
+                "pdf": (p.get("pdf") or "structural"),
+                "page_index": p.get("page_index", 0),
+                "page_num": p.get("page_num", 1),
+                "detected_type": (p.get("detected_type") or "unknown"),
+                "confidence": (p.get("confidence") or "low"),
+                "items": p.get("items", []),
+            })
+        
+        state_data["classified_pages"] = clean_pages
+        state_data["current_step"] = 3
+        
+        # Truncate heavy text arrays that bloat state_data beyond DB limits
+        for key in ("str_texts", "arch_texts"):
+            if key in state_data and isinstance(state_data[key], list):
+                state_data[key] = [(t[:500] if isinstance(t, str) else t) for t in state_data[key]]
+        
+        state_json = json.dumps(state_data, ensure_ascii=False, default=str)
+        
+        # Log payload size for debugging
+        print(f"[classify/save] state_json size: {len(state_json)} bytes for project {req.project_id}")
+        
+        df_exists = safe_query("SELECT id FROM qto_active_projects WHERE user_id=%s AND project_id=%s", (current_user["id"], req.project_id))
+        if df_exists.empty:
+            success, msg = safe_execute(
+                "INSERT INTO qto_active_projects (user_id, project_id, current_step, state_data) VALUES (%s, %s, 3, %s)",
+                (current_user["id"], req.project_id, state_json)
+            )
+        else:
+            success, msg = safe_execute(
+                "UPDATE qto_active_projects SET current_step=3, state_data=%s WHERE user_id=%s AND project_id=%s",
+                (state_json, current_user["id"], req.project_id)
+            )
 
-    return {"message": "Classifications saved successfully."}
+        if not success:
+            print(f"[classify/save] DB ERROR: {msg}")
+            raise HTTPException(status_code=500, detail=f"DB error: {msg}")
+
+        # Learning loop
+        try:
+            from engine.qto_memory import record_mapping
+            for p in clean_pages:
+                dtype = (p.get("detected_type") or "").strip()
+                if dtype and dtype != "unknown":
+                    record_mapping(current_user["id"], dtype[:120], dtype)
+        except Exception as e:
+            print(f"qto_memory record error: {e}")
+
+        return {"message": "Classifications saved successfully."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[classify/save] UNHANDLED ERROR: {e}")
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")

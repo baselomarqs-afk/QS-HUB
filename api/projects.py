@@ -124,27 +124,16 @@ async def save_project_route(req: SaveProjectReq, current_user: dict = Depends(g
     # Update active project state table as well
     import json
     state_json = json.dumps(state_to_save, ensure_ascii=False, default=str)
-    from utils.db import is_sqlite
-    if is_sqlite():
+    df_ap = safe_query("SELECT id FROM qto_active_projects WHERE user_id=%s AND project_id=%s", (current_user["id"], pid))
+    if df_ap.empty:
         safe_execute(
-            """
-            INSERT INTO qto_active_projects (user_id, project_id, current_step, state_data)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT(user_id, project_id) DO UPDATE SET 
-                current_step=excluded.current_step, 
-                state_data=excluded.state_data, 
-                updated_at=datetime('now', 'localtime')
-            """,
+            "INSERT INTO qto_active_projects (user_id, project_id, current_step, state_data) VALUES (%s, %s, %s, %s)",
             (current_user["id"], pid, req.current_step, state_json)
         )
     else:
         safe_execute(
-            """
-            INSERT INTO qto_active_projects (user_id, project_id, current_step, state_data)
-            VALUES (%s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE current_step=%s, state_data=%s, updated_at=CURRENT_TIMESTAMP
-            """,
-            (current_user["id"], pid, req.current_step, state_json, req.current_step, state_json)
+            "UPDATE qto_active_projects SET current_step=%s, state_data=%s WHERE user_id=%s AND project_id=%s",
+            (req.current_step, state_json, current_user["id"], pid)
         )
         
     if is_new_project:
