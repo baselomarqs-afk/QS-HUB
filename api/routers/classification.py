@@ -69,11 +69,8 @@ async def auto_classify(req: RunExtractionReq, current_user: dict = Depends(get_
     state_data["classified_pages"] = classified
     state_data["current_step"] = 2
     
-    state_json = json.dumps(state_data, ensure_ascii=False, default=str)
-    safe_execute(
-        "UPDATE qto_active_projects SET current_step=2, state_data=%s WHERE user_id=%s AND project_id=%s",
-        (state_json, current_user["id"], req.project_id)
-    )
+    from utils.db import upsert_active_state
+    upsert_active_state(current_user["id"], req.project_id, 2, state_data)
     
     return {
         "classified_pages": classified,
@@ -92,42 +89,11 @@ async def save_classification(req: SaveClassificationReq, current_user: dict = D
             except Exception:
                 state_data = {}
         
-        # Keep only essential fields from classified_pages to minimize payload size
-        clean_pages = []
-        for p in (req.classified_pages or []):
-            clean_pages.append({
-                "pdf": (p.get("pdf") or "structural"),
-                "page_index": p.get("page_index", 0),
-                "page_num": p.get("page_num", 1),
-                "detected_type": (p.get("detected_type") or "unknown"),
-                "confidence": (p.get("confidence") or "low"),
-                "items": p.get("items", []),
-            })
-        
-        state_data["classified_pages"] = clean_pages
+        state_data["classified_pages"] = req.classified_pages
         state_data["current_step"] = 3
         
-        # Truncate heavy text arrays that bloat state_data beyond DB limits
-        for key in ("str_texts", "arch_texts"):
-            if key in state_data and isinstance(state_data[key], list):
-                state_data[key] = [(t[:500] if isinstance(t, str) else t) for t in state_data[key]]
-        
-        state_json = json.dumps(state_data, ensure_ascii=False, default=str)
-        
-        # Log payload size for debugging
-        print(f"[classify/save] state_json size: {len(state_json)} bytes for project {req.project_id}")
-        
-        df_exists = safe_query("SELECT id FROM qto_active_projects WHERE user_id=%s AND project_id=%s", (current_user["id"], req.project_id))
-        if df_exists.empty:
-            success, msg = safe_execute(
-                "INSERT INTO qto_active_projects (user_id, project_id, current_step, state_data) VALUES (%s, %s, 3, %s)",
-                (current_user["id"], req.project_id, state_json)
-            )
-        else:
-            success, msg = safe_execute(
-                "UPDATE qto_active_projects SET current_step=3, state_data=%s WHERE user_id=%s AND project_id=%s",
-                (state_json, current_user["id"], req.project_id)
-            )
+        from utils.db import upsert_active_state
+        success, msg = upsert_active_state(current_user["id"], req.project_id, 3, state_data)
 
         if not success:
             print(f"[classify/save] DB ERROR: {msg}")
@@ -136,7 +102,7 @@ async def save_classification(req: SaveClassificationReq, current_user: dict = D
         # Learning loop
         try:
             from engine.qto_memory import record_mapping
-            for p in clean_pages:
+            for p in (req.classified_pages or []):
                 dtype = (p.get("detected_type") or "").strip()
                 if dtype and dtype != "unknown":
                     record_mapping(current_user["id"], dtype[:120], dtype)

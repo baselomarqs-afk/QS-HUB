@@ -122,19 +122,8 @@ async def save_project_route(req: SaveProjectReq, current_user: dict = Depends(g
         raise HTTPException(status_code=500, detail="Failed to save project.")
     
     # Update active project state table as well
-    import json
-    state_json = json.dumps(state_to_save, ensure_ascii=False, default=str)
-    df_ap = safe_query("SELECT id FROM qto_active_projects WHERE user_id=%s AND project_id=%s", (current_user["id"], pid))
-    if df_ap.empty:
-        safe_execute(
-            "INSERT INTO qto_active_projects (user_id, project_id, current_step, state_data) VALUES (%s, %s, %s, %s)",
-            (current_user["id"], pid, req.current_step, state_json)
-        )
-    else:
-        safe_execute(
-            "UPDATE qto_active_projects SET current_step=%s, state_data=%s WHERE user_id=%s AND project_id=%s",
-            (req.current_step, state_json, current_user["id"], pid)
-        )
+    from utils.db import upsert_active_state
+    upsert_active_state(current_user["id"], pid, req.current_step, state_to_save)
         
     if is_new_project:
         from utils.usage import settle_project_creation

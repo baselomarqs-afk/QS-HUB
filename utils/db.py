@@ -529,3 +529,90 @@ def transaction():
                 cur.close()
             except Exception:
                 pass
+
+
+# ---------------------------------------------------------------------------
+# Centralised active-project state writer
+# ---------------------------------------------------------------------------
+# Every endpoint that touches qto_active_projects.state_data MUST go through
+# this helper so that:
+#   1. state_json is always truncated to fit DB limits
+#   2. INSERT vs UPDATE is handled universally (no dialect SQL)
+#   3. Errors are logged with full context
+# ---------------------------------------------------------------------------
+
+_MAX_STATE_BYTES = 15 * 1024 * 1024  # 15 MB hard cap (TiDB JSON limit ~16 MB)
+
+
+def _trim_state(state_data: dict) -> dict:
+    """Aggressively trim heavy fields so state_json fits in the DB column."""
+    import copy
+    sd = copy.copy(state_data)  # shallow copy — mutate top-level keys only
+
+    # Truncate per-page text arrays (only needed for classification, not extraction)
+    for key in ("str_texts", "arch_texts"):
+        if key in sd and isinstance(sd[key], list):
+            sd[key] = [(t[:300] if isinstance(t, str) else t) for t in sd[key]]
+
+    # Strip heavy fields from classified_pages
+    if "classified_pages" in sd and isinstance(sd["classified_pages"], list):
+        clean = []
+        for p in sd["classified_pages"]:
+            clean.append({
+                "pdf": p.get("pdf", "structural"),
+                "page_index": p.get("page_index", 0),
+                "page_num": p.get("page_num", 1),
+                "detected_type": p.get("detected_type", "unknown"),
+                "confidence": p.get("confidence", "low"),
+                "items": p.get("items", []),
+            })
+        sd["classified_pages"] = clean
+
+    return sd
+
+
+def upsert_active_state(user_id: int, project_id: int, step: int,
+                         state_data: dict) -> tuple:
+    """
+    Single entry-point for writing to qto_active_projects.
+
+    Returns (True, "OK") on success, (False, error_msg) on failure.
+    """
+    import json as _json
+
+    trimmed = _trim_state(state_data)
+    state_json = _json.dumps(trimmed, ensure_ascii=False, default=str)
+
+    # Safety: if still too large, drop the heaviest key progressively
+    for drop_key in ("str_texts", "arch_texts", "classified_pages",
+                     "extraction_results", "confirmed_auto_data"):
+        if len(state_json.encode("utf-8")) <= _MAX_STATE_BYTES:
+            break
+        if drop_key in trimmed:
+            logger.warning("upsert_active_state: dropping '%s' (state too large)", drop_key)
+            trimmed[drop_key] = [] if isinstance(trimmed.get(drop_key), list) else {}
+            state_json = _json.dumps(trimmed, ensure_ascii=False, default=str)
+
+    byte_size = len(state_json.encode("utf-8"))
+    logger.info("upsert_active_state: project=%s step=%s size=%d bytes", project_id, step, byte_size)
+
+    try:
+        df = safe_query(
+            "SELECT id FROM qto_active_projects WHERE user_id=%s AND project_id=%s",
+            (user_id, project_id),
+        )
+        if df.empty:
+            return safe_execute(
+                "INSERT INTO qto_active_projects (user_id, project_id, current_step, state_data) "
+                "VALUES (%s, %s, %s, %s)",
+                (user_id, project_id, step, state_json),
+            )
+        else:
+            return safe_execute(
+                "UPDATE qto_active_projects SET current_step=%s, state_data=%s "
+                "WHERE user_id=%s AND project_id=%s",
+                (step, state_json, user_id, project_id),
+            )
+    except Exception as e:
+        logger.error("upsert_active_state FAILED: %s", e)
+        return False, str(e)

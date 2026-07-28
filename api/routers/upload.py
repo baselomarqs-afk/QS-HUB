@@ -145,18 +145,8 @@ async def upload_drawings(
         state_data["arch_boundaries"] = arch_boundaries
 
     # Save initial state back to database
-    state_json = json.dumps(state_data, ensure_ascii=False, default=str)
-    df_exists = safe_query("SELECT id FROM qto_active_projects WHERE user_id=%s AND project_id=%s", (current_user["id"], project_id))
-    if df_exists.empty:
-        safe_execute(
-            "INSERT INTO qto_active_projects (user_id, project_id, current_step, state_data) VALUES (%s, %s, 1, %s)",
-            (current_user["id"], project_id, state_json)
-        )
-    else:
-        safe_execute(
-            "UPDATE qto_active_projects SET current_step=1, state_data=%s WHERE user_id=%s AND project_id=%s",
-            (state_json, current_user["id"], project_id)
-        )
+    from utils.db import upsert_active_state
+    upsert_active_state(current_user["id"], project_id, 1, state_data)
     
     return {
         "project_id": project_id,
