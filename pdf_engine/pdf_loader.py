@@ -36,10 +36,9 @@ def load_pdf_pages(pdf_bytes: bytes, dpi: int = 150) -> List[np.ndarray]:
 
 def fast_save_pdf_pages(pdf_bytes: bytes, project_id: int, prefix: str, start_idx: int) -> int:
     """
-    High-speed PDF image extractor with optimized compression.
-    Renders pages at smart DPI, caps at 1600px max dimension, and saves as
-    JPEG quality=95 — reducing file size from ~6MB (PNG) to ~250KB (JPEG)
-    while retaining full readability for AI extraction.
+    High-speed PDF image extractor using pure C++ PyMuPDF rendering.
+    Bypasses PIL/Numpy entirely to avoid memory leaks and strided byte exceptions.
+    Renders directly to compressed JPEG (quality=95, max 1600px).
     Returns the number of pages processed.
     """
     from utils.storage import save_raw_image_to_cache
@@ -49,29 +48,22 @@ def fast_save_pdf_pages(pdf_bytes: bytes, project_id: int, prefix: str, start_id
 
     for page_num in range(page_count):
         page = doc[page_num]
+        rect = page.rect
+        w, h = rect.width, rect.height
 
-        # Smart DPI: render at 100 DPI for decent quality, then cap at 1600px
-        dpi = 100
-        scale = dpi / 72.0
+        # Calculate C++ rendering scale matrix to cap max dimension at 1600px (~100-150 DPI)
+        max_dim = max(w, h)
+        if max_dim > 0:
+            scale = min(1600.0 / max_dim, 150.0 / 72.0)
+        else:
+            scale = 1.0
+
         mat = fitz.Matrix(scale, scale)
         pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB, alpha=False)
 
-        # Cap longest dimension at 1600px to keep files tiny
-        w, h = pix.width, pix.height
-        if max(w, h) > 1600:
-            ratio = 1600 / max(w, h)
-            new_w = int(w * ratio)
-            new_h = int(h * ratio)
-            # Use PIL for high-quality downscale (LANCZOS)
-            pil_img = Image.frombytes("RGB", (w, h), pix.samples)
-            pil_img = pil_img.resize((new_w, new_h), Image.LANCZOS)
-        else:
-            pil_img = Image.frombytes("RGB", (w, h), pix.samples)
-
-        # Save as JPEG quality=95 (lossless-like, ~250KB vs ~6MB PNG)
-        buf = io.BytesIO()
-        pil_img.save(buf, format="JPEG", quality=95, optimize=True)
-        jpg_bytes = buf.getvalue()
+        # High-speed native C++ JPEG encoder
+        jpg_bytes = pix.tobytes("jpg", jpg_quality=95)
+        pix = None  # Free PyMuPDF C memory immediately
 
         global_idx = start_idx + page_num
         filename = f"{prefix}_page_{global_idx}.jpg"
