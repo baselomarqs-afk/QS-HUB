@@ -50,4 +50,4 @@ RUN mkdir -p $HOME/app/.qto_cache $HOME/app/.qto_storage && chmod -R 777 $HOME/a
 
 EXPOSE 7860
 
-CMD gunicorn api.main:app --workers 1 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:7860
+CMD gunicorn api.main:app --workers 1 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:7860 --timeout 600
