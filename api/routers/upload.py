@@ -82,10 +82,11 @@ async def upload_drawings(
         # blocked by a fixed number. Reading one byte past the cap is enough.
         from utils.plans import get_plan_for_user
         plan = get_plan_for_user(current_user["id"], current_user.get("role"))
-        cap = min(plan.max_file_mb * 1024 * 1024, MAX_UPLOAD_BYTES)
+        max_mb = plan.max_file_mb if (plan and plan.max_file_mb > 0) else 100
+        cap = min(max_mb * 1024 * 1024, MAX_UPLOAD_BYTES)
         content = file_obj.file.read(cap + 1)
         if len(content) > cap:
-            raise HTTPException(status_code=413, detail=f"File too large. Your plan allows up to {plan.max_file_mb} MB per file.")
+            raise HTTPException(status_code=413, detail=f"File too large. Your plan allows up to {max_mb} MB per file.")
         
         # Save to permanent storage (best-effort)
         try:
@@ -93,12 +94,18 @@ async def upload_drawings(
         except Exception as ex:
             print(f"save_file warning: {ex}")
         
-        # Load texts for classification
-        texts = extract_page_text(content)
-        
-        # 1. Fast Native Image Extraction to Disk (Bypasses slow Numpy/PIL pipeline entirely)
-        from pdf_engine.pdf_loader import fast_save_pdf_pages
-        page_count = fast_save_pdf_pages(content, project_id, prefix, start_idx)
+        try:
+            # Load texts for classification
+            texts = extract_page_text(content)
+            
+            # Fast Native Image Extraction to Disk (Bypasses slow Numpy/PIL pipeline entirely)
+            from pdf_engine.pdf_loader import fast_save_pdf_pages
+            page_count = fast_save_pdf_pages(content, project_id, prefix, start_idx)
+        except HTTPException:
+            raise
+        except Exception as pdf_err:
+            print(f"[upload] PDF Processing error for {file_obj.filename}: {pdf_err}")
+            raise HTTPException(status_code=400, detail=f"Error reading PDF file ({file_obj.filename}): {str(pdf_err)}")
         
         # Save the original PDF locally in cache for vector measurement
         pdf_cache_path = os.path.join(project_cache, f"{prefix}_{start_idx}.pdf")

@@ -39,7 +39,7 @@ class PlanLimits:
 
 
 PLANS: dict[int, PlanLimits] = {
-    0: PlanLimits(0, "Inactive", 0, 0, 0, 0, 0),
+    0: PlanLimits(0, "Inactive", 0, 0, 0, 0, 50),
     1: PlanLimits(1, "Starter", 50, 1, 40, 5, 25),
     2: PlanLimits(2, "Professional", 120, 3, 150, 20, 50),
     3: PlanLimits(3, "Business", 250, 8, 600, 80, 100),
