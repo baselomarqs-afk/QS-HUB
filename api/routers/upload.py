@@ -130,14 +130,16 @@ async def upload_drawings(
         arch_fnames.append(af.filename)
         arch_boundaries.append({"start": start, "end": arch_count - 1, "pdf_path": f"arch_{start}.pdf"})
         
-    state_data["str_fnames"] = str_fnames
-    state_data["str_page_count"] = str_count
-    state_data["str_texts"] = str_texts
-    state_data["str_boundaries"] = str_boundaries
-    state_data["arch_fnames"] = arch_fnames
-    state_data["arch_page_count"] = arch_count
-    state_data["arch_texts"] = arch_texts
-    state_data["arch_boundaries"] = arch_boundaries
+    if str_files:
+        state_data["str_fnames"] = str_fnames
+        state_data["str_page_count"] = str_count
+        state_data["str_texts"] = str_texts
+        state_data["str_boundaries"] = str_boundaries
+    if arch_files:
+        state_data["arch_fnames"] = arch_fnames
+        state_data["arch_page_count"] = arch_count
+        state_data["arch_texts"] = arch_texts
+        state_data["arch_boundaries"] = arch_boundaries
 
     # Save initial state back to database
     state_json = json.dumps(state_data, ensure_ascii=False, default=str)
@@ -166,9 +168,9 @@ async def upload_drawings(
     
     return {
         "project_id": project_id,
-        "str_fnames": str_fnames,
-        "str_page_count": str_count,
-        "arch_fnames": arch_fnames,
-        "arch_page_count": arch_count,
+        "str_fnames": state_data.get("str_fnames", []),
+        "str_page_count": state_data.get("str_page_count", 0),
+        "arch_fnames": state_data.get("arch_fnames", []),
+        "arch_page_count": state_data.get("arch_page_count", 0),
         "next_step": 2
     }
