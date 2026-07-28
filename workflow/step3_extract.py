@@ -499,10 +499,14 @@ async def _ask_ai_with_retry(img_bytes: bytes, full_prompt: str, mgr, force_reex
 def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_id: int = None, previous_warnings: list = None, image_path: str = None, pdf_path: str = None, internal_page_idx: int = None, force_reextract: bool = False) -> dict:
     csv_injection = ""
     if pdf_path and internal_page_idx is not None:
-        from pdf_engine.table_extractor import extract_tables_as_csv
-        raw_csv = extract_tables_as_csv(pdf_path, internal_page_idx)
-        if raw_csv:
-            csv_injection = f"\n\n[DETERMINISTIC PDF EXTRACTION OVERRIDE]\nThe following is the raw CSV data of the tables extracted perfectly from the PDF using OCR. Rely on this text heavily for counts and dimensions, and use the image only as a visual reference:\n```csv\n{raw_csv}\n```\n"
+        # Prevent catastrophic O(N^3) CPU hangs in pdfplumber by ONLY running table extraction on schedule pages.
+        # Dense floor plans or CAD elevations will cause pdfplumber to freeze indefinitely trying to intersect thousands of lines.
+        is_schedule = any(k in drawing_type.lower() for k in ["schedule", "table", "details"])
+        if is_schedule:
+            from pdf_engine.table_extractor import extract_tables_as_csv
+            raw_csv = extract_tables_as_csv(pdf_path, internal_page_idx)
+            if raw_csv:
+                csv_injection = f"\n\n[DETERMINISTIC PDF EXTRACTION OVERRIDE]\nThe following is the raw CSV data of the tables extracted perfectly from the PDF using OCR. Rely on this text heavily for counts and dimensions, and use the image only as a visual reference:\n```csv\n{raw_csv}\n```\n"
 
         # Ground the model with deterministic vector geometry (scale, footprint,
         # closed-polygon area, dimension labels) read straight from the PDF paths.
