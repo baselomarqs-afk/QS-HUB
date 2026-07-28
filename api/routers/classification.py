@@ -62,25 +62,9 @@ async def auto_classify(req: RunExtractionReq, current_user: dict = Depends(get_
     from concurrent.futures import ThreadPoolExecutor
 
     def process_page(p):
-        # Skip AI vision if page is already identified by keywords or has non-unknown type
-        if p.get("confidence") in ("high", "medium") or p.get("detected_type") not in (None, "", "unknown"):
-            return p
-            
-        prefix = "str" if p["pdf"] == "structural" else "arch"
-        img_path = os.path.join(project_cache, f"{prefix}_page_{p['page_index']}.png")
-        if os.path.exists(img_path):
-            try:
-                g = _ai_classify(img_path, p["pdf"])
-                if g:
-                    p["detected_type"] = g
-                    p["confidence"] = "high(ai)"
-                    p["items"] = PAGE_ITEMS_MAP.get(g, {}).get("extract_items", [])
-            except Exception as ex:
-                print(f"AI Classify err for page {p['page_num']}: {ex}")
+        # Fast path: Keyword classification in _classify_single is instant (0.01s).
+        # Bypass slow remote AI vision calls during auto-classify to prevent proxy timeouts and 502 Bad Gateway errors.
         return p
-
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        classified = list(executor.map(process_page, classified))
 
     state_data["classified_pages"] = classified
     state_data["current_step"] = 2
