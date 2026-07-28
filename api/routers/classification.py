@@ -96,27 +96,16 @@ async def save_classification(req: SaveClassificationReq, current_user: dict = D
     
     state_json = json.dumps(state_data, ensure_ascii=False, default=str)
     
-    from utils.db import is_sqlite
-    if is_sqlite():
+    df_exists = safe_query("SELECT id FROM qto_active_projects WHERE user_id=%s AND project_id=%s", (current_user["id"], req.project_id))
+    if df_exists.empty:
         success, msg = safe_execute(
-            """
-            INSERT INTO qto_active_projects (user_id, project_id, current_step, state_data)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT(user_id, project_id) DO UPDATE SET 
-                current_step=excluded.current_step, 
-                state_data=excluded.state_data, 
-                updated_at=datetime('now', 'localtime')
-            """,
-            (current_user["id"], req.project_id, 3, state_json)
+            "INSERT INTO qto_active_projects (user_id, project_id, current_step, state_data) VALUES (%s, %s, 3, %s)",
+            (current_user["id"], req.project_id, state_json)
         )
     else:
         success, msg = safe_execute(
-            """
-            INSERT INTO qto_active_projects (user_id, project_id, current_step, state_data)
-            VALUES (%s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE current_step=VALUES(current_step), state_data=VALUES(state_data)
-            """,
-            (current_user["id"], req.project_id, 3, state_json)
+            "UPDATE qto_active_projects SET current_step=3, state_data=%s WHERE user_id=%s AND project_id=%s",
+            (state_json, current_user["id"], req.project_id)
         )
 
     if not success:

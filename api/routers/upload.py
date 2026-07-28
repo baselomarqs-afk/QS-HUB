@@ -146,27 +146,16 @@ async def upload_drawings(
 
     # Save initial state back to database
     state_json = json.dumps(state_data, ensure_ascii=False, default=str)
-    from utils.db import is_sqlite
-    if is_sqlite():
+    df_exists = safe_query("SELECT id FROM qto_active_projects WHERE user_id=%s AND project_id=%s", (current_user["id"], project_id))
+    if df_exists.empty:
         safe_execute(
-            """
-            INSERT INTO qto_active_projects (user_id, project_id, current_step, state_data)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT(user_id, project_id) DO UPDATE SET 
-                current_step=excluded.current_step, 
-                state_data=excluded.state_data, 
-                updated_at=datetime('now', 'localtime')
-            """,
-            (current_user["id"], project_id, 1, state_json)
+            "INSERT INTO qto_active_projects (user_id, project_id, current_step, state_data) VALUES (%s, %s, 1, %s)",
+            (current_user["id"], project_id, state_json)
         )
     else:
         safe_execute(
-            """
-            INSERT INTO qto_active_projects (user_id, project_id, current_step, state_data)
-            VALUES (%s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE current_step=VALUES(current_step), state_data=VALUES(state_data)
-            """,
-            (current_user["id"], project_id, 1, state_json)
+            "UPDATE qto_active_projects SET current_step=1, state_data=%s WHERE user_id=%s AND project_id=%s",
+            (state_json, current_user["id"], project_id)
         )
     
     return {
