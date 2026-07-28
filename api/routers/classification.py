@@ -70,9 +70,7 @@ async def auto_classify(req: RunExtractionReq, current_user: dict = Depends(get_
         img_path = os.path.join(project_cache, f"{prefix}_page_{p['page_index']}.png")
         if os.path.exists(img_path):
             try:
-                pil_img = Image.open(img_path)
-                arr = np.array(pil_img)[:, :, ::-1].copy()
-                g = _ai_classify(arr, p["pdf"])
+                g = _ai_classify(img_path, p["pdf"])
                 if g:
                     p["detected_type"] = g
                     p["confidence"] = "high(ai)"

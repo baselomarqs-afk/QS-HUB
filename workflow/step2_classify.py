@@ -17,7 +17,7 @@ _ARCH_TYPES   = ["ground_floor_plan", "first_floor_plan", "second_floor_plan",
                  "roof_floor_plan", "elevations", "setting_out", "schedules"]
 
 
-def _ai_classify(page_arr, pdf_type: str):
+def _ai_classify(img_input, pdf_type: str):
     """Classify ONE page by vision when keyword matching is unsure. Returns a
     PAGE_ITEMS_MAP key or None."""
     from utils.key_manager import get_key_manager
@@ -32,10 +32,19 @@ def _ai_classify(page_arr, pdf_type: str):
         import time
         import io as _io
 
-        pil_img = page_to_pil(page_arr)
-        buf = _io.BytesIO()
-        pil_img.save(buf, format="PNG")
-        img = buf.getvalue()
+        if isinstance(img_input, bytes):
+            img = img_input
+        elif isinstance(img_input, str) and os.path.exists(img_input):
+            with open(img_input, "rb") as f:
+                img = f.read()
+        elif isinstance(img_input, np.ndarray):
+            pil_img = page_to_pil(img_input)
+            buf = _io.BytesIO()
+            pil_img.save(buf, format="PNG")
+            img = buf.getvalue()
+        else:
+            return None
+
         prompt = (
             f"This is a construction drawing. Classify it as one of: {choices}. "
             "Reply ONLY with valid JSON: {\"type\": \"<chosen_type>\"}"
