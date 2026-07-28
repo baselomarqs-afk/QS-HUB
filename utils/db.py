@@ -542,11 +542,10 @@ def _trim_state(state_data: dict) -> dict:
     import copy
     sd = copy.copy(state_data)
 
-    # Drop full page text arrays entirely — only the first 100 chars per page
-    # are needed (text_preview in classified_pages), the rest is waste
+    # Truncate per-page text arrays to 4000 chars (preserves full title block & drawing text)
     for key in ("str_texts", "arch_texts"):
         if key in sd and isinstance(sd[key], list):
-            sd[key] = [(t[:100] if isinstance(t, str) else "") for t in sd[key]]
+            sd[key] = [(t[:4000] if isinstance(t, str) else "") for t in sd[key]]
 
     # Strip classified_pages to absolute minimum
     if "classified_pages" in sd and isinstance(sd["classified_pages"], list):

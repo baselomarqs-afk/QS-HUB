@@ -88,7 +88,11 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
         page_num = page_info["page_num"]
         
         prefix = "str" if pdf_type == "structural" else "arch"
-        img_path = os.path.join(project_cache, f"{prefix}_page_{page_idx}.png")
+        img_path = os.path.join(project_cache, f"{prefix}_page_{page_idx}.jpg")
+        if not os.path.exists(img_path):
+            img_path = os.path.join(project_cache, f"{prefix}_page_{page_idx}.jpeg")
+        if not os.path.exists(img_path):
+            img_path = os.path.join(project_cache, f"{prefix}_page_{page_idx}.png")
         
         if not os.path.exists(img_path):
             return None

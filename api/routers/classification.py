@@ -30,30 +30,57 @@ async def auto_classify(req: RunExtractionReq, current_user: dict = Depends(get_
         raise HTTPException(status_code=400, detail="No active project uploaded.")
         
     state_data = json.loads(df_state.iloc[0]["state_data"])
+    project_cache = os.path.join(CACHE_ROOT, str(req.project_id))
     
     str_texts = state_data.get("str_texts") or []
     arch_texts = state_data.get("arch_texts") or []
+
+    # Safety fallback: re-extract text directly from PDF if stored text is short
+    from pdf_engine.pdf_loader import extract_page_text
+    str_boundaries = state_data.get("str_boundaries") or []
+    if str_boundaries and (not str_texts or any(len(t) < 150 for t in str_texts)):
+        reextracted = []
+        for b in str_boundaries:
+            pdf_p = os.path.join(project_cache, b.get("pdf_path", ""))
+            if os.path.exists(pdf_p):
+                with open(pdf_p, "rb") as f:
+                    reextracted.extend(extract_page_text(f.read()))
+        if reextracted:
+            str_texts = reextracted
+
+    arch_boundaries = state_data.get("arch_boundaries") or []
+    if arch_boundaries and (not arch_texts or any(len(t) < 150 for t in arch_texts)):
+        reextracted = []
+        for b in arch_boundaries:
+            pdf_p = os.path.join(project_cache, b.get("pdf_path", ""))
+            if os.path.exists(pdf_p):
+                with open(pdf_p, "rb") as f:
+                    reextracted.extend(extract_page_text(f.read()))
+        if reextracted:
+            arch_texts = reextracted
     
     classified = []
     
     # Keyword classification
     for i, txt in enumerate(str_texts):
+        ext = "jpg" if os.path.exists(os.path.join(project_cache, f"str_page_{i}.jpg")) else "png"
         classified.append({
             "pdf": "structural",
             "page_index": i,
             "page_num": i + 1,
             "text_preview": txt[:100].replace("\n", " "),
-            "image_url": f"/cache/{req.project_id}/str_page_{i}.png",
+            "image_url": f"/cache/{req.project_id}/str_page_{i}.{ext}",
             **_classify_single(txt, "structural"),
         })
         
     for i, txt in enumerate(arch_texts):
+        ext = "jpg" if os.path.exists(os.path.join(project_cache, f"arch_page_{i}.jpg")) else "png"
         classified.append({
             "pdf": "architectural",
             "page_index": i,
             "page_num": i + 1,
             "text_preview": txt[:100].replace("\n", " "),
-            "image_url": f"/cache/{req.project_id}/arch_page_{i}.png",
+            "image_url": f"/cache/{req.project_id}/arch_page_{i}.{ext}",
             **_classify_single(txt, "architectural"),
         })
 
