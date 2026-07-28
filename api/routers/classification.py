@@ -114,9 +114,9 @@ async def save_classification(req: SaveClassificationReq, current_user: dict = D
             """
             INSERT INTO qto_active_projects (user_id, project_id, current_step, state_data)
             VALUES (%s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE current_step=3, state_data=%s, updated_at=CURRENT_TIMESTAMP
+            ON DUPLICATE KEY UPDATE current_step=VALUES(current_step), state_data=VALUES(state_data)
             """,
-            (current_user["id"], req.project_id, 3, state_json, state_json)
+            (current_user["id"], req.project_id, 3, state_json)
         )
 
     if not success:

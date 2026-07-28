@@ -164,9 +164,9 @@ async def upload_drawings(
             """
             INSERT INTO qto_active_projects (user_id, project_id, current_step, state_data)
             VALUES (%s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE current_step=%s, state_data=%s, updated_at=CURRENT_TIMESTAMP
+            ON DUPLICATE KEY UPDATE current_step=VALUES(current_step), state_data=VALUES(state_data)
             """,
-            (current_user["id"], project_id, 1, state_json, 1, state_json)
+            (current_user["id"], project_id, 1, state_json)
         )
     
     return {
