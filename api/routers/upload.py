@@ -87,8 +87,11 @@ async def upload_drawings(
         if len(content) > cap:
             raise HTTPException(status_code=413, detail=f"File too large. Your plan allows up to {plan.max_file_mb} MB per file.")
         
-        # Save to permanent storage
-        save_file(current_user["id"], file_obj.filename, content, "application/pdf", project_id)
+        # Save to permanent storage (best-effort)
+        try:
+            save_file(current_user["id"], file_obj.filename, content, "application/pdf", project_id)
+        except Exception as ex:
+            print(f"save_file warning: {ex}")
         
         # Load texts for classification
         texts = extract_page_text(content)
