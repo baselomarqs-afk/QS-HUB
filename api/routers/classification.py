@@ -32,45 +32,55 @@ async def auto_classify(req: RunExtractionReq, current_user: dict = Depends(get_
     state_data = json.loads(df_state.iloc[0]["state_data"])
     project_cache = os.path.join(CACHE_ROOT, str(req.project_id))
     
-    str_texts = state_data.get("str_texts") or []
-    arch_texts = state_data.get("arch_texts") or []
-
+    # Re-extract FULL text from cached PDFs on disk for accurate keyword classification.
+    # The DB only stores truncated 250-char previews to stay under packet limits,
+    # but keyword matching needs the full page text. Reading from disk via mmap is
+    # instant and uses virtually no RAM.
+    from pdf_engine.pdf_loader import extract_page_text
+    
     str_boundaries = state_data.get("str_boundaries") or []
+    str_texts = []
+    for b in str_boundaries:
+        pdf_p = os.path.join(project_cache, b.get("pdf_path", ""))
+        if os.path.exists(pdf_p):
+            str_texts.extend(extract_page_text(pdf_p))
+    
+    # Fallback to DB-stored (truncated) texts if PDFs are missing from disk
+    if not str_texts:
+        str_texts = state_data.get("str_texts") or []
+    
     arch_boundaries = state_data.get("arch_boundaries") or []
+    arch_texts = []
+    for b in arch_boundaries:
+        pdf_p = os.path.join(project_cache, b.get("pdf_path", ""))
+        if os.path.exists(pdf_p):
+            arch_texts.extend(extract_page_text(pdf_p))
+    
+    if not arch_texts:
+        arch_texts = state_data.get("arch_texts") or []
     
     classified = []
     
-    # Keyword classification
+    # Keyword classification using full page text
     for i, txt in enumerate(str_texts):
-        ext = "jpg" if os.path.exists(os.path.join(project_cache, f"str_page_{i}.jpg")) else "png"
         classified.append({
             "pdf": "structural",
             "page_index": i,
             "page_num": i + 1,
             "text_preview": txt[:100].replace("\n", " "),
-            "image_url": f"/cache/{req.project_id}/str_page_{i}.{ext}",
+            "image_url": f"/cache/{req.project_id}/str_page_{i}.jpg",
             **_classify_single(txt, "structural"),
         })
         
     for i, txt in enumerate(arch_texts):
-        ext = "jpg" if os.path.exists(os.path.join(project_cache, f"arch_page_{i}.jpg")) else "png"
         classified.append({
             "pdf": "architectural",
             "page_index": i,
             "page_num": i + 1,
             "text_preview": txt[:100].replace("\n", " "),
-            "image_url": f"/cache/{req.project_id}/arch_page_{i}.{ext}",
+            "image_url": f"/cache/{req.project_id}/arch_page_{i}.jpg",
             **_classify_single(txt, "architectural"),
         })
-
-    # AI Vision classification for low confidence pages (in a real production app we run this, but limit calls)
-    project_cache = os.path.join(CACHE_ROOT, str(req.project_id))
-    from concurrent.futures import ThreadPoolExecutor
-
-    def process_page(p):
-        # Fast path: Keyword classification in _classify_single is instant (0.01s).
-        # Bypass slow remote AI vision calls during auto-classify to prevent proxy timeouts and 502 Bad Gateway errors.
-        return p
 
     state_data["classified_pages"] = classified
     state_data["current_step"] = 2
