@@ -534,27 +534,21 @@ def transaction():
 # ---------------------------------------------------------------------------
 # Centralised active-project state writer
 # ---------------------------------------------------------------------------
-# Every endpoint that touches qto_active_projects.state_data MUST go through
-# this helper so that:
-#   1. state_json is always truncated to fit DB limits
-#   2. INSERT vs UPDATE is handled universally (no dialect SQL)
-#   3. Errors are logged with full context
-# ---------------------------------------------------------------------------
-
-_MAX_STATE_BYTES = 15 * 1024 * 1024  # 15 MB hard cap (TiDB JSON limit ~16 MB)
+_MAX_STATE_BYTES = 4 * 1024 * 1024  # 4 MB hard cap (TiDB Cloud JSON ~6 MB)
 
 
 def _trim_state(state_data: dict) -> dict:
     """Aggressively trim heavy fields so state_json fits in the DB column."""
     import copy
-    sd = copy.copy(state_data)  # shallow copy — mutate top-level keys only
+    sd = copy.copy(state_data)
 
-    # Truncate per-page text arrays (only needed for classification, not extraction)
+    # Drop full page text arrays entirely — only the first 100 chars per page
+    # are needed (text_preview in classified_pages), the rest is waste
     for key in ("str_texts", "arch_texts"):
         if key in sd and isinstance(sd[key], list):
-            sd[key] = [(t[:300] if isinstance(t, str) else t) for t in sd[key]]
+            sd[key] = [(t[:100] if isinstance(t, str) else "") for t in sd[key]]
 
-    # Strip heavy fields from classified_pages
+    # Strip classified_pages to absolute minimum
     if "classified_pages" in sd and isinstance(sd["classified_pages"], list):
         clean = []
         for p in sd["classified_pages"]:
@@ -575,7 +569,6 @@ def upsert_active_state(user_id: int, project_id: int, step: int,
                          state_data: dict) -> tuple:
     """
     Single entry-point for writing to qto_active_projects.
-
     Returns (True, "OK") on success, (False, error_msg) on failure.
     """
     import json as _json
@@ -583,13 +576,15 @@ def upsert_active_state(user_id: int, project_id: int, step: int,
     trimmed = _trim_state(state_data)
     state_json = _json.dumps(trimmed, ensure_ascii=False, default=str)
 
-    # Safety: if still too large, drop the heaviest key progressively
+    # Progressive key-dropping until we fit under the limit
     for drop_key in ("str_texts", "arch_texts", "classified_pages",
-                     "extraction_results", "confirmed_auto_data"):
+                     "extraction_results", "confirmed_auto_data",
+                     "boq_items", "boq_meta"):
         if len(state_json.encode("utf-8")) <= _MAX_STATE_BYTES:
             break
         if drop_key in trimmed:
-            logger.warning("upsert_active_state: dropping '%s' (state too large)", drop_key)
+            logger.warning("upsert_active_state: dropping '%s' (%d bytes > %d limit)",
+                           drop_key, len(state_json.encode("utf-8")), _MAX_STATE_BYTES)
             trimmed[drop_key] = [] if isinstance(trimmed.get(drop_key), list) else {}
             state_json = _json.dumps(trimmed, ensure_ascii=False, default=str)
 

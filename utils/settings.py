@@ -65,6 +65,10 @@ class DbSettings:
             "database": self.database,
             "ssl": {"ssl_mode": "REQUIRED"},
             "cursorclass": pymysql.cursors.DictCursor,
+            "connect_timeout": 30,
+            "read_timeout": 30,
+            "write_timeout": 30,
+            "max_allowed_packet": 64 * 1024 * 1024,  # 64 MB
         }
 
 
