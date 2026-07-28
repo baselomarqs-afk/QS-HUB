@@ -46,8 +46,8 @@ except Exception:
 
 # النماذج التي سيتم التدوير بينها مع كل مفتاح
 ROTATION_MODELS = [
-    "gemini-3.1-flash-lite",
     "gemini-2.5-flash",
+    "gemini-3.1-flash-lite",
     "gemini-3.6-flash",
     "gemini-3.5-flash",
     "gemini-3.5-flash-lite"
@@ -55,8 +55,8 @@ ROTATION_MODELS = [
 
 # ── حدود النماذج المختلفة (RPD) ──────────────────────────────────────────────
 MODEL_DAILY_LIMITS = {
-    "gemini-3.1-flash-lite":      500,
     "gemini-2.5-flash":           1500,
+    "gemini-3.1-flash-lite":      500,
     "gemini-3.6-flash":           1500,
     "gemini-3.5-flash":           1500,
     "gemini-3.5-flash-lite":      1500,

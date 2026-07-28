@@ -477,10 +477,19 @@ async def _ask_ai_with_retry(img_bytes: bytes, full_prompt: str, mgr, force_reex
             return raw
         except Exception as e:
             last_err = str(e)
+            is_rate_limit = any(code in last_err.lower() for code in ("429", "resource_exhausted", "quota"))
+            
             mgr.mark_rate_limited(current_key, current_model)
             consecutive_failures += 1
+            
+            if not is_rate_limit:
+                if consecutive_failures > mgr.key_count() * 6:
+                    print(f"Aborting _ask_ai_with_retry after {consecutive_failures} non-rate-limit failures. Last error: {last_err}")
+                    break
+                continue
+                
             if consecutive_failures > mgr.key_count() + 1:
-                print(f"Aborting _ask_ai_with_retry after {consecutive_failures} consecutive failures. Last error: {last_err}")
+                print(f"Aborting _ask_ai_with_retry after {consecutive_failures} consecutive rate-limit failures. Last error: {last_err}")
                 break
             await asyncio.sleep(2)
             
@@ -1036,15 +1045,19 @@ Return ONLY this JSON structure (null for not found):
             
         except Exception as e:
             last_err = str(e)
-            if any(code in last_err for code in ("429", "RESOURCE_EXHAUSTED", "quota")):
-                mgr.mark_rate_limited(current_key, current_model)
-            else:
-                # If it's a 403 or other error, still mark it to avoid spamming the same broken key
-                mgr.mark_rate_limited(current_key, current_model)
-                
+            is_rate_limit = any(code in last_err.lower() for code in ("429", "resource_exhausted", "quota"))
+            
+            mgr.mark_rate_limited(current_key, current_model)
             consecutive_failures += 1
+            
+            if not is_rate_limit:
+                if consecutive_failures > mgr.key_count() * 6:
+                    print(f"Aborting synchronous extraction after {consecutive_failures} non-rate-limit failures. Last error: {last_err}")
+                    break
+                continue
+                
             if consecutive_failures > mgr.key_count() + 1:
-                print(f"Aborting synchronous extraction after {consecutive_failures} consecutive failures. Last error: {last_err}")
+                print(f"Aborting synchronous extraction after {consecutive_failures} consecutive rate-limit failures. Last error: {last_err}")
                 break
                 
             time.sleep(2)
