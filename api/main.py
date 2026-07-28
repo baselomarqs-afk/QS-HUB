@@ -108,11 +108,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+from fastapi.exceptions import HTTPException as _StarletteHTTPException
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, _StarletteHTTPException):
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
     err_str = traceback.format_exc()
     _logging.getLogger("qto").error("GLOBAL EXCEPTION: %s", err_str)
-    return JSONResponse(status_code=200, content={"detail": "Internal Server Error", "traceback": err_str})
+    return JSONResponse(status_code=500, content={"detail": str(exc), "traceback": err_str})
 
 @app.get("/test-health")
 def test_health():
@@ -121,17 +125,25 @@ def test_health():
 
 
 # Enable CORS for the React frontend.
-# Restrict to explicit origins in production via CORS_ALLOW_ORIGINS (comma-separated).
-# NOTE: allow_credentials=True is invalid with a "*" wildcard per the CORS spec.
-_cors_env = os.environ.get("CORS_ALLOW_ORIGINS", "http://localhost:5173,http://localhost:8000")
+# Supports qshub.online, huggingface.co, render.com, localhost and all subdomains seamlessly.
+_cors_env = os.environ.get("CORS_ALLOW_ORIGINS", "*")
 ALLOWED_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip()]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+if "*" in ALLOWED_ORIGINS or not ALLOWED_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r".*",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
 
