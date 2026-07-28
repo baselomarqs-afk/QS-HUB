@@ -171,11 +171,15 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
 
   const fetchActiveState = async () => {
     try {
-      const res = await fetch("/api/projects/active", {
+      const res = await fetch(`${API_URL}/projects/active?project_id=${project.id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const data = await res.json();
-      if (res.ok && data.has_active && data.state_data) {
+      if (!res.ok) return;
+      const text = await res.text();
+      if (!text) return;
+      let data = null;
+      try { data = JSON.parse(text); } catch (e) { return; }
+      if (data.has_active && data.state_data) {
         const state = typeof data.state_data === 'string' ? JSON.parse(data.state_data) : data.state_data;
         if (state.classified_pages) setClassifiedPages(state.classified_pages);
         if (state.extraction_results) setExtractionResults(state.extraction_results);
@@ -633,8 +637,13 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
           top_floor_is_stair_room: !!calcParams.top_floor_is_stair_room
         })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Calculation engine failed.');
+      const text = await res.text();
+      let data = null;
+      if (text) {
+        try { data = JSON.parse(text); } catch (e) {}
+      }
+      if (!res.ok) throw new Error(data?.detail || 'Calculation engine failed.');
+      if (!data) throw new Error('Calculation engine returned an invalid response.');
       
       // Inject pricing columns if not present
       const pricedItems = data.boq_items.map(item => {
