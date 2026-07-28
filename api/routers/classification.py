@@ -42,8 +42,12 @@ async def auto_classify(req: RunExtractionReq, current_user: dict = Depends(get_
     str_texts = []
     for b in str_boundaries:
         pdf_p = os.path.join(project_cache, b.get("pdf_path", ""))
-        if os.path.exists(pdf_p):
-            str_texts.extend(extract_page_text(pdf_p))
+        exists = os.path.exists(pdf_p)
+        print(f"[classify/auto] STR PDF path={pdf_p} exists={exists}")
+        if exists:
+            extracted = extract_page_text(pdf_p)
+            print(f"[classify/auto] STR extracted {len(extracted)} pages, first 200 chars: {extracted[0][:200] if extracted else '(none)'}")
+            str_texts.extend(extracted)
     
     # Fallback to DB-stored (truncated) texts if PDFs are missing from disk
     if not str_texts:
@@ -53,8 +57,12 @@ async def auto_classify(req: RunExtractionReq, current_user: dict = Depends(get_
     arch_texts = []
     for b in arch_boundaries:
         pdf_p = os.path.join(project_cache, b.get("pdf_path", ""))
-        if os.path.exists(pdf_p):
-            arch_texts.extend(extract_page_text(pdf_p))
+        exists = os.path.exists(pdf_p)
+        print(f"[classify/auto] ARCH PDF path={pdf_p} exists={exists}")
+        if exists:
+            extracted = extract_page_text(pdf_p)
+            print(f"[classify/auto] ARCH extracted {len(extracted)} pages, first 200 chars: {extracted[0][:200] if extracted else '(none)'}")
+            arch_texts.extend(extracted)
     
     if not arch_texts:
         arch_texts = state_data.get("arch_texts") or []
@@ -90,7 +98,20 @@ async def auto_classify(req: RunExtractionReq, current_user: dict = Depends(get_
     
     return {
         "classified_pages": classified,
-        "next_step": 3
+        "next_step": 3,
+        "_debug": {
+            "cache_dir": project_cache,
+            "cache_exists": os.path.isdir(project_cache),
+            "cache_files": os.listdir(project_cache) if os.path.isdir(project_cache) else [],
+            "str_boundaries": str_boundaries,
+            "arch_boundaries": arch_boundaries,
+            "str_texts_count": len(str_texts),
+            "arch_texts_count": len(arch_texts),
+            "str_text_sample": str_texts[0][:300] if str_texts else "(empty)",
+            "arch_text_sample": arch_texts[0][:300] if arch_texts else "(empty)",
+            "unknown_count": sum(1 for p in classified if p.get("detected_type") == "unknown"),
+            "total_classified": len(classified),
+        }
     }
 
 def _background_record_memory(user_id: int, pages: list):
