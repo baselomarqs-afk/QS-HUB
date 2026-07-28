@@ -273,14 +273,33 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
     strFiles.forEach(f => formData.append('str_files', f));
     archFiles.forEach(f => formData.append('arch_files', f));
 
+    const safeJsonFetch = async (url, options = {}) => {
+      const res = await fetch(url, options);
+      const text = await res.text();
+      let data = null;
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          // Response body was not JSON (e.g. 504 Gateway Timeout HTML page)
+        }
+      }
+      if (!res.ok) {
+        const msg = data?.detail || (res.status === 504 ? (isArabic ? 'انتهت مهلة استجابة الخادم (504). يرجى تقليل حجم الملفات أو المحاولة مجدداً.' : 'Server gateway timeout (504). Please try again or use smaller files.') : (isArabic ? `فشل طلب الخادم (رمز ${res.status}).` : `Server request failed (HTTP ${res.status}).`));
+        throw new Error(msg);
+      }
+      if (!data) {
+        throw new Error(isArabic ? `تنسيق رد غير صالح من الخادم (رمز ${res.status}).` : `Invalid response format from server (HTTP ${res.status}).`);
+      }
+      return data;
+    };
+
     try {
-      const res = await fetch(`${API_URL}/upload`, {
+      const data = await safeJsonFetch(`${API_URL}/upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Upload failed.');
       
       setUploadResult(data);
       setMessage(isArabic ? 'تم رفع المخططات وتقسيمها بنجاح!' : 'Drawings uploaded and page images cached successfully!');
@@ -299,7 +318,22 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
     setLoadingText(isArabic ? 'جاري تصنيف الصفحات...' : 'Classifying Pages...');
     setLoadingSubtext(isArabic ? 'يقوم الذكاء الاصطناعي بالتعرف على نوع كل صفحة...' : 'AI is analyzing and identifying each drawing type...');
     try {
-      const res = await fetch(`${API_URL}/classify/auto`, {
+      const safeJsonFetch = async (url, options = {}) => {
+        const res = await fetch(url, options);
+        const text = await res.text();
+        let data = null;
+        if (text) {
+          try { data = JSON.parse(text); } catch (e) {}
+        }
+        if (!res.ok) {
+          const msg = data?.detail || (res.status === 504 ? (isArabic ? 'انتهت مهلة استجابة الخادم أثناء التصنيف (504).' : 'Server gateway timeout during classification (504).') : `Server error (HTTP ${res.status})`);
+          throw new Error(msg);
+        }
+        if (!data) throw new Error(`Invalid response format from server (HTTP ${res.status}).`);
+        return data;
+      };
+
+      const data = await safeJsonFetch(`${API_URL}/classify/auto`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -307,8 +341,6 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
         },
         body: JSON.stringify({ project_id: project.id })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Auto classification failed.');
       
       setClassifiedPages(data.classified_pages || []);
       setCurrentStep(2);
@@ -367,8 +399,17 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
       });
       
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.detail || 'AI extraction failed.');
+        let errorMsg = 'AI extraction failed.';
+        try {
+          const text = await res.text();
+          if (text) {
+            const errJson = JSON.parse(text);
+            errorMsg = errJson.detail || errorMsg;
+          }
+        } catch (e) {
+          errorMsg = res.status === 504 ? (isArabic ? 'انتهت مهلة خادم الاستخراج (504). يرجى المحاولة مجدداً.' : 'Extraction request timed out (504). Please try again.') : `Server Error (HTTP ${res.status})`;
+        }
+        throw new Error(errorMsg);
       }
       
       const reader = res.body.getReader();
