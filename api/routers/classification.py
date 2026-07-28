@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from pydantic import BaseModel
 from typing import List, Dict, Any
 import os
@@ -104,8 +104,18 @@ async def auto_classify(req: RunExtractionReq, current_user: dict = Depends(get_
         "next_step": 3
     }
 
+def _background_record_memory(user_id: int, pages: list):
+    try:
+        from engine.qto_memory import record_mapping
+        for p in pages:
+            dtype = (p.get("detected_type") or "").strip()
+            if dtype and dtype != "unknown":
+                record_mapping(user_id, dtype[:120], dtype)
+    except Exception as e:
+        print(f"qto_memory record error: {e}")
+
 @router.post("/classify/save")
-async def save_classification(req: SaveClassificationReq, current_user: dict = Depends(get_current_user)):
+async def save_classification(req: SaveClassificationReq, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     try:
         df_state = safe_query("SELECT state_data FROM qto_active_projects WHERE user_id=%s AND project_id=%s", (current_user["id"], req.project_id))
         
@@ -126,15 +136,8 @@ async def save_classification(req: SaveClassificationReq, current_user: dict = D
             print(f"[classify/save] DB ERROR: {msg}")
             raise HTTPException(status_code=500, detail=f"DB error: {msg}")
 
-        # Learning loop
-        try:
-            from engine.qto_memory import record_mapping
-            for p in (req.classified_pages or []):
-                dtype = (p.get("detected_type") or "").strip()
-                if dtype and dtype != "unknown":
-                    record_mapping(current_user["id"], dtype[:120], dtype)
-        except Exception as e:
-            print(f"qto_memory record error: {e}")
+        # Learning loop pushed to background to prevent 502 Proxy Timeout
+        background_tasks.add_task(_background_record_memory, current_user["id"], req.classified_pages or [])
 
         return {"message": "Classifications saved successfully."}
     except HTTPException:
