@@ -60,16 +60,13 @@ def fast_save_pdf_pages(pdf_bytes: bytes, project_id: int, prefix: str, start_id
     # Actually, `get_pixmap` is thread-safe on separate pages in modern PyMuPDF, but to be 100% safe
     # we just run the byte conversion and saving in parallel.
     
-    def process_and_save(page_num):
+    for page_num in range(page_count):
         page = doc[page_num]
         pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB, alpha=False)
         png_bytes = pix.tobytes("png")
         global_idx = start_idx + page_num
         filename = f"{prefix}_page_{global_idx}.png"
         save_raw_image_to_cache(project_id, filename, png_bytes)
-        
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        list(executor.map(process_and_save, range(page_count)))
         
     doc.close()
     return page_count
