@@ -293,29 +293,21 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
     try {
       let lastData = null;
 
+      setLoadingSubtext(isArabic ? 'جاري رفع المخططات...' : 'Uploading drawings...');
+      const formData = new FormData();
+      formData.append('project_id', project.id);
       if (strFiles.length > 0) {
-        setLoadingSubtext(isArabic ? 'جاري رفع المخطط الإنشائي...' : 'Uploading Structural drawings...');
-        const strFormData = new FormData();
-        strFormData.append('project_id', project.id);
-        strFiles.forEach(f => strFormData.append('str_files', f));
-        lastData = await safeJsonFetch(`${API_URL}/upload`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
-          body: strFormData
-        });
+        strFiles.forEach(f => formData.append('str_files', f));
+      }
+      if (archFiles.length > 0) {
+        archFiles.forEach(f => formData.append('arch_files', f));
       }
 
-      if (archFiles.length > 0) {
-        setLoadingSubtext(isArabic ? 'جاري رفع المخطط المعماري...' : 'Uploading Architectural drawings...');
-        const archFormData = new FormData();
-        archFormData.append('project_id', project.id);
-        archFiles.forEach(f => archFormData.append('arch_files', f));
-        lastData = await safeJsonFetch(`${API_URL}/upload`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
-          body: archFormData
-        });
-      }
+      lastData = await safeJsonFetch(`${API_URL}/upload`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
       
       setUploadResult(lastData);
       setMessage(isArabic ? 'تم رفع المخططات وتقسيمها بنجاح!' : 'Drawings uploaded successfully!');
