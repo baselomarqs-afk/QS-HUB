@@ -113,7 +113,7 @@ async def upload_drawings(
         start = str_count
         c, t = process_file(sf, "str", str_count)
         str_count += c
-        str_texts.extend(t)
+        str_texts.extend([txt[:2000] for txt in t])
         str_fnames.append(sf.filename)
         str_boundaries.append({"start": start, "end": str_count - 1, "pdf_path": f"str_{start}.pdf"})
         
@@ -126,7 +126,7 @@ async def upload_drawings(
         start = arch_count
         c, t = process_file(af, "arch", arch_count)
         arch_count += c
-        arch_texts.extend(t)
+        arch_texts.extend([txt[:2000] for txt in t])
         arch_fnames.append(af.filename)
         arch_boundaries.append({"start": start, "end": arch_count - 1, "pdf_path": f"arch_{start}.pdf"})
         
