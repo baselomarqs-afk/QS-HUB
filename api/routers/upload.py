@@ -118,6 +118,7 @@ async def upload_drawings(
     str_texts = []
     str_fnames = []
     str_boundaries = []
+    import gc
     for sf in str_files:
         if not sf.filename: continue
         start = str_count
@@ -126,6 +127,7 @@ async def upload_drawings(
         str_texts.extend([txt[:2000] for txt in t])
         str_fnames.append(sf.filename)
         str_boundaries.append({"start": start, "end": str_count - 1, "pdf_path": f"str_{start}.pdf"})
+        gc.collect()
         
     arch_count = 0
     arch_texts = []
@@ -139,6 +141,7 @@ async def upload_drawings(
         arch_texts.extend([txt[:2000] for txt in t])
         arch_fnames.append(af.filename)
         arch_boundaries.append({"start": start, "end": arch_count - 1, "pdf_path": f"arch_{start}.pdf"})
+        gc.collect()
         
     if str_files:
         state_data["str_fnames"] = str_fnames

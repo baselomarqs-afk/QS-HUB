@@ -43,6 +43,7 @@ def fast_save_pdf_pages(pdf_bytes: bytes, project_id: int, prefix: str, start_id
     """
     from utils.storage import save_raw_image_to_cache
 
+    import gc
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     page_count = len(doc)
 
@@ -64,12 +65,19 @@ def fast_save_pdf_pages(pdf_bytes: bytes, project_id: int, prefix: str, start_id
         # High-speed native C++ JPEG encoder (quality=90, ~150KB per page)
         jpg_bytes = pix.tobytes("jpg", jpg_quality=90)
         pix = None  # Free PyMuPDF C memory immediately
+        page = None
 
         global_idx = start_idx + page_num
         filename = f"{prefix}_page_{global_idx}.jpg"
         save_raw_image_to_cache(project_id, filename, jpg_bytes, format="JPEG")
+        
+        # Periodic memory cleanup to prevent cloud container OOM SIGKILL (502 Gateway error)
+        if page_num % 5 == 0:
+            gc.collect()
 
     doc.close()
+    doc = None
+    gc.collect()
     return page_count
 
 
