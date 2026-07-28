@@ -373,6 +373,16 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
     setLoadingText(isArabic ? 'جاري الحفظ...' : 'Saving Classifications...');
     setLoadingSubtext('');
     try {
+      const cleanPages = (classifiedPages || []).map(p => ({
+        pdf: p.pdf || 'structural',
+        page_index: Number(p.page_index) || 0,
+        page_num: Number(p.page_num) || 1,
+        text_preview: (p.text_preview || '').slice(0, 200),
+        detected_type: p.detected_type || 'unknown',
+        confidence: p.confidence || 'low',
+        items: Array.isArray(p.items) ? p.items : []
+      }));
+
       const res = await fetch(`${API_URL}/classify/save`, {
         method: 'POST',
         headers: {
@@ -380,8 +390,8 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          project_id: project.id,
-          classified_pages: classifiedPages
+          project_id: Number(project.id),
+          classified_pages: cleanPages
         })
       });
       const text = await res.text();
@@ -394,7 +404,7 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
       }
       
       setCurrentStep(3);
-      await saveActiveState(3, { classified_pages: classifiedPages });
+      await saveActiveState(3, { classified_pages: cleanPages });
     } catch (err) {
       alert(err.message);
     } finally {
