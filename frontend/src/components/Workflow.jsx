@@ -384,10 +384,17 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
           classified_pages: classifiedPages
         })
       });
-      if (!res.ok) throw new Error('Failed to save classifications.');
+      const text = await res.text();
+      let data = null;
+      if (text) {
+        try { data = JSON.parse(text); } catch (e) {}
+      }
+      if (!res.ok) {
+        throw new Error(data?.detail || (isArabic ? 'فشل حفظ التصنيفات.' : 'Failed to save classifications.'));
+      }
       
       setCurrentStep(3);
-      await saveActiveState(3);
+      await saveActiveState(3, { classified_pages: classifiedPages });
     } catch (err) {
       alert(err.message);
     } finally {
