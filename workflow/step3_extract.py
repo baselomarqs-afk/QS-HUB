@@ -428,10 +428,17 @@ async def _ask_ai_with_retry(img_bytes: bytes, full_prompt: str, mgr, force_reex
             
     last_err = ""
     max_attempts = max(6, mgr.key_count() * 2)
+    cooldown_waits = 0
+    consecutive_failures = 0
+    
     for attempt in range(max_attempts):
         current_key, current_model = mgr.get_key_and_model()
         if not current_key or current_key == "NO_API_KEY_FOUND":
             last_err = "No valid API key found. All keys are in cooldown."
+            cooldown_waits += 1
+            if cooldown_waits > 3: # Max 45 seconds total waiting for cooldown
+                print("Aborting _ask_ai_with_retry after 45s of total cooldown.")
+                break
             print(f"All keys in cooldown. Waiting 15 seconds... (Attempt {attempt+1}/{max_attempts})")
             import time
             time.sleep(15)
@@ -471,6 +478,10 @@ async def _ask_ai_with_retry(img_bytes: bytes, full_prompt: str, mgr, force_reex
         except Exception as e:
             last_err = str(e)
             mgr.mark_rate_limited(current_key, current_model)
+            consecutive_failures += 1
+            if consecutive_failures > mgr.key_count() + 1:
+                print(f"Aborting _ask_ai_with_retry after {consecutive_failures} consecutive failures. Last error: {last_err}")
+                break
             await asyncio.sleep(2)
             
     return json.dumps({"_error": last_err})
@@ -920,13 +931,19 @@ Return ONLY this JSON structure (null for not found):
             print(f"Cache read error: {cache_ex}")
             
     last_err = ""
-    
     max_attempts = max(6, mgr.key_count() * 2)
+    cooldown_waits = 0
+    consecutive_failures = 0
+    
     for attempt in range(max_attempts):
         current_key, current_model = mgr.get_key_and_model()
             
         if not current_key or current_key == "NO_API_KEY_FOUND":
             last_err = "No valid API key found. All keys in cooldown."
+            cooldown_waits += 1
+            if cooldown_waits > 3: # Max 45s wait
+                print("Aborting synchronous extraction after 45s of total cooldown.")
+                break
             print(f"All keys in cooldown. Waiting 15 seconds... (Attempt {attempt+1}/{max_attempts})")
             import time
             time.sleep(15)
@@ -1016,14 +1033,25 @@ Return ONLY this JSON structure (null for not found):
                 print(f"Cache write error: {cache_ex}")
                 
             return data
+            
         except Exception as e:
             last_err = str(e)
             if any(code in last_err for code in ("429", "RESOURCE_EXHAUSTED", "quota")):
                 mgr.mark_rate_limited(current_key, current_model)
-                continue
+            else:
+                # If it's a 403 or other error, still mark it to avoid spamming the same broken key
+                mgr.mark_rate_limited(current_key, current_model)
+                
+            consecutive_failures += 1
+            if consecutive_failures > mgr.key_count() + 1:
+                print(f"Aborting synchronous extraction after {consecutive_failures} consecutive failures. Last error: {last_err}")
+                break
+                
             time.sleep(2)
-            time.sleep(2 * (attempt + 1))
-            
+            # Cap exponential backoff to avoid hanging
+            sleep_time = min(10, 2 * (attempt + 1))
+            time.sleep(sleep_time)
+
     # API Fallback Mechanism: Return standard fallback object instead of failing completely
     fallback_data = {
         "_ok": True,
@@ -1060,7 +1088,6 @@ Return ONLY this JSON structure (null for not found):
         fallback_data["longest_width"] = 15.0
         
     return fallback_data
-
 
 def merge_schedule_json_to_results(results: dict):
     """
