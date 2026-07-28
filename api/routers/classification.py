@@ -62,8 +62,8 @@ async def auto_classify(req: RunExtractionReq, current_user: dict = Depends(get_
     from concurrent.futures import ThreadPoolExecutor
 
     def process_page(p):
-        # Skip AI vision if keywords give high confidence to drastically speed up processing
-        if p.get("confidence") == "high":
+        # Skip AI vision if page is already identified by keywords or has non-unknown type
+        if p.get("confidence") in ("high", "medium") or p.get("detected_type") not in (None, "", "unknown"):
             return p
             
         prefix = "str" if p["pdf"] == "structural" else "arch"
