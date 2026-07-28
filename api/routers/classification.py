@@ -99,18 +99,42 @@ async def auto_classify(req: RunExtractionReq, current_user: dict = Depends(get_
 @router.post("/classify/save")
 async def save_classification(req: SaveClassificationReq, current_user: dict = Depends(get_current_user)):
     df_state = safe_query("SELECT state_data FROM qto_active_projects WHERE user_id=%s AND project_id=%s", (current_user["id"], req.project_id))
-    if df_state.empty:
-        raise HTTPException(status_code=400, detail="No active project.")
-        
-    state_data = json.loads(df_state.iloc[0]["state_data"])
+    
+    state_data = {}
+    if not df_state.empty and df_state.iloc[0]["state_data"]:
+        try:
+            state_data = json.loads(df_state.iloc[0]["state_data"])
+        except Exception:
+            state_data = {}
+            
     state_data["classified_pages"] = req.classified_pages
     state_data["current_step"] = 3
     
     state_json = json.dumps(state_data, ensure_ascii=False, default=str)
-    success, msg = safe_execute(
-        "UPDATE qto_active_projects SET current_step=3, state_data=%s WHERE user_id=%s AND project_id=%s",
-        (state_json, current_user["id"], req.project_id)
-    )
+    
+    from utils.db import is_sqlite
+    if is_sqlite():
+        success, msg = safe_execute(
+            """
+            INSERT INTO qto_active_projects (user_id, project_id, current_step, state_data)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT(user_id, project_id) DO UPDATE SET 
+                current_step=excluded.current_step, 
+                state_data=excluded.state_data, 
+                updated_at=datetime('now', 'localtime')
+            """,
+            (current_user["id"], req.project_id, 3, state_json)
+        )
+    else:
+        success, msg = safe_execute(
+            """
+            INSERT INTO qto_active_projects (user_id, project_id, current_step, state_data)
+            VALUES (%s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE current_step=3, state_data=%s, updated_at=CURRENT_TIMESTAMP
+            """,
+            (current_user["id"], req.project_id, 3, state_json, state_json)
+        )
+
     if not success:
         raise HTTPException(status_code=500, detail=f"Failed to update database: {msg}")
 
