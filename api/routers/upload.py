@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, BackgroundTasks
 from typing import Optional, List
 import os
 import json
@@ -20,6 +20,7 @@ MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_MB", "512")) * 1024 * 1024
 
 @router.post("/upload")
 async def upload_drawings(
+    background_tasks: BackgroundTasks,
     project_id: int = Form(...),
     str_files: List[UploadFile] = File([]),
     arch_files: List[UploadFile] = File([]),
@@ -110,9 +111,14 @@ async def upload_drawings(
                 # Load texts for classification directly from disk using mmap (virtually 0 RAM)
                 texts = extract_page_text(pdf_cache_path)
                 
-                # Fast Native Image Extraction to Disk using mmap
+                # Instantly get page count without rendering
+                import fitz
+                with fitz.open(pdf_cache_path) as doc:
+                    page_count = len(doc)
+                
+                # Fast Native Image Extraction pushed to Background Task to prevent 502 Proxy Timeouts
                 from pdf_engine.pdf_loader import fast_save_pdf_pages
-                page_count = fast_save_pdf_pages(pdf_cache_path, project_id, prefix, start_idx)
+                background_tasks.add_task(fast_save_pdf_pages, pdf_cache_path, project_id, prefix, start_idx)
             except HTTPException:
                 raise
             except Exception as pdf_err:
