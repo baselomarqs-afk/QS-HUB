@@ -82,9 +82,14 @@ def _classify_single(text: str, pdf_type: str) -> dict:
     text_lower = text.lower()
     scores = {}
     for ptype, config in PAGE_ITEMS_MAP.items():
+        # Enforce PDF domain isolation (structural vs architectural)
+        if config.get("pdf_type") and config.get("pdf_type") != pdf_type:
+            continue
         score = sum(1 for kw in config.get("drawing_keywords", []) if kw.lower() in text_lower)
         scores[ptype] = score
-    best  = max(scores, key=scores.get)
+    if not scores:
+        return {"detected_type": "unknown", "confidence": "low", "items": []}
+    best = max(scores, key=scores.get)
     score = scores[best]
     return {
         "detected_type": best if score > 0 else "unknown",
