@@ -103,7 +103,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
         const pData = await pRes.json();
         setProgrammeAccess(pData);
       }
-      
+
       const cRes = await fetch("/api/billing/feature-access?feature=cashflow", {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -194,7 +194,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Failed to create project.');
-      
+
       onSelectProject({ id: data.project_id, name: qtoProjName.trim(), current_step: 1 });
       onNavigate('workflow');
     } catch (err) {
@@ -294,8 +294,8 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
       </div>
 
       <div className="glass-panel" style={{ padding: '25px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '35px' }}>
-        <div 
-          className="glass-card" 
+        <div
+          className="glass-card"
           style={{ borderLeft: '4px solid var(--primary)', cursor: 'pointer', transition: 'all 0.2s ease' }}
           onClick={() => onNavigate('billing')}
           onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
@@ -316,7 +316,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
           )}
         </div>
 
-        <div 
+        <div
           className="glass-card"
           style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
           onClick={() => onNavigate('projects', { tab: 'qto' })}
@@ -336,7 +336,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
           )}
         </div>
 
-        <div 
+        <div
           className="glass-card"
           style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
           onClick={() => onNavigate('projects', { tab: 'programme' })}
@@ -357,7 +357,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
         </div>
 
         {/* 4th Box: Cash Flows Done */}
-        <div 
+        <div
           className="glass-card"
           style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
           onClick={() => onNavigate('projects', { tab: 'cashflow' })}
@@ -384,13 +384,13 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
           {isArabic ? 'أدوات النظام' : 'Q.S Tools'}
         </h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '25px' }}>
-          
+
           {/* Tile 1: QTO Workflow */}
-          <div 
-            className="glass-card" 
-            style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
+          <div
+            className="glass-card"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
               justifyContent: 'space-between',
               padding: '25px',
               border: '1px solid rgba(59, 130, 246, 0.15)',
@@ -425,7 +425,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                 {isArabic ? 'مسار حصر الكميات' : 'QTO Workflow'}
               </h4>
               <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
-                {isArabic 
+                {isArabic
                   ? 'رفع المخططات الهندسية، حصر الكميات، وتوليد جداول كميات (BOQ) معتمدة على الذكاء الاصطناعي.'
                   : 'Upload engineering drawings, extract quantities, and generate standard BOQs powered by AI.'}
               </p>
@@ -485,15 +485,15 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                   <span>{isArabic ? 'تم الوصول للحد! يرجى الشراء.' : 'Limit reached! Please purchase.'}</span>
                 </div>
               ) : (
-                <form 
+                <form
                   onSubmit={handleCreateProject}
                   style={{ display: 'flex', gap: '8px' }}
                 >
                   <input
                     type="text"
                     className="form-input"
-                    style={{ 
-                      flex: 1, 
+                    style={{
+                      flex: 1,
                       minWidth: '0',
                       fontSize: '0.85rem',
                       padding: '8px 10px',
@@ -507,9 +507,9 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                     onChange={e => setQtoProjName(e.target.value)}
                     disabled={creating}
                   />
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary" 
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
                     style={{ padding: '8px 14px', fontSize: '0.85rem', borderRadius: '6px', whiteSpace: 'nowrap' }}
                     disabled={creating || !qtoProjName.trim()}
                   >
@@ -521,10 +521,10 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
 
             {/* Add Project Green Box */}
             {!isAdmin && details && details.plan_tier !== 0 && (
-              <div 
-                style={{ 
-                  backgroundColor: 'rgba(16, 185, 129, 0.05)', 
-                  border: '1px solid rgba(16, 185, 129, 0.3)', 
+              <div
+                style={{
+                  backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
                   cursor: 'pointer',
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -552,11 +552,11 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
           </div>
 
           {/* Tile 2: Work Programme */}
-          <div 
-            className="glass-card" 
-            style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
+          <div
+            className="glass-card"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
               justifyContent: 'space-between',
               padding: '25px',
               border: '1px solid rgba(16, 185, 129, 0.15)',
@@ -591,7 +591,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                 {isArabic ? 'جدول زمني' : 'Work Programme'}
               </h4>
               <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
-                {isArabic 
+                {isArabic
                   ? 'توليد جداول زمنية للعمل ومخططات غانت والمراحل الرئيسية للمشروع استناداً إلى الكميات المقاسة.'
                   : 'Generate work schedules, Gantt charts, and milestones automatically derived from measured quantities.'}
               </p>
@@ -651,7 +651,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                   <span>{isArabic ? 'تم الوصول للحد! يرجى الشراء.' : 'Limit reached! Please purchase.'}</span>
                 </div>
               ) : (
-                <form 
+                <form
                   onSubmit={(e) => {
                     e.preventDefault();
                     if (!programmeProjName.trim()) return;
@@ -663,8 +663,8 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                   <input
                     type="text"
                     className="form-input"
-                    style={{ 
-                      flex: 1, 
+                    style={{
+                      flex: 1,
                       minWidth: '0',
                       fontSize: '0.85rem',
                       padding: '8px 10px',
@@ -677,9 +677,9 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                     value={programmeProjName}
                     onChange={e => setProgrammeProjName(e.target.value)}
                   />
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary" 
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
                     style={{ padding: '8px 14px', fontSize: '0.85rem', borderRadius: '6px', whiteSpace: 'nowrap' }}
                     disabled={!programmeProjName.trim()}
                   >
@@ -691,10 +691,10 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
 
             {/* Add Project Green Box */}
             {!isAdmin && programmeAccess && programmeAccess.plan_tier !== 0 && (
-              <div 
-                style={{ 
-                  backgroundColor: 'rgba(16, 185, 129, 0.05)', 
-                  border: '1px solid rgba(16, 185, 129, 0.3)', 
+              <div
+                style={{
+                  backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
                   cursor: 'pointer',
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -722,11 +722,11 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
           </div>
 
           {/* Tile 3: Cash Flow */}
-          <div 
-            className="glass-card" 
-            style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
+          <div
+            className="glass-card"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
               justifyContent: 'space-between',
               padding: '25px',
               border: '1px solid rgba(245, 158, 11, 0.15)',
@@ -761,7 +761,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                 {isArabic ? 'التدفق النقدي' : 'Cash Flow'}
               </h4>
               <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
-                {isArabic 
+                {isArabic
                   ? 'توقعات التدفقات النقدية الداخلة والخارجة، وجداول الدفعات، ومنحنيات S-Curve المالية للمشروع.'
                   : 'Forecast project cash flows, payment schedules, and generate financial S-curves for budget planning.'}
               </p>
@@ -821,7 +821,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                   <span>{isArabic ? 'تم الوصول للحد! يرجى الشراء.' : 'Limit reached! Please purchase.'}</span>
                 </div>
               ) : (
-                <form 
+                <form
                   onSubmit={(e) => {
                     e.preventDefault();
                     if (!cashflowProjName.trim()) return;
@@ -833,8 +833,8 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                   <input
                     type="text"
                     className="form-input"
-                    style={{ 
-                      flex: 1, 
+                    style={{
+                      flex: 1,
                       minWidth: '0',
                       fontSize: '0.85rem',
                       padding: '8px 10px',
@@ -847,9 +847,9 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
                     value={cashflowProjName}
                     onChange={e => setCashflowProjName(e.target.value)}
                   />
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary" 
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
                     style={{ padding: '8px 14px', fontSize: '0.85rem', borderRadius: '6px', whiteSpace: 'nowrap' }}
                     disabled={!cashflowProjName.trim()}
                   >
@@ -861,10 +861,10 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
 
             {/* Add Project Green Box */}
             {!isAdmin && cashflowAccess && cashflowAccess.plan_tier !== 0 && (
-              <div 
-                style={{ 
-                  backgroundColor: 'rgba(16, 185, 129, 0.05)', 
-                  border: '1px solid rgba(16, 185, 129, 0.3)', 
+              <div
+                style={{
+                  backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
                   cursor: 'pointer',
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -913,7 +913,7 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
               {isArabic ? 'تنبيه: يوجد مشروع غير مكتمل!' : 'Found an unsaved project!'}
             </h4>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-              {isArabic 
+              {isArabic
                 ? `لقد كنت تعمل على الخطوة ${activeProject.current_step} (تاريخ التعديل: ${activeProject.updated_at})`
                 : `You were working on Step ${activeProject.current_step} (Last updated: ${activeProject.updated_at})`}
             </p>
@@ -949,12 +949,12 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.95rem', color: 'var(--text-secondary)', lineHeight: '1.6', fontWeight: 500 }}>
             <p>
-              1- {isArabic 
+              1- {isArabic
                 ? 'تم تصميم النظام لتوفير الوقت والجهد. لضمان النتائج، مراجعة المهندس ضرورية ولا غنى عنها.'
                 : "The system is designed to save time and effort. To guarantee the results, engineer's review is a must."}
             </p>
             <p>
-              2- {isArabic 
+              2- {isArabic
                 ? 'تعتمد جودة نتائج النظام بشكل أساسي على جودة المخططات ودقة تصنيفها.'
                 : 'Results quality of the system depends on the quality of the drawings and drawings classification accuracy.'}
             </p>
