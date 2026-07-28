@@ -48,29 +48,35 @@ def fast_save_pdf_pages(pdf_bytes: bytes, project_id: int, prefix: str, start_id
     page_count = len(doc)
 
     for page_num in range(page_count):
-        page = doc[page_num]
-        rect = page.rect
-        w, h = rect.width, rect.height
+        try:
+            page = doc[page_num]
+            rect = page.rect
+            w, h = rect.width, rect.height
 
-        # Calculate C++ rendering scale matrix to cap max dimension at 1200px (fast, crystal clear)
-        max_dim = max(w, h)
-        if max_dim > 0:
-            scale = min(1200.0 / max_dim, 1.5)
-        else:
-            scale = 1.0
+            # Calculate C++ rendering scale matrix to cap max dimension at 1200px (fast, crystal clear)
+            max_dim = max(w, h)
+            if max_dim > 0:
+                scale = min(1200.0 / max_dim, 1.5)
+            else:
+                scale = 1.0
 
-        mat = fitz.Matrix(scale, scale)
-        pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB, alpha=False)
+            mat = fitz.Matrix(scale, scale)
+            try:
+                pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB, alpha=False)
+            except Exception:
+                pix = page.get_pixmap(colorspace=fitz.csRGB)
 
-        # High-speed native C++ JPEG encoder (quality=90, ~150KB per page)
-        jpg_bytes = pix.tobytes("jpg", jpg_quality=90)
-        pix = None  # Free PyMuPDF C memory immediately
-        page = None
+            # High-speed native C++ JPEG encoder (quality=90, ~150KB per page)
+            jpg_bytes = pix.tobytes("jpg", jpg_quality=90)
+            pix = None  # Free PyMuPDF C memory immediately
+            page = None
 
-        global_idx = start_idx + page_num
-        filename = f"{prefix}_page_{global_idx}.jpg"
-        save_raw_image_to_cache(project_id, filename, jpg_bytes, format="JPEG")
-        
+            global_idx = start_idx + page_num
+            filename = f"{prefix}_page_{global_idx}.jpg"
+            save_raw_image_to_cache(project_id, filename, jpg_bytes, format="JPEG")
+        except Exception as page_err:
+            print(f"[fast_save_pdf_pages] Warning: failed page {page_num}: {page_err}")
+
         # Periodic memory cleanup to prevent cloud container OOM SIGKILL (502 Gateway error)
         if page_num % 5 == 0:
             gc.collect()
@@ -86,7 +92,10 @@ def extract_page_text(pdf_bytes: bytes) -> List[str]:
     doc   = fitz.open(stream=pdf_bytes, filetype="pdf")
     texts = []
     for page in doc:
-        texts.append(page.get_text().strip())
+        try:
+            texts.append(page.get_text().strip())
+        except Exception:
+            texts.append("")
     doc.close()
     return texts
 
