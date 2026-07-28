@@ -35,10 +35,10 @@ async def auto_classify(req: RunExtractionReq, current_user: dict = Depends(get_
     str_texts = state_data.get("str_texts") or []
     arch_texts = state_data.get("arch_texts") or []
 
-    # Safety fallback: re-extract text directly from PDF if stored text is short
+    # Safety fallback: re-extract text directly from PDF ONLY if stored text is missing
     from pdf_engine.pdf_loader import extract_page_text
     str_boundaries = state_data.get("str_boundaries") or []
-    if str_boundaries and (not str_texts or any(len(t) < 150 for t in str_texts)):
+    if str_boundaries and not str_texts:
         reextracted = []
         for b in str_boundaries:
             pdf_p = os.path.join(project_cache, b.get("pdf_path", ""))
@@ -49,7 +49,7 @@ async def auto_classify(req: RunExtractionReq, current_user: dict = Depends(get_
             str_texts = reextracted
 
     arch_boundaries = state_data.get("arch_boundaries") or []
-    if arch_boundaries and (not arch_texts or any(len(t) < 150 for t in arch_texts)):
+    if arch_boundaries and not arch_texts:
         reextracted = []
         for b in arch_boundaries:
             pdf_p = os.path.join(project_cache, b.get("pdf_path", ""))

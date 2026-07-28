@@ -51,18 +51,18 @@ def fast_save_pdf_pages(pdf_bytes: bytes, project_id: int, prefix: str, start_id
         rect = page.rect
         w, h = rect.width, rect.height
 
-        # Calculate C++ rendering scale matrix to cap max dimension at 1600px (~100-150 DPI)
+        # Calculate C++ rendering scale matrix to cap max dimension at 1200px (fast, crystal clear)
         max_dim = max(w, h)
         if max_dim > 0:
-            scale = min(1600.0 / max_dim, 150.0 / 72.0)
+            scale = min(1200.0 / max_dim, 1.5)
         else:
             scale = 1.0
 
         mat = fitz.Matrix(scale, scale)
         pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB, alpha=False)
 
-        # High-speed native C++ JPEG encoder
-        jpg_bytes = pix.tobytes("jpg", jpg_quality=95)
+        # High-speed native C++ JPEG encoder (quality=90, ~150KB per page)
+        jpg_bytes = pix.tobytes("jpg", jpg_quality=90)
         pix = None  # Free PyMuPDF C memory immediately
 
         global_idx = start_idx + page_num
