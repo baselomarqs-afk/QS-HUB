@@ -269,13 +269,7 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
 
     setLoading(true);
     setLoadingText(isArabic ? 'جاري قراءة المخططات...' : 'Uploading & Processing Blueprints...');
-    setLoadingSubtext(isArabic ? 'يرجى الانتظار بينما نقوم بتحليل الصفحات...' : 'Please wait while we parse the pages...');
     setMessage('');
-    
-    const formData = new FormData();
-    formData.append('project_id', project.id);
-    strFiles.forEach(f => formData.append('str_files', f));
-    archFiles.forEach(f => formData.append('arch_files', f));
 
     const safeJsonFetch = async (url, options = {}) => {
       const res = await fetch(url, options);
@@ -284,12 +278,10 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
       if (text) {
         try {
           data = JSON.parse(text);
-        } catch (e) {
-          // Response body was not JSON (e.g. 504 Gateway Timeout HTML page)
-        }
+        } catch (e) {}
       }
       if (!res.ok) {
-        const msg = data?.detail || (res.status === 504 ? (isArabic ? 'انتهت مهلة استجابة الخادم (504). يرجى تقليل حجم الملفات أو المحاولة مجدداً.' : 'Server gateway timeout (504). Please try again or use smaller files.') : (isArabic ? `فشل طلب الخادم (رمز ${res.status}).` : `Server request failed (HTTP ${res.status}).`));
+        const msg = data?.detail || (res.status === 504 ? (isArabic ? 'انتهت مهلة استجابة الخادم (504). يرجى المحاولة مجدداً.' : 'Server gateway timeout (504). Please try again.') : (isArabic ? `فشل طلب الخادم (رمز ${res.status}).` : `Server request failed (HTTP ${res.status}).`));
         throw new Error(msg);
       }
       if (!data) {
@@ -299,14 +291,34 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
     };
 
     try {
-      const data = await safeJsonFetch(`${API_URL}/upload`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
-      });
+      let lastData = null;
+
+      if (strFiles.length > 0) {
+        setLoadingSubtext(isArabic ? 'جاري رفع المخطط الإنشائي...' : 'Uploading Structural drawings...');
+        const strFormData = new FormData();
+        strFormData.append('project_id', project.id);
+        strFiles.forEach(f => strFormData.append('str_files', f));
+        lastData = await safeJsonFetch(`${API_URL}/upload`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: strFormData
+        });
+      }
+
+      if (archFiles.length > 0) {
+        setLoadingSubtext(isArabic ? 'جاري رفع المخطط المعماري...' : 'Uploading Architectural drawings...');
+        const archFormData = new FormData();
+        archFormData.append('project_id', project.id);
+        archFiles.forEach(f => archFormData.append('arch_files', f));
+        lastData = await safeJsonFetch(`${API_URL}/upload`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: archFormData
+        });
+      }
       
-      setUploadResult(data);
-      setMessage(isArabic ? 'تم رفع المخططات وتقسيمها بنجاح!' : 'Drawings uploaded and page images cached successfully!');
+      setUploadResult(lastData);
+      setMessage(isArabic ? 'تم رفع المخططات وتقسيمها بنجاح!' : 'Drawings uploaded successfully!');
       
       // Auto run classification
       handleAutoClassify();

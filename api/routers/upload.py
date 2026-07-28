@@ -49,10 +49,25 @@ async def upload_drawings(
     state_data["confirmed_auto_data"] = {}
     state_data["current_step"] = 1
     
-    # Cleanup previous cached images
-    for f in os.listdir(project_cache):
-        try: os.remove(os.path.join(project_cache, f))
-        except: pass
+    # Selective prefix cleanup to support sequential/chunked uploads
+    if str_files:
+        state_data["str_fnames"] = []
+        state_data["str_texts"] = []
+        state_data["str_boundaries"] = []
+        state_data["str_page_count"] = 0
+        for f in os.listdir(project_cache):
+            if f.startswith("str_"):
+                try: os.remove(os.path.join(project_cache, f))
+                except: pass
+    if arch_files:
+        state_data["arch_fnames"] = []
+        state_data["arch_texts"] = []
+        state_data["arch_boundaries"] = []
+        state_data["arch_page_count"] = 0
+        for f in os.listdir(project_cache):
+            if f.startswith("arch_"):
+                try: os.remove(os.path.join(project_cache, f))
+                except: pass
 
     # Helper function to process file and save page images
     def process_file(file_obj, prefix, start_idx):
