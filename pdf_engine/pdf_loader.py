@@ -34,7 +34,7 @@ def load_pdf_pages(pdf_bytes: bytes, dpi: int = 150) -> List[np.ndarray]:
     return pages
 
 
-def fast_save_pdf_pages(pdf_bytes: bytes, project_id: int, prefix: str, start_idx: int) -> int:
+def fast_save_pdf_pages(pdf_source: bytes | str, project_id: int, prefix: str, start_idx: int) -> int:
     """
     High-speed PDF image extractor using pure C++ PyMuPDF rendering.
     Bypasses PIL/Numpy entirely to avoid memory leaks and strided byte exceptions.
@@ -44,7 +44,10 @@ def fast_save_pdf_pages(pdf_bytes: bytes, project_id: int, prefix: str, start_id
     from utils.storage import save_raw_image_to_cache
 
     import gc
-    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    if isinstance(pdf_source, str):
+        doc = fitz.open(pdf_source)
+    else:
+        doc = fitz.open(stream=pdf_source, filetype="pdf")
     page_count = len(doc)
 
     for page_num in range(page_count):
@@ -87,9 +90,12 @@ def fast_save_pdf_pages(pdf_bytes: bytes, project_id: int, prefix: str, start_id
     return page_count
 
 
-def extract_page_text(pdf_bytes: bytes) -> List[str]:
+def extract_page_text(pdf_source: bytes | str) -> List[str]:
     """يستخرج النص المباشر من كل صفحة PDF بدون OCR — أسرع للتصنيف الأولي"""
-    doc   = fitz.open(stream=pdf_bytes, filetype="pdf")
+    if isinstance(pdf_source, str):
+        doc = fitz.open(pdf_source)
+    else:
+        doc = fitz.open(stream=pdf_source, filetype="pdf")
     texts = []
     for page in doc:
         try:

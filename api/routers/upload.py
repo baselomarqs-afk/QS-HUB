@@ -96,23 +96,28 @@ async def upload_drawings(
             except Exception as ex:
                 print(f"save_file warning: {ex}")
             
-            try:
-                # Load texts for classification
-                texts = extract_page_text(content)
+            # Save the original PDF locally in cache FIRST
+            pdf_cache_path = os.path.join(project_cache, f"{prefix}_{start_idx}.pdf")
+            with open(pdf_cache_path, "wb") as f:
+                f.write(content)
                 
-                # Fast Native Image Extraction to Disk (Bypasses slow Numpy/PIL pipeline entirely)
+            # FREE the massive byte array from memory before PyMuPDF processes it
+            del content
+            import gc
+            gc.collect()
+            
+            try:
+                # Load texts for classification directly from disk using mmap (virtually 0 RAM)
+                texts = extract_page_text(pdf_cache_path)
+                
+                # Fast Native Image Extraction to Disk using mmap
                 from pdf_engine.pdf_loader import fast_save_pdf_pages
-                page_count = fast_save_pdf_pages(content, project_id, prefix, start_idx)
+                page_count = fast_save_pdf_pages(pdf_cache_path, project_id, prefix, start_idx)
             except HTTPException:
                 raise
             except Exception as pdf_err:
                 print(f"[upload] PDF Processing error for {file_obj.filename}: {pdf_err}")
                 raise HTTPException(status_code=400, detail=f"Error reading PDF file ({file_obj.filename}): {str(pdf_err)}")
-            
-            # Save the original PDF locally in cache for vector measurement
-            pdf_cache_path = os.path.join(project_cache, f"{prefix}_{start_idx}.pdf")
-            with open(pdf_cache_path, "wb") as f:
-                f.write(content)
                 
             return page_count, texts
 
