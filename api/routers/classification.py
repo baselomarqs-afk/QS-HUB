@@ -107,10 +107,12 @@ async def save_classification(req: SaveClassificationReq, current_user: dict = D
     state_data["current_step"] = 3
     
     state_json = json.dumps(state_data, ensure_ascii=False, default=str)
-    safe_execute(
+    success, msg = safe_execute(
         "UPDATE qto_active_projects SET current_step=3, state_data=%s WHERE user_id=%s AND project_id=%s",
         (state_json, current_user["id"], req.project_id)
     )
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Failed to update database: {msg}")
 
     # Learning loop (API path): capture the user-confirmed page classifications so
     # the AI improves over time. Approved rules are injected back into extraction
