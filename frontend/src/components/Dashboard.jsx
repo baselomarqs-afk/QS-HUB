@@ -289,7 +289,9 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
           {isArabic ? `أهلاً بك! م. ${displayUserName} 🏗️` : `Welcome! Eng. ${displayUserName} 🏗️`}
         </h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginTop: '6px' }}>
-          {isArabic ? 'منصة حصر الكميات الذكية وتوليد جداول BOQ المعتمدة على الذكاء الاصطناعي.' : 'AI powered assistant for quantity taking-off , cash flow . work programs for villas project in the UAE..'}
+          {isArabic 
+            ? 'مساعد ذكي مدعوم بالذكاء الاصطناعي لحصر الكميات، والتدفق النقدي، والجداول الزمنية لمشاريع الفلل وفقاً لأنظمة واشتراطات دول الخليج.'
+            : 'AI-powered assistant for quantity takeoff, cash flow & work programs for villa projects as per Gulf Countries regulations.'}
         </p>
       </div>
 

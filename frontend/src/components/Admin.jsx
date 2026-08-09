@@ -340,17 +340,25 @@ export default function Admin({ token, isArabic }) {
 
                 {systemStats.analytics && (
                   <div style={{ marginBottom: '35px' }}>
-                    <h4 style={{ fontWeight: 700, marginBottom: '15px' }}>📊 {isArabic ? 'إحصائيات النشاط (اليوم)' : 'Daily Activity Analytics'}</h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-                      <div style={{ padding: '20px', background: 'var(--bg-secondary)', borderRadius: '12px', textAlign: 'center', borderTop: '3px solid var(--primary)' }}>
+                    <h4 style={{ fontWeight: 700, marginBottom: '15px' }}>📊 {isArabic ? 'إحصائيات النشاط والزوار' : 'Live Activity & Visitor Analytics'}</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', marginBottom: '20px' }}>
+                      <div style={{ padding: '18px', background: 'var(--bg-secondary)', borderRadius: '12px', textAlign: 'center', borderTop: '3px solid #3b82f6' }}>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '5px' }}>{isArabic ? 'إجمالي الزوار (24س)' : 'Total Visitors (24h)'}</p>
+                        <h3 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{systemStats.analytics.visitors_24h ?? 0}</h3>
+                      </div>
+                      <div style={{ padding: '18px', background: 'var(--bg-secondary)', borderRadius: '12px', textAlign: 'center', borderTop: '3px solid #8b5cf6' }}>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '5px' }}>{isArabic ? 'زوار فريدين (IPs)' : 'Unique Visitor IPs'}</p>
+                        <h3 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{systemStats.analytics.unique_visitors_24h ?? 0}</h3>
+                      </div>
+                      <div style={{ padding: '18px', background: 'var(--bg-secondary)', borderRadius: '12px', textAlign: 'center', borderTop: '3px solid var(--primary)' }}>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '5px' }}>{isArabic ? 'تسجيلات الدخول اليوم' : 'Logins Today'}</p>
                         <h3 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{systemStats.analytics.logins_today}</h3>
                       </div>
-                      <div style={{ padding: '20px', background: 'var(--bg-secondary)', borderRadius: '12px', textAlign: 'center', borderTop: '3px solid var(--success)' }}>
+                      <div style={{ padding: '18px', background: 'var(--bg-secondary)', borderRadius: '12px', textAlign: 'center', borderTop: '3px solid var(--success)' }}>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '5px' }}>{isArabic ? 'المستخدمين الجدد اليوم' : 'New Registrations Today'}</p>
                         <h3 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{systemStats.analytics.regs_today}</h3>
                       </div>
-                      <div style={{ padding: '20px', background: 'var(--bg-secondary)', borderRadius: '12px', textAlign: 'center', borderTop: '3px solid var(--warning)' }}>
+                      <div style={{ padding: '18px', background: 'var(--bg-secondary)', borderRadius: '12px', textAlign: 'center', borderTop: '3px solid var(--warning)' }}>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '5px' }}>{isArabic ? 'مشاريع آخر 12 ساعة' : 'Projects Last 12h'}</p>
                         <h3 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{systemStats.analytics.projects_12h}</h3>
                       </div>

@@ -26,7 +26,10 @@ def get_platform_stats():
     users = safe_query("SELECT COUNT(*) as c FROM qto_users").iloc[0]['c']
     subs = safe_query("SELECT COUNT(*) as c FROM qto_subscriptions WHERE status='active'").iloc[0]['c']
     complaints = safe_query("SELECT COUNT(*) as c FROM qto_customer_complaints WHERE status='open'").iloc[0]['c']
-    return f"Users: {users}, Active Subs: {subs}, Open Complaints: {complaints}"
+    
+    from utils.visitor import get_visitor_stats
+    v_stats = get_visitor_stats()
+    return f"Users: {users}, Active Subs: {subs}, Open Complaints: {complaints}, Visitors 24h: {v_stats['visitors_24h']} (Unique IPs: {v_stats['unique_visitors_24h']})"
 
 def execute_agent_tool(role, prompt, user_id):
     """Executes backend tools if the agent decides it needs to."""
@@ -48,7 +51,7 @@ def execute_agent_tool(role, prompt, user_id):
         emails = re.findall(r"[a-z0-9\.\-+_]+@[a-z0-9\.\-+_]+\.[a-z]+", q)
         target_email = emails[0] if emails else None
         
-        if any(kw in q for kw in ["report", "تقرير", "status"]):
+        if any(kw in q for kw in ["report", "تقرير", "status", "visitor", "زوار", "traffic"]):
             stats = get_platform_stats()
             # Send Real email report
             from utils.mailer import send_admin_email
@@ -59,7 +62,7 @@ def execute_agent_tool(role, prompt, user_id):
                 "INSERT INTO qto_agent_conversations (user_id, agent_role, sender, message) VALUES (%s, %s, %s, %s)",
                 (user_id, "mgr", "system", f"SENT REAL EMAIL REPORT TO ADMIN: {stats} (Success: {sent})")
             )
-            return f"I have compiled the daily report and sent it to your admin email. Current Stats: {stats} (Email Sent: {sent})"
+            return f"I have compiled the latest stats (including visitor counts): {stats} (Report email sent: {sent})"
             
         # Dangerous commands (refund, cleanup, email all) have been disabled for security reasons.
 
@@ -92,10 +95,13 @@ If a user complains or has an issue, BE EMPATHETIC and act like a real human age
 You MUST NOT mention, refer to, or help with API keys under any circumstances.
 """
     else:
+        from utils.visitor import get_visitor_stats
+        v_stats = get_visitor_stats()
         system_prompt = f"""You are "The AI Manager" for "THE QS HUB".
-You know everything about the site (automated Quantity Takeoff, BOQ generation, UAE market rates). You supervise the workflow and the other 2 agents.
-You send a daily report to the admin, and you always warn if there's any failure.
-You act as the CEO/Admin. Execute refunds via Dodo Payments if asked.
+You know everything about the site (automated Quantity Takeoff, BOQ generation, UAE market rates, visitor analytics). You supervise the workflow and the other 2 agents.
+Live Website Visitor Traffic in Last 24 Hours: Total Visitors = {v_stats['visitors_24h']}, Unique Visitors (Unique IPs) = {v_stats['unique_visitors_24h']}, Visitors Today = {v_stats['visitors_today']}.
+You send daily reports to the admin, monitor traffic, and answer questions about visitor analytics accurately in English or Arabic.
+You act as the CEO/Admin.
 """
 
     system_prompt += "\nCRITICAL: You must speak and understand both Arabic and English. You MUST reply in the exact same language the user writes in (Arabic for Arabic, English for English)."

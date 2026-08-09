@@ -146,6 +146,38 @@ else:
     )
 
 
+# ------------------------------------------------------------------
+# Non-blocking Visitor Tracking Middleware
+# ------------------------------------------------------------------
+from utils.visitor import log_visitor_hit
+
+@app.middleware("http")
+async def track_visitors_middleware(request: Request, call_next):
+    path = request.url.path
+    method = request.method
+
+    if method != "OPTIONS":
+        skip_prefixes = ("/assets/", "/favicon", "/health", "/test-health", "/docs", "/openapi", "/redoc")
+        skip_extensions = (".js", ".css", ".png", ".jpg", ".jpeg", ".svg", ".ico", ".woff", ".woff2", ".ttf")
+
+        if not path.startswith(skip_prefixes) and not any(path.endswith(ext) for ext in skip_extensions):
+            client_ip = (
+                request.headers.get("cf-connecting-ip")
+                or request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+                or request.headers.get("x-real-ip")
+                or (request.client.host if request.client else "127.0.0.1")
+            )
+            user_agent = request.headers.get("user-agent", "")
+            referer = request.headers.get("referer", "")
+            try:
+                log_visitor_hit(client_ip, path, user_agent, referer)
+            except Exception:
+                pass
+
+    response = await call_next(request)
+    return response
+
+
 
 # Include API Routers
 app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])

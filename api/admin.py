@@ -106,6 +106,10 @@ async def get_system_stats(admin: dict = Depends(verify_admin)):
     t_12h = (now - timedelta(hours=12)).strftime('%Y-%m-%d %H:%M:%S')
     today = now.strftime('%Y-%m-%d')
 
+    # Visitor Analytics
+    from utils.visitor import get_visitor_stats
+    v_stats = get_visitor_stats()
+
     logins_today = 0
     regs_today = 0
     projects_12h = 0
@@ -151,6 +155,9 @@ async def get_system_stats(admin: dict = Depends(verify_admin)):
             "logins_today": logins_today,
             "regs_today": regs_today,
             "projects_12h": projects_12h,
+            "visitors_24h": v_stats["visitors_24h"],
+            "unique_visitors_24h": v_stats["unique_visitors_24h"],
+            "visitors_today": v_stats["visitors_today"],
             "recent_projects": recent_projects
         }
     }
