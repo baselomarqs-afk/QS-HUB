@@ -290,8 +290,8 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
         </h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginTop: '6px' }}>
           {isArabic 
-            ? 'مساعد ذكي مدعوم بالذكاء الاصطناعي لحصر الكميات، والتدفق النقدي، والجداول الزمنية لمشاريع الفلل وفقاً لأنظمة واشتراطات دول الخليج.'
-            : 'AI-powered assistant for quantity takeoff, cash flow & work programs for villa projects as per Gulf Countries regulations.'}
+            ? 'مساعد ذكي مدعوم بالذكاء الاصطناعي لحصر الكميات، والتدفق النقدي، والجداول الزمنية لمشاريع الفلل وفقاً لأنظمة واشتراطات دولة الإمارات.'
+            : 'AI-powered assistant for quantity takeoff, cash flow & work programs for villa projects as per UAE regulations.'}
         </p>
       </div>
 
