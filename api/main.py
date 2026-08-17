@@ -27,7 +27,9 @@ from api.billing import router as billing_router
 from api.admin import router as admin_router
 from api.modules import router as modules_router
 from api.routers.feedback import router as feedback_router
+from api.routers.community import router as community_router
 from utils.garbage_collection import cache_cleanup_task
+
 
 # ── RENDER PROXY MODE ──
 # If running on Render, serve the high-speed HuggingFace Space via an iframe for all GET requests.
@@ -85,6 +87,45 @@ def _ensure_feedback_tables():
         )
         """
     )
+    safe_execute(
+        """
+        CREATE TABLE IF NOT EXISTS qto_inquiries (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NULL,
+            name VARCHAR(255) NULL,
+            email VARCHAR(255) NOT NULL,
+            subject VARCHAR(255) NOT NULL,
+            message TEXT NOT NULL,
+            category VARCHAR(50) DEFAULT 'general',
+            status VARCHAR(50) DEFAULT 'new',
+            admin_notes TEXT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    safe_execute(
+        """
+        CREATE TABLE IF NOT EXISTS qto_reviews (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NULL,
+            user_name VARCHAR(255) NOT NULL,
+            user_role VARCHAR(255) NULL,
+            company VARCHAR(255) NULL,
+            rating INT NOT NULL,
+            review_title VARCHAR(255) NULL,
+            review_text TEXT NOT NULL,
+            is_approved TINYINT(1) DEFAULT 0,
+            is_featured TINYINT(1) DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    try:
+        from utils.db import seed_mockup_reviews
+        seed_mockup_reviews()
+    except Exception as e:
+        _logging.getLogger("qto").warning("seed mockup reviews failed: %s", e)
+
 
 
 @asynccontextmanager
@@ -189,6 +230,8 @@ app.include_router(billing_router, prefix="/api/billing", tags=["Billing"])
 app.include_router(admin_router, prefix="/api/admin", tags=["Admin Dashboard"])
 app.include_router(modules_router, prefix="/api/modules", tags=["Programme & Cash Flow"])
 app.include_router(feedback_router, prefix="/api/feedback", tags=["Feedback"])
+app.include_router(community_router, prefix="/api", tags=["Community & Reviews"])
+
 
 @app.post("/webhooks/dodopayments")
 async def dodo_webhook(request: Request):

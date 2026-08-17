@@ -11,6 +11,8 @@ export default function Admin({ token, isArabic }) {
   const [rules, setRules] = useState({ pending: [], global: [] });
   const [complaints, setComplaints] = useState([]);
   const [feedback, setFeedback] = useState({ summary: [], items: [] });
+  const [inquiries, setInquiries] = useState([]);
+  const [reviewsList, setReviewsList] = useState([]);
 
   // Chat state
   const [chatInput, setChatInput] = useState('');
@@ -62,12 +64,23 @@ export default function Admin({ token, isArabic }) {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) setFeedback(await res.json());
+      } else if (activeTab === 'inquiries') {
+        const res = await fetch('/api/admin/inquiries', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) setInquiries(await res.json());
+      } else if (activeTab === 'reviews') {
+        const res = await fetch('/api/admin/reviews', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) setReviewsList(await res.json());
       }
     } catch (err) {
       console.error('Admin fetch error:', err);
     } finally {
       setLoading(false);
     }
+
   };
 
   const handleApproveRule = async (ruleId) => {
@@ -123,6 +136,80 @@ export default function Admin({ token, isArabic }) {
       console.error(err);
     }
   };
+
+  const handleUpdateInquiryStatus = async (inquiryId, status) => {
+    try {
+      const res = await fetch('/api/admin/inquiries/status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ inquiry_id: inquiryId, status })
+      });
+      if (res.ok) {
+        fetchData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleToggleReviewApprove = async (reviewId, isApproved) => {
+    try {
+      const res = await fetch('/api/admin/reviews/toggle-approve', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ review_id: reviewId, is_approved: isApproved ? 0 : 1 })
+      });
+      if (res.ok) {
+        fetchData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleToggleReviewFeature = async (reviewId, isFeatured) => {
+    try {
+      const res = await fetch('/api/admin/reviews/toggle-feature', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ review_id: reviewId, is_featured: isFeatured ? 0 : 1 })
+      });
+      if (res.ok) {
+        fetchData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId) => {
+    if (!window.confirm(isArabic ? 'هل أنت متأكد من حذف هذه المراجعة؟' : 'Are you sure you want to delete this review?')) return;
+    try {
+      const res = await fetch('/api/admin/reviews/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ review_id: reviewId })
+      });
+      if (res.ok) {
+        fetchData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
 
   const handleSendChat = async (e) => {
     e.preventDefault();
@@ -186,8 +273,11 @@ export default function Admin({ token, isArabic }) {
           { id: 'chat', label: isArabic ? '🤖 AI Manager' : '🤖 AI Manager' },
           { id: 'rules', label: isArabic ? '🧠 قواعد التعلم' : '🧠 AI Learning' },
           { id: 'complaints', label: isArabic ? '🚨 شكاوى العملاء' : '🚨 Complaints' },
-          { id: 'feedback', label: isArabic ? '⭐ تقييمات الأدوات' : '⭐ Tool Feedback' }
+          { id: 'feedback', label: isArabic ? '⭐ تقييمات الأدوات' : '⭐ Tool Feedback' },
+          { id: 'inquiries', label: isArabic ? '📩 الاستفسارات' : '📩 Inquiries' },
+          { id: 'reviews', label: isArabic ? '🌟 إدارة المراجعات' : '🌟 Reviews Moderation' }
         ].map(tab => (
+
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
@@ -731,9 +821,251 @@ export default function Admin({ token, isArabic }) {
                 )}
               </div>
             )}
+
+            {/* 8. INQUIRIES TAB */}
+            {activeTab === 'inquiries' && (
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '20px' }}>
+                  📩 {isArabic ? 'صندوق الاستفسارات ورسائل الدعم' : 'Inquiries & Support Messages'}
+                </h3>
+                {inquiries.length === 0 ? (
+                  <div style={{ padding: '25px', background: 'var(--bg-secondary)', borderRadius: '12px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                    {isArabic ? 'لا توجد أي استفسارات واردة حالياً.' : 'No customer inquiries recorded yet.'}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    {inquiries.map(inq => (
+                      <div key={inq.id} style={{
+                        padding: '20px',
+                        background: 'var(--bg-secondary)',
+                        borderRadius: '14px',
+                        border: '1px solid var(--border-color)',
+                        borderLeft: inq.status === 'resolved' ? '4px solid var(--success)' : inq.status === 'in_progress' ? '4px solid #f59e0b' : '4px solid var(--primary)'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' }}>
+                          <div>
+                            <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                              {inq.name ? `${inq.name} (${inq.email})` : inq.email}
+                            </span>
+                            <span style={{
+                              marginLeft: '12px',
+                              marginRight: '12px',
+                              padding: '2px 8px',
+                              borderRadius: '8px',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              background: 'var(--primary-glow)',
+                              color: 'var(--primary)'
+                            }}>
+                              {inq.category}
+                            </span>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                              {new Date(inq.created_at).toLocaleString()}
+                            </span>
+                          </div>
+                          <span style={{
+                            padding: '4px 10px',
+                            borderRadius: '12px',
+                            fontSize: '0.78rem',
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                            background: inq.status === 'resolved' ? 'rgba(16,185,129,0.15)' : inq.status === 'in_progress' ? 'rgba(245,158,11,0.15)' : 'rgba(59,130,246,0.15)',
+                            color: inq.status === 'resolved' ? 'var(--success)' : inq.status === 'in_progress' ? '#f59e0b' : 'var(--primary)'
+                          }}>
+                            {inq.status}
+                          </span>
+                        </div>
+
+                        <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '8px', color: 'var(--text-primary)' }}>
+                          {isArabic ? 'الموضوع: ' : 'Subject: '}{inq.subject}
+                        </div>
+
+                        <p style={{ margin: '10px 0 16px', fontSize: '0.9rem', lineHeight: '1.6', color: 'var(--text-primary)', background: 'var(--bg-primary)', padding: '12px 14px', borderRadius: '10px', whiteSpace: 'pre-wrap' }}>
+                          {inq.message}
+                        </p>
+
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          {inq.status !== 'resolved' && (
+                            <button
+                              onClick={() => handleUpdateInquiryStatus(inq.id, 'resolved')}
+                              className="btn btn-primary"
+                              style={{ padding: '6px 14px', fontSize: '0.82rem', background: 'var(--success)' }}
+                            >
+                              {isArabic ? '✓ تم الرد والحل' : '✓ Mark Resolved'}
+                            </button>
+                          )}
+                          {inq.status === 'new' && (
+                            <button
+                              onClick={() => handleUpdateInquiryStatus(inq.id, 'in_progress')}
+                              className="btn btn-secondary"
+                              style={{ padding: '6px 14px', fontSize: '0.82rem' }}
+                            >
+                              {isArabic ? '⏳ قيد المعالجة' : '⏳ In Progress'}
+                            </button>
+                          )}
+                          {inq.status === 'resolved' && (
+                            <button
+                              onClick={() => handleUpdateInquiryStatus(inq.id, 'new')}
+                              className="btn btn-secondary"
+                              style={{ padding: '6px 14px', fontSize: '0.82rem' }}
+                            >
+                              {isArabic ? 'إعادة فتح' : 'Re-open'}
+                            </button>
+                          )}
+                          <a
+                            href={`mailto:${inq.email}?subject=Re: ${encodeURIComponent(inq.subject)}`}
+                            className="btn btn-secondary"
+                            style={{ padding: '6px 14px', fontSize: '0.82rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            ✉️ {isArabic ? 'إرسال رد عبر الإيميل' : 'Reply via Email'}
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 9. REVIEWS MODERATION TAB */}
+            {activeTab === 'reviews' && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>
+                    🌟 {isArabic ? 'إدارة واعتماد مراجعات المستخدمين' : 'Reviews & Testimonials Moderation'}
+                  </h3>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                    {isArabic 
+                      ? '⚠️ المراجعات الجديدة تتطلب موافقة الأدمن لتظهر على الموقع للعامة' 
+                      : '⚠️ New reviews require admin approval before appearing publicly'}
+                  </div>
+                </div>
+
+                {reviewsList.length === 0 ? (
+                  <div style={{ padding: '25px', background: 'var(--bg-secondary)', borderRadius: '12px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                    {isArabic ? 'لا توجد أي مراجعات مسجلة.' : 'No reviews recorded.'}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    {reviewsList.map(r => (
+                      <div key={r.id} style={{
+                        padding: '20px',
+                        background: 'var(--bg-secondary)',
+                        borderRadius: '14px',
+                        border: '1px solid var(--border-color)',
+                        borderLeft: r.is_approved === 1 ? '4px solid var(--success)' : '4px solid #f59e0b'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ color: '#eab308', fontSize: '1.1rem', letterSpacing: '2px' }}>
+                              {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
+                            </span>
+                            <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                              {r.user_name}
+                            </span>
+                            {(r.user_role || r.company) && (
+                              <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                ({[r.user_role, r.company].filter(Boolean).join(' • ')})
+                              </span>
+                            )}
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{
+                              padding: '3px 10px',
+                              borderRadius: '10px',
+                              fontSize: '0.78rem',
+                              fontWeight: 800,
+                              background: r.is_approved === 1 ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+                              color: r.is_approved === 1 ? 'var(--success)' : '#f59e0b'
+                            }}>
+                              {r.is_approved === 1 
+                                ? (isArabic ? '✓ معتمد ومنشور' : '✓ Approved & Public') 
+                                : (isArabic ? '⏳ قيد المراجعة (مخفي)' : '⏳ Pending Approval (Hidden)')}
+                            </span>
+
+                            {r.is_featured === 1 && (
+                              <span style={{
+                                padding: '3px 8px',
+                                borderRadius: '10px',
+                                fontSize: '0.75rem',
+                                fontWeight: 800,
+                                background: 'rgba(59,130,246,0.15)',
+                                color: 'var(--primary)'
+                              }}>
+                                🌟 {isArabic ? 'مميز' : 'Featured'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {r.review_title && (
+                          <h4 style={{ fontSize: '0.98rem', fontWeight: 800, marginBottom: '6px', color: 'var(--text-primary)' }}>
+                            "{r.review_title}"
+                          </h4>
+                        )}
+
+                        <p style={{ margin: '8px 0 16px', fontSize: '0.9rem', lineHeight: '1.6', color: 'var(--text-secondary)' }}>
+                          {r.review_text}
+                        </p>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                            {new Date(r.created_at).toLocaleString()}
+                          </span>
+
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              onClick={() => handleToggleReviewApprove(r.id, r.is_approved === 1)}
+                              className="btn btn-primary"
+                              style={{
+                                padding: '6px 14px',
+                                fontSize: '0.82rem',
+                                background: r.is_approved === 1 ? 'var(--bg-primary)' : 'var(--success)',
+                                color: r.is_approved === 1 ? 'var(--text-primary)' : 'white',
+                                border: r.is_approved === 1 ? '1px solid var(--border-color)' : 'none'
+                              }}
+                            >
+                              {r.is_approved === 1 
+                                ? (isArabic ? 'إلغاء الاعتماد (إخفاء)' : 'Unapprove (Hide)') 
+                                : (isArabic ? '✓ اعتماد ونشر في الموقع' : '✓ Approve & Publish')}
+                            </button>
+
+                            <button
+                              onClick={() => handleToggleReviewFeature(r.id, r.is_featured === 1)}
+                              className="btn btn-secondary"
+                              style={{ padding: '6px 12px', fontSize: '0.82rem' }}
+                            >
+                              {r.is_featured === 1 ? (isArabic ? 'إلغاء التمييز' : 'Unfeature') : (isArabic ? '🌟 تمييز في الواجهة' : '🌟 Set Featured')}
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteReview(r.id)}
+                              style={{
+                                padding: '6px 12px',
+                                fontSize: '0.82rem',
+                                background: 'rgba(239,68,68,0.1)',
+                                color: 'var(--error)',
+                                border: '1px solid rgba(239,68,68,0.3)',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontWeight: 700
+                              }}
+                            >
+                              {isArabic ? 'حذف' : 'Delete'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
     </div>
   );
 }
+

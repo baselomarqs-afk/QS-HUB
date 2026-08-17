@@ -84,6 +84,17 @@ def get_current_user(request: Request, authorization: Optional[str] = Header(Non
     token = authorization.split(" ")[1]
     return verify_session_token(token)
 
+def get_optional_current_user(request: Request, authorization: Optional[str] = Header(None)) -> Optional[dict]:
+    if not authorization:
+        authorization = request.query_params.get("Authorization")
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    try:
+        token = authorization.split(" ")[1]
+        return verify_session_token(token)
+    except Exception:
+        return None
+
 @router.post("/register")
 async def register(req: UserRegister):
     email = req.email.strip().lower()

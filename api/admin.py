@@ -15,6 +15,21 @@ class UpdateRuleReq(BaseModel):
 class ResolveComplaintReq(BaseModel):
     complaint_id: int
 
+class UpdateInquiryStatusReq(BaseModel):
+    inquiry_id: int
+    status: str
+
+class ToggleReviewApproveReq(BaseModel):
+    review_id: int
+    is_approved: Optional[int] = None
+
+class ToggleReviewFeatureReq(BaseModel):
+    review_id: int
+    is_featured: Optional[int] = None
+
+class DeleteReviewReq(BaseModel):
+    review_id: int
+
 class AdminChatReq(BaseModel):
     prompt: str
 
@@ -22,6 +37,7 @@ def verify_admin(current_user: dict = Depends(get_current_user)):
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Access denied. Administrators only.")
     return current_user
+
 
 @router.get("/users")
 async def get_users(admin: dict = Depends(verify_admin)):
@@ -223,7 +239,82 @@ async def resolve_complaint(req: ResolveComplaintReq, admin: dict = Depends(veri
     safe_execute("UPDATE qto_customer_complaints SET status='resolved' WHERE id=%s", (req.complaint_id,))
     return {"success": True, "message": "Complaint marked as resolved."}
 
+@router.get("/inquiries")
+async def get_inquiries(admin: dict = Depends(verify_admin)):
+    df = safe_query(
+        """
+        SELECT id, user_id, name, email, subject, message, category, status, admin_notes, created_at
+        FROM qto_inquiries
+        ORDER BY id DESC
+        """
+    )
+    if df.empty:
+        return []
+    return df.to_dict("records")
+
+@router.post("/inquiries/status")
+async def update_inquiry_status(req: UpdateInquiryStatusReq, admin: dict = Depends(verify_admin)):
+    status = req.status.lower().strip()
+    if status not in ["new", "in_progress", "resolved"]:
+        status = "resolved"
+    safe_execute("UPDATE qto_inquiries SET status=%s WHERE id=%s", (status, req.inquiry_id))
+    return {"success": True, "message": f"Inquiry status updated to {status}."}
+
+@router.get("/reviews")
+async def get_all_reviews(admin: dict = Depends(verify_admin)):
+    # Ensure mockup reviews are populated if empty
+    try:
+        from utils.db import seed_mockup_reviews
+        seed_mockup_reviews()
+    except Exception:
+        pass
+    df = safe_query(
+        """
+        SELECT id, user_id, user_name, user_role, company, rating, review_title, review_text, is_approved, is_featured, created_at
+        FROM qto_reviews
+        ORDER BY id DESC
+        """
+    )
+    if df.empty:
+        return []
+    return df.to_dict("records")
+
+@router.post("/reviews/toggle-approve")
+async def toggle_review_approve(req: ToggleReviewApproveReq, admin: dict = Depends(verify_admin)):
+    if req.is_approved is not None:
+        new_val = 1 if req.is_approved else 0
+    else:
+        # Toggle current
+        df = safe_query("SELECT is_approved FROM qto_reviews WHERE id=%s", (req.review_id,))
+        if df.empty:
+            raise HTTPException(status_code=404, detail="Review not found")
+        curr = int(df.iloc[0]["is_approved"] or 0)
+        new_val = 0 if curr == 1 else 1
+        
+    safe_execute("UPDATE qto_reviews SET is_approved=%s WHERE id=%s", (new_val, req.review_id))
+    return {"success": True, "is_approved": new_val, "message": "Review approval status updated."}
+
+@router.post("/reviews/toggle-feature")
+async def toggle_review_feature(req: ToggleReviewFeatureReq, admin: dict = Depends(verify_admin)):
+    if req.is_featured is not None:
+        new_val = 1 if req.is_featured else 0
+    else:
+        df = safe_query("SELECT is_featured FROM qto_reviews WHERE id=%s", (req.review_id,))
+        if df.empty:
+            raise HTTPException(status_code=404, detail="Review not found")
+        curr = int(df.iloc[0]["is_featured"] or 0)
+        new_val = 0 if curr == 1 else 1
+        
+    safe_execute("UPDATE qto_reviews SET is_featured=%s WHERE id=%s", (new_val, req.review_id))
+    return {"success": True, "is_featured": new_val, "message": "Review featured status updated."}
+
+@router.post("/reviews/delete")
+async def delete_review(req: DeleteReviewReq, admin: dict = Depends(verify_admin)):
+    safe_execute("DELETE FROM qto_reviews WHERE id=%s", (req.review_id,))
+    return {"success": True, "message": "Review deleted successfully."}
+
 @router.get("/feedback")
+
 async def get_feedback(admin: dict = Depends(verify_admin)):
     # Per-tool summary (count + average rating), so the admin sees how each tool
     # is rated at a glance, plus the full list of individual ratings/reasons.

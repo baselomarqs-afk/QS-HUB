@@ -40,18 +40,14 @@ def export_boq_to_excel(df: pd.DataFrame, project_name: str,
     If `df` has "Unit Price" + "Total" columns, the sheet includes pricing and
     a grand-total row; otherwise it's a quantity-only BOQ.
     """
-    priced = ("Unit Price" in df.columns) and ("Total" in df.columns)
+    # Always enforce the full 7-column Priced BOQ format with Unit Price and Total columns
+    priced = True
 
-    if priced:
-        cols      = ["#", "Description (English)", "البيان", "Unit", "Quantity",
-                     "Unit Price", "Total"]
-        headers   = ["#", "Description (English)", "البيان", "Unit", "Quantity",
-                     f"Unit Price ({currency})", f"Total ({currency})"]
-        col_widths = [8, 42, 30, 8, 12, 16, 18]
-    else:
-        cols      = ["#", "Description (English)", "البيان", "Unit", "Quantity"]
-        headers   = ["#", "Description (English)", "البيان", "Unit", "Quantity"]
-        col_widths = [8, 45, 35, 8, 14]
+    cols      = ["#", "Description (English)", "البيان", "Unit", "Quantity",
+                 "Unit Price", "Total"]
+    headers   = ["#", "Description (English)", "البيان", "Unit", "Quantity",
+                 f"Unit Price ({currency})", f"Total ({currency})"]
+    col_widths = [8, 42, 30, 8, 12, 16, 18]
 
     ncol     = len(cols)
     last_col = get_column_letter(ncol)
@@ -106,7 +102,7 @@ def export_boq_to_excel(df: pd.DataFrame, project_name: str,
             for c, key in enumerate(cols, 1):
                 # Force Unit Price to 0.0 and Total to Formula
                 if key == "Unit Price":
-                    val = 0.0
+                    val = float(r.get("Unit Price") or 0.0)
                 elif key == "Total":
                     # Excel formula: Quantity (Col E) * Unit Price (Col F)
                     val = f"=E{row_idx}*F{row_idx}"

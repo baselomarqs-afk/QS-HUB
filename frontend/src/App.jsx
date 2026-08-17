@@ -14,8 +14,9 @@ import QsAssistant from './components/QsAssistant';
 import Projects from './components/Projects';
 import Programme from './components/Programme';
 import CashFlow from './components/CashFlow';
+import ReviewsAndInquiries from './components/ReviewsAndInquiries';
 import {
-  LayoutDashboard, Folder, Play, BarChart2, Eye, LogOut, Globe, Moon, Sun, CreditCard, Shield, Bot, Menu, X, CalendarDays, Wallet, Info
+  LayoutDashboard, Folder, Play, BarChart2, Eye, LogOut, Globe, Moon, Sun, CreditCard, Shield, Bot, Menu, X, CalendarDays, Wallet, Info, Star, MessageSquare
 } from 'lucide-react';
 
 export default function App() {
@@ -27,10 +28,12 @@ export default function App() {
   const [isArabic, setIsArabic] = useState(false);
   const [isDark, setIsDark] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
+  const [guestReviewsTab, setGuestReviewsTab] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [moduleProjectName, setModuleProjectName] = useState({ programme: '', cashflow: '' });
   const [activeModules, setActiveModules] = useState({ programme: false, cashflow: false });
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+
 
   useEffect(() => {
     // Detect return from Dodo payment page
@@ -108,8 +111,27 @@ export default function App() {
   const isCashflowActive = activeModules.cashflow && !isQtoLimitZero;
 
   if (!token) {
+    if (guestReviewsTab) {
+      return (
+        <div style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh' }}>
+          <ReviewsAndInquiries 
+            isArabic={isArabic} 
+            user={null} 
+            onBack={() => setGuestReviewsTab(null)} 
+            initialTab={guestReviewsTab}
+          />
+        </div>
+      );
+    }
     if (!showAuth) {
-      return <LandingPage isArabic={isArabic} setIsArabic={setIsArabic} onGetStarted={() => setShowAuth(true)} />;
+      return (
+        <LandingPage 
+          isArabic={isArabic} 
+          setIsArabic={setIsArabic} 
+          onGetStarted={() => setShowAuth(true)}
+          onOpenReviews={(tab) => setGuestReviewsTab(tab || 'reviews')} 
+        />
+      );
     }
     return (
       <div style={{ position: 'relative' }}>
@@ -124,6 +146,7 @@ export default function App() {
       </div>
     );
   }
+
 
   return (
     <div className="dashboard-grid" style={{ direction: isArabic ? 'rtl' : 'ltr' }}>
@@ -439,6 +462,30 @@ export default function App() {
               {isArabic ? 'مساعد الكميات الذكي' : 'QS Assistant'}
             </button>
 
+            {/* Reviews & Inquiries Link */}
+            <button 
+              onClick={() => { setPage('reviews'); setMobileMenuOpen(false); }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                width: '100%',
+                padding: '12px 15px',
+                borderRadius: '8px',
+                border: 'none',
+                background: page === 'reviews' ? 'var(--primary-glow)' : 'transparent',
+                color: page === 'reviews' ? 'var(--primary)' : 'var(--text-secondary)',
+                fontWeight: page === 'reviews' ? 700 : 500,
+                fontSize: '0.92rem',
+                cursor: 'pointer',
+                textAlign: isArabic ? 'right' : 'left',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <Star size={18} color="#eab308" />
+              {isArabic ? 'المراجعات والاستفسارات' : 'Reviews & Inquiries'}
+            </button>
+
             {/* Admin Dashboard Link */}
             {user && user.role === 'admin' && (
               <button 
@@ -464,6 +511,7 @@ export default function App() {
                 {isArabic ? 'لوحة تحكم المسؤول' : 'Admin Panel'}
               </button>
             )}
+
           </nav>
         </div>
 
@@ -568,8 +616,10 @@ export default function App() {
         {page === 'compare' && <PlanComparison token={token} isArabic={isArabic} />}
         {page === 'billing' && <Billing token={token} isArabic={isArabic} user={user} onLogout={handleLogout} paymentSuccess={paymentSuccess} onPaymentSuccessHandled={() => setPaymentSuccess(false)} />}
         {page === 'qs_assistant' && <QsAssistant token={token} isArabic={isArabic} />}
+        {page === 'reviews' && <ReviewsAndInquiries isArabic={isArabic} user={user} onBack={() => handleNavigate('dashboard')} initialTab={pageParams?.tab || 'reviews'} />}
         {page === 'about' && <About isArabic={isArabic} onNavigate={setPage} />}
         {page === 'admin' && <Admin token={token} isArabic={isArabic} />}
+
       </main>
 
       {/* Floating Sarah Chat Widget */}

@@ -342,6 +342,39 @@ def initialize_sqlite_db(conn):
     );
     """)
     
+    # 14. qto_inquiries
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS qto_inquiries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        name TEXT,
+        email TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        message TEXT NOT NULL,
+        category TEXT DEFAULT 'general',
+        status TEXT DEFAULT 'new',
+        admin_notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
+    # 15. qto_reviews
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS qto_reviews (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        user_name TEXT NOT NULL,
+        user_role TEXT,
+        company TEXT,
+        rating INTEGER NOT NULL,
+        review_title TEXT,
+        review_text TEXT NOT NULL,
+        is_approved INTEGER DEFAULT 0,
+        is_featured INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+    
     # Seed admin user if none exists
     cur.execute("SELECT COUNT(*) FROM qto_users")
     count = cur.fetchone()[0]
@@ -374,6 +407,80 @@ def initialize_sqlite_db(conn):
             print("Local SQLite database seeded with default market prices.")
         except Exception as ex:
             print(f"Could not seed market prices: {ex}")
+
+
+MOCKUP_REVIEWS = [
+    {
+        "user_name": "Eng. Tariq Al-Mansoor",
+        "user_role": "Senior Quantity Surveyor",
+        "company": "Al-Mansoor Engineering Consultants, Dubai",
+        "rating": 5,
+        "review_title": "Saved 3 days of manual takeoff on our first villa",
+        "review_text": "أداة استثنائية لحصر كميات الخرسانة والمباني والتشطيبات بدقة عالية ومقارنتها بأسعار السوق الإماراتي. تصدير الـ BOQ إلى Excel منسق جاهز للاستخدام مباشرة وفر علي وفريق العمل ساعات طويلة.",
+        "is_approved": 1,
+        "is_featured": 1
+    },
+    {
+        "user_name": "Eng. Sarah Khalil",
+        "user_role": "Commercial & Tendering Manager",
+        "company": "Apex Contracting LLC, Abu Dhabi",
+        "rating": 5,
+        "review_title": "Seamless integration between Takeoff and Work Programme",
+        "review_text": "The automatic derivation of cash flow and Gantt charts from the extracted BOQ quantities is a game changer for estimating and planning tenders in the UAE construction market.",
+        "is_approved": 1,
+        "is_featured": 1
+    },
+    {
+        "user_name": "Eng. Mohammed Al-Hashimi",
+        "user_role": "Project Director",
+        "company": "Dar Al-Binaa Contracting, Sharjah",
+        "rating": 5,
+        "review_title": "دقة قراءة المخططات الإنشائية والمعمارية",
+        "review_text": "جربت عدة أدوات ولكن THE QS HUB متوافق تماماً مع مخططات بلديات دبي والشارقة وعجمان. التعرف على جداول القواعد والميدات والأعمدة تم باحترافية عالية جداً.",
+        "is_approved": 1,
+        "is_featured": 1
+    },
+    {
+        "user_name": "Eng. Omar Farooq",
+        "user_role": "Cost Estimator & QS",
+        "company": "Modern Build Contracting, Ajman",
+        "rating": 5,
+        "review_title": "Game changer for contractor tender submissions",
+        "review_text": "Speeding up our tender submissions by over 70%. Being able to customize the unit rates based on live UAE market prices gives our management immense confidence.",
+        "is_approved": 1,
+        "is_featured": 1
+    },
+    {
+        "user_name": "Eng. Mahmoud Youssef",
+        "user_role": "Civil & Estimation Engineer",
+        "company": "Falcon Construction Group, Ras Al Khaimah",
+        "rating": 5,
+        "review_title": "واجهة ممتازة ودعم فني متميز وسريع",
+        "review_text": "المنصة سهلة الاستخدام جداً والمساعد الذكي سارة يساعد في أي استفسار هندسي فوراً. حصر كل عناصر الفيلا مع حماية البنود من السهو والنسيان نقل عملنا لمستوى آخر.",
+        "is_approved": 1,
+        "is_featured": 1
+    }
+]
+
+
+def seed_mockup_reviews():
+    """Seed pre-approved mockup reviews if qto_reviews table is empty."""
+    try:
+        df = safe_query("SELECT COUNT(*) as cnt FROM qto_reviews")
+        if not df.empty and int(df.iloc[0]["cnt"]) > 0:
+            return
+        for r in MOCKUP_REVIEWS:
+            safe_execute(
+                """
+                INSERT INTO qto_reviews (user_name, user_role, company, rating, review_title, review_text, is_approved, is_featured)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (r["user_name"], r["user_role"], r["company"], r["rating"], r["review_title"], r["review_text"], r["is_approved"], r["is_featured"])
+            )
+        logger.info("Mockup reviews seeded successfully.")
+    except Exception as e:
+        logger.warning(f"Could not seed mockup reviews: {e}")
+
 
 
 _POOL = None

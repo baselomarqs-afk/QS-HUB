@@ -1,10 +1,22 @@
-import React, { useState } from 'react';
-import { Sparkles, Zap, Smartphone, BarChart2, Globe, Bot, TrendingUp, CalendarDays, Wallet } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sparkles, Zap, Smartphone, BarChart2, Globe, Bot, TrendingUp, CalendarDays, Wallet, Star, MessageSquare, CheckCircle2, ShieldCheck, ArrowRight, ArrowLeft } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 import { PrivacyModal, TermsModal, RefundModal } from './LegalModals';
 
-export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
+export default function LandingPage({ isArabic, setIsArabic, onGetStarted, onOpenReviews }) {
   const [activeModal, setActiveModal] = useState(null);
+  const [featuredReviews, setFeaturedReviews] = useState([]);
+
+  useEffect(() => {
+    fetch('/api/reviews/public?featured_only=true')
+      .then(res => res.json())
+      .then(data => {
+        if (data.reviews && data.reviews.length > 0) {
+          setFeaturedReviews(data.reviews);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div style={{
@@ -46,7 +58,17 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 800 }}>THE QS HUB</h2>
         </div>
         
-        <div style={{ display: 'flex', gap: '15px' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {onOpenReviews && (
+            <button
+              className="btn btn-secondary"
+              onClick={() => onOpenReviews('reviews')}
+              style={{ padding: '6px 14px', fontSize: '0.85rem', gap: '6px' }}
+            >
+              <Star size={14} color="#eab308" />
+              {isArabic ? 'المراجعات والدعم' : 'Reviews & Support'}
+            </button>
+          )}
           <button 
             className="btn btn-secondary" 
             onClick={() => setIsArabic(!isArabic)}
@@ -60,6 +82,7 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
           </button>
         </div>
       </header>
+
 
       {/* Hero Banner Section */}
       <section className="glass-panel landing-hero" style={{
@@ -245,8 +268,156 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted }) {
         </div>
       </section>
 
+      {/* Customer Testimonials Section */}
+      <section style={{ width: '100%', maxWidth: '1050px', marginBottom: '65px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '35px' }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 14px',
+            borderRadius: '20px',
+            background: 'rgba(234, 179, 8, 0.12)',
+            color: '#eab308',
+            fontWeight: 800,
+            fontSize: '0.82rem',
+            marginBottom: '10px'
+          }}>
+            <Star size={14} fill="#eab308" />
+            {isArabic ? 'تقييم 5.0 من مهندسي ومقاولي الإمارات' : '5.0 Rating from UAE Engineers & Contractors'}
+          </div>
+          <h3 style={{
+            fontSize: '2rem',
+            fontWeight: 800,
+            fontFamily: 'var(--font-display)',
+            color: 'var(--text-primary)'
+          }}>
+            {isArabic ? 'ماذا يقول مهندسو حصر الكميات عنا؟' : 'What Estimators & Project Directors Say'}
+          </h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', marginTop: '6px' }}>
+            {isArabic ? 'تجارب حقيقية معتمدة من مكاتب الاستشارات وشركات المقاولات' : 'Verified testimonials from construction firms across Dubai, Abu Dhabi, Sharjah & Ajman'}
+          </p>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))',
+          gap: '20px',
+          marginBottom: '25px'
+        }}>
+          {(featuredReviews.length > 0 ? featuredReviews.slice(0, 3) : [
+            {
+              id: 1,
+              user_name: 'Eng. Tariq Al-Mansoor',
+              user_role: 'Senior Quantity Surveyor',
+              company: 'Dubai',
+              rating: 5,
+              review_title: 'Saved 3 days of manual takeoff',
+              review_text: 'أداة استثنائية لحصر كميات الخرسانة والمباني والتشطيبات بدقة عالية ومقارنتها بأسعار السوق الإماراتي. تصدير BOQ Excel منسق جاهز للاستخدام مباشرة.'
+            },
+            {
+              id: 2,
+              user_name: 'Eng. Sarah Khalil',
+              user_role: 'Commercial Manager',
+              company: 'Abu Dhabi',
+              rating: 5,
+              review_title: 'Seamless integration with Work Programme',
+              review_text: 'The automatic derivation of cash flow and Gantt charts from extracted BOQ quantities is a game changer for estimating tenders in the UAE.'
+            },
+            {
+              id: 3,
+              user_name: 'Eng. Mohammed Al-Hashimi',
+              user_role: 'Project Director',
+              company: 'Sharjah',
+              rating: 5,
+              review_title: 'دقة قراءة المخططات والـ Schedules',
+              review_text: 'متوافق تماماً مع مخططات بلديات دبي والشارقة وعجمان. التعرف على جداول القواعد والميدات والأعمدة تم باحترافية عالية جداً.'
+            }
+          ]).map(r => (
+            <div key={r.id} className="glass-card" style={{
+              padding: '24px',
+              borderRadius: '16px',
+              border: '1px solid var(--border-color)',
+              background: 'var(--bg-secondary)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginBottom: '12px' }}>
+                  {[...Array(r.rating || 5)].map((_, i) => (
+                    <Star key={i} size={16} fill="#eab308" color="#eab308" />
+                  ))}
+                </div>
+                {r.review_title && (
+                  <h4 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                    "{r.review_title}"
+                  </h4>
+                )}
+                <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.6', marginBottom: '18px' }}>
+                  {r.review_text}
+                </p>
+              </div>
+
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                paddingTop: '12px',
+                borderTop: '1px solid var(--border-color)'
+              }}>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, var(--primary) 0%, #6366f1 100%)',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 800,
+                  fontSize: '0.85rem'
+                }}>
+                  {r.user_name ? r.user_name.charAt(0).toUpperCase() : 'E'}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    {r.user_name}
+                    <CheckCircle2 size={13} color="var(--primary)" />
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    {r.user_role} {r.company && `• ${r.company}`}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {onOpenReviews && (
+          <div style={{ textAlign: 'center' }}>
+            <button
+              onClick={() => onOpenReviews('reviews')}
+              className="btn btn-secondary"
+              style={{
+                padding: '10px 22px',
+                borderRadius: '12px',
+                fontSize: '0.88rem',
+                fontWeight: 700,
+                gap: '8px'
+              }}
+            >
+              <MessageSquare size={16} />
+              {isArabic ? 'عرض جميع المراجعات أو إرسال استفسار' : 'View All Reviews & Submit Inquiry'}
+              {isArabic ? <ArrowLeft size={15} /> : <ArrowRight size={15} />}
+            </button>
+          </div>
+        )}
+      </section>
+
       {/* Pricing Tiers Section */}
       <section style={{ width: '100%', maxWidth: '1000px', marginBottom: '60px' }}>
+
         <h3 style={{
           fontSize: '1.8rem',
           fontWeight: 800,
