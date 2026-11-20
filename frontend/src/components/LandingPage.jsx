@@ -153,7 +153,7 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted, onOpe
           marginBottom: '35px',
           fontFamily: 'var(--font-display)'
         }}>
-          {isArabic ? 'من مهندسى حصر كميات الى مهندسئ حصر الكميات' : 'From quantity surveyors to the quantity surveyors'}
+          {isArabic ? 'من مهندسي حصر الكميات إلى مهندسي حصر الكميات' : 'From quantity surveyors to the quantity surveyors'}
         </h3>
         
         <div className="features-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px' }}>
