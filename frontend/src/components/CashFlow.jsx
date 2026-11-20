@@ -336,8 +336,15 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
             {numField('Cost Ratio (cost/bill)', 'نسبة التكلفة للفاتورة', 'contractorCostRatio', '0.01')}
           </div>
 
-          <h3 style={{ marginTop: 22, color: 'var(--text-primary)' }}>③ {t('Attach Drawings', 'إرفاق المخططات')}</h3>
-          <DrawingUpload drawings={cfg.drawings || []} setDrawings={(drawingsList) => patch({ drawings: drawingsList })} isArabic={isArabic} />
+          <h3 style={{ marginTop: 22, color: 'var(--text-primary)' }}>③ {t('Attach & Analyze Drawings', 'إرفاق وتحليل المخططات')}</h3>
+          <DrawingUpload
+            drawings={cfg.drawings || []}
+            setDrawings={(drawingsList) => patch({ drawings: drawingsList })}
+            isArabic={isArabic}
+            cfg={cfg}
+            setCfg={patch}
+            token={token}
+          />
 
           <h3 style={{ marginTop: 22, color: 'var(--text-primary)' }}>④ {t('Run Process', 'تشغيل المعالجة')}</h3>
           {handoverInvalid && (

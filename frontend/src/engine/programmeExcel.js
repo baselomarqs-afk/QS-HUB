@@ -16,7 +16,7 @@ const headerStyle = {
 const titleStyle = { font: { bold: true, sz: 15, color: { rgb: NAVY } }, alignment: { horizontal: "center" } };
 const centerStyle = { alignment: { horizontal: "center" } };
 
-export function exportProgrammeToExcel(out, projectName) {
+export function exportProgrammeToExcel(out, projectName, drawings = []) {
   const weeks = out.totalWeeks;
   const weekCols = Array.from({ length: weeks }, (_, i) => `W${i + 1}`);
   const headers = [
@@ -33,9 +33,18 @@ export function exportProgrammeToExcel(out, projectName) {
     v: `Start: ${fmtDate(out.startDate)}   •   Finish: ${fmtDate(out.finishDate)}   •   Duration: ${out.totalDays} days (${weeks} weeks)   •   Activities: ${out.scheduled.length}   •   Critical Path: ${critCount} tasks (Red bars = Critical)`,
     s: { font: { italic: true, color: { rgb: "555555" } }, alignment: { horizontal: "center" } },
   }]);
-  grid.push([{ v: "" }]);
   merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: lastCol } });
   merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: lastCol } });
+
+  if (Array.isArray(drawings) && drawings.length > 0) {
+    const refList = drawings.map((d) => `${d.name} (${d.pages || 1}p)`).join("  |  ");
+    grid.push([{
+      v: `Reference Drawings: ${refList}`,
+      s: { font: { italic: true, color: { rgb: "1A3C5E" } }, alignment: { horizontal: "center" } },
+    }]);
+    merges.push({ s: { r: 2, c: 0 }, e: { r: 2, c: lastCol } });
+  }
+  grid.push([{ v: "" }]);
 
   grid.push(headers.map((h) => ({ v: h, s: headerStyle })));
 

@@ -68,6 +68,12 @@ export function exportCashFlowToExcel(cfg, result, projectName) {
     ["Gross Profit (AED)", summary.totalProfit],
     ["Profit Margin %", summary.profitMarginPct],
   ];
+  if (Array.isArray(cfg.drawings) && cfg.drawings.length > 0) {
+    info.push([
+      "Reference Drawings",
+      cfg.drawings.map((d) => `${d.name} (${d.pages || 1}p)`).join(" | "),
+    ]);
+  }
   info.forEach(([k, v]) =>
     grid.push([
       { v: k, s: labelStyle },

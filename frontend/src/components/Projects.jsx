@@ -85,7 +85,7 @@ export default function Projects({ token, isArabic, onSelectProject, onNavigate,
         const out = runScheduler(cfg, acts);
         if (feature === 'programme') {
           const mod = await import('../engine/programmeExcel');
-          mod.exportProgrammeToExcel(out, cfg.projectName || 'Project');
+          mod.exportProgrammeToExcel(out, cfg.projectName || 'Project', cfg.drawings || []);
         } else {
           const resObj = computeCashFlow(cfg, out.monthly);
           const mod = await import('../engine/cashflowExcel');

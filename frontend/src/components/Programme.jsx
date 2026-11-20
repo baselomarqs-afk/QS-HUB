@@ -196,7 +196,7 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
   const exportExcel = async () => {
     if (!out) return;
     const mod = await import('../engine/programmeExcel');
-    mod.exportProgrammeToExcel(out, cfg.projectName || 'Project');
+    mod.exportProgrammeToExcel(out, cfg.projectName || 'Project', cfg.drawings || []);
   };
 
   const lbl = { display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 5 };
@@ -232,7 +232,7 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
           const newActs = buildActivityList(merged);
           const scheduleOut = runScheduler(merged, newActs);
           const mod = await import('../engine/programmeExcel');
-          mod.exportProgrammeToExcel(scheduleOut, merged.projectName || 'Project');
+          mod.exportProgrammeToExcel(scheduleOut, merged.projectName || 'Project', merged.drawings || []);
         }}
       />
 
@@ -332,8 +332,15 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
             </label>
           </div>
 
-          <h3 style={{ marginTop: 22, color: 'var(--text-primary)' }}>② {t('Attach Drawings', 'إرفاق المخططات')}</h3>
-          <DrawingUpload drawings={cfg.drawings || []} setDrawings={(drawingsList) => patch({ drawings: drawingsList })} isArabic={isArabic} />
+          <h3 style={{ marginTop: 22, color: 'var(--text-primary)' }}>② {t('Attach & Analyze Drawings', 'إرفاق وتحليل المخططات')}</h3>
+          <DrawingUpload
+            drawings={cfg.drawings || []}
+            setDrawings={(drawingsList) => patch({ drawings: drawingsList })}
+            isArabic={isArabic}
+            cfg={cfg}
+            setCfg={patch}
+            token={token}
+          />
 
           <h3 style={{ marginTop: 22, color: 'var(--text-primary)' }}>③ {t('Run Process', 'تشغيل المعالجة')}</h3>
           {handoverInvalid && (
