@@ -47,10 +47,18 @@ async def chat_with_agent(req: ChatRequest, current_user: dict = Depends(get_cur
         # Customer Support is ALWAYS accessible (even with 0 paid credits), with anti-spam protection
         _check_support_spam(user_id)
     else:
-        # QS Assistant checks subscription AI limit (admins & users with free/active quota pass)
+        # QS Assistant checks subscription AI limit across all 3 tools
+        # (admins, any paid tool subscriber with remaining AI quota, or users with free trial pass)
         if role != "admin":
-            ok, msg = check_limit(current_user, EVENT_AI_CALL)
-            # Also allow users who hold an active programme/cashflow plan or unused free trial
+            ok = False
+            msg = "AI call limit reached."
+            for feat in ("qto", "programme", "cashflow"):
+                feat_ok, feat_msg = check_limit(current_user, EVENT_AI_CALL, feature=feat)
+                if feat_ok:
+                    ok = True
+                    break
+                if feat == "qto":
+                    msg = feat_msg
             if not ok:
                 from utils.usage import project_entitlement
                 has_any = any(project_entitlement(current_user, f)["can_create"] for f in ("qto", "programme", "cashflow"))

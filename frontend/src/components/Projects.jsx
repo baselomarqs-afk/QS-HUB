@@ -74,6 +74,38 @@ export default function Projects({ token, isArabic, onSelectProject, onNavigate,
     } catch (err) { console.error(err); }
   };
 
+  const handleExportQtoExcel = async (proj, e) => {
+    e.stopPropagation();
+    try {
+      const res = await fetch(`/api/workflow/export/excel?project_id=${proj.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        let detail = isArabic ? 'فشل تحميل ملف الإكسل.' : 'Failed to download Excel file.';
+        try {
+          const errData = await res.json();
+          if (errData?.detail) detail = errData.detail;
+        } catch {
+          // ignore JSON parse errors
+        }
+        alert(detail);
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(proj.name || `Project_${proj.id}`).replace(/\s+/g, '_')}_BOQ.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert(isArabic ? 'حدث خطأ في الاتصال أثناء تحميل الملف.' : 'Network error while downloading file.');
+    }
+  };
+
   const handleExportModuleExcel = async (feature, id, e) => {
     e.stopPropagation();
     try {
@@ -130,7 +162,7 @@ export default function Projects({ token, isArabic, onSelectProject, onNavigate,
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
               {isDone && (
-                <button className="btn btn-secondary" onClick={(e) => { e.stopPropagation(); window.open(`/api/workflow/export/excel?project_id=${proj.id}&Authorization=Bearer ${token}`); }} style={{ padding: '8px', borderRadius: '50%', color: 'var(--success)', borderColor: 'transparent' }} title={isArabic ? "تحميل إكسل" : "Download Excel"}>
+                <button className="btn btn-secondary" onClick={(e) => handleExportQtoExcel(proj, e)} style={{ padding: '8px', borderRadius: '50%', color: 'var(--success)', borderColor: 'transparent' }} title={isArabic ? "تحميل إكسل" : "Download Excel"}>
                   <FileSpreadsheet size={18} />
                 </button>
               )}

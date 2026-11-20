@@ -274,11 +274,23 @@ export default function Billing({ token, isArabic, user, onLogout, paymentSucces
       </div>
       <hr style={{ border: 'none', height: '1px', backgroundColor: 'var(--border-color)', margin: '20px 0' }} />
 
-      {message && (
-        <div style={{ padding: '12px 16px', backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--error)', borderRadius: '8px', marginBottom: '20px', fontSize: '0.9rem' }}>
-          {message}
-        </div>
-      )}
+      {message && (() => {
+        const isSuccessMsg = message.trim().startsWith('✅');
+        return (
+          <div style={{
+            padding: '12px 16px',
+            backgroundColor: isSuccessMsg ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.1)',
+            border: `1px solid ${isSuccessMsg ? 'rgba(16,185,129,0.35)' : 'rgba(239,68,68,0.3)'}`,
+            color: isSuccessMsg ? 'var(--success)' : 'var(--error)',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+          }}>
+            {message}
+          </div>
+        );
+      })()}
 
       {details && (
         <>

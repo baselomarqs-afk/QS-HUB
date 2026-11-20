@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
+import html
 import logging
 
 from utils.db import safe_execute, safe_query, is_sqlite
@@ -8,6 +9,33 @@ from api.auth import get_optional_current_user
 
 logger = logging.getLogger("qto.community")
 router = APIRouter()
+
+
+def _notify_admin_new_inquiry(name: str, email: str, category: str, subject: str, message: str) -> None:
+    """Send an instant email notification to the founder/admin when a new inquiry arrives."""
+    try:
+        from utils.mailer import send_admin_email
+        safe_name = html.escape(name or "Visitor")
+        safe_email = html.escape(email)
+        safe_cat = html.escape(category)
+        safe_subj = html.escape(subject)
+        safe_msg = html.escape(message).replace("\n", "<br>")
+        body_html = (
+            "<div style='font-family:Arial,sans-serif;max-width:620px;margin:auto;padding:18px;"
+            "border:1px solid #e2e8f0;border-radius:10px;'>"
+            "<h2 style='color:#2563eb;margin-top:0;'>📩 New Inquiry — THE QS HUB</h2>"
+            f"<p><strong>From:</strong> {safe_name} ({safe_email})</p>"
+            f"<p><strong>Category:</strong> {safe_cat}</p>"
+            f"<p><strong>Subject:</strong> {safe_subj}</p>"
+            "<hr style='border:none;border-top:1px solid #e2e8f0;margin:14px 0;'/>"
+            f"<div style='background:#f8fafc;padding:14px;border-radius:8px;line-height:1.6;'>{safe_msg}</div>"
+            "<p style='color:#64748b;font-size:12px;margin-top:16px;'>"
+            "Log into THE QS HUB Admin Panel → Inquiries (or ask the AI Operations Director) to reply or mark resolved."
+            "</p></div>"
+        )
+        send_admin_email(f"[THE QS HUB Inquiry - {category}] {subject[:120]}", body_html)
+    except Exception as exc:
+        logger.warning("Failed to send admin inquiry notification email: %s", exc)
 
 
 class InquiryCreateReq(BaseModel):
@@ -30,6 +58,7 @@ class ReviewCreateReq(BaseModel):
 @router.post("/inquiries")
 async def submit_inquiry(
     req: InquiryCreateReq,
+    background_tasks: BackgroundTasks,
     current_user: Optional[dict] = Depends(get_optional_current_user)
 ):
     """Public endpoint for any visitor or user to submit an inquiry / support message."""
@@ -45,18 +74,33 @@ async def submit_inquiry(
         VALUES (%s, %s, %s, %s, %s, %s, 'new')
     """
     
+    clean_name = (req.name or "").strip() or None
+    clean_email = req.email.strip()
+    clean_subject = req.subject.strip()
+    clean_message = req.message.strip()
+
     success, err = safe_execute(sql, (
         user_id,
-        (req.name or "").strip() or None,
-        req.email.strip(),
-        req.subject.strip(),
-        req.message.strip(),
+        clean_name,
+        clean_email,
+        clean_subject,
+        clean_message,
         category
     ))
 
     if not success:
         logger.error(f"Failed to save inquiry: {err}")
         raise HTTPException(status_code=500, detail="Failed to submit inquiry. Please try again.")
+
+    # Notify admin immediately via email in the background so inquiries are never missed
+    background_tasks.add_task(
+        _notify_admin_new_inquiry,
+        clean_name or "Visitor",
+        clean_email,
+        category,
+        clean_subject,
+        clean_message,
+    )
 
     return {
         "success": True,

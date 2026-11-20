@@ -165,6 +165,21 @@ def check_limit(user: dict, event_type: str, amount: int = 1, feature: str = "qt
     limit = limits.get(event_type)
     if limit is None:
         return True, "OK"
+
+    # Free-trial users (plan.tier == 0) and past subscribers who legitimately own
+    # saved QTO projects must always be able to export Excel/PDF for their projects.
+    if event_type == EVENT_EXPORT and feature == "qto":
+        try:
+            df_owned = safe_query(
+                "SELECT COUNT(*) as c FROM qto_projects WHERE user_id=%s",
+                (user_id,),
+            )
+            owned_projects = int(df_owned.iloc[0]["c"]) if not df_owned.empty else 0
+        except Exception:
+            owned_projects = 0
+        if owned_projects > 0:
+            limit = max(limit, owned_projects * 10, 10)
+
     used = monthly_usage(user_id, event_type, feature)
     if used + amount > limit:
         return False, f"Plan limit reached for {event_type} ({feature}): {used}/{limit}"

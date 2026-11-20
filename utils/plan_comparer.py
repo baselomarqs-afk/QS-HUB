@@ -29,7 +29,7 @@ def render_pdf_page(pdf_path: str, page_num: int = 0, dpi: int = 150) -> np.ndar
     return img_array
 
 
-def compare_plans(pdf_path_1: str, pdf_path_2: str, page_num: int = 0, output_path: str = None) -> bool:
+def compare_plans(pdf_path_1: str, pdf_path_2: str, page_num: int = 0, output_path: str = None, dpi: int = 150) -> bool:
     """
     Compares two PDF pages visually.
     - Highlights deletions (items present in version 1 but not in version 2) in Red.
@@ -38,9 +38,10 @@ def compare_plans(pdf_path_1: str, pdf_path_2: str, page_num: int = 0, output_pa
     Saves the resulting image to output_path.
     """
     try:
-        # Render both PDF pages
-        img1 = render_pdf_page(pdf_path_1, page_num)
-        img2 = render_pdf_page(pdf_path_2, page_num)
+        safe_dpi = max(72, min(220, int(dpi or 150)))
+        # Render both PDF pages at the requested safe DPI
+        img1 = render_pdf_page(pdf_path_1, page_num, dpi=safe_dpi)
+        img2 = render_pdf_page(pdf_path_2, page_num, dpi=safe_dpi)
         
         # Resize version 1 to match version 2's size
         h2, w2 = img2.shape[:2]
