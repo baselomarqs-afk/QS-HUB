@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Zap, Globe, CalendarDays, Wallet, Star, MessageSquare, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Zap, Globe, CalendarDays, Wallet, Star, MessageSquare, CheckCircle2, ArrowRight, ArrowLeft, PlayCircle } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 import { PrivacyModal, TermsModal, RefundModal } from './LegalModals';
 
@@ -413,6 +413,70 @@ export default function LandingPage({ isArabic, setIsArabic, onGetStarted, onOpe
             </button>
           </div>
         )}
+      </section>
+
+      {/* Platform Explanation Video Section (Above Pricing) */}
+      <section style={{ width: '100%', maxWidth: '1000px', marginBottom: '65px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '5px 14px',
+            borderRadius: '20px',
+            background: 'rgba(59, 130, 246, 0.12)',
+            color: '#3b82f6',
+            fontWeight: 800,
+            fontSize: '0.82rem',
+            marginBottom: '10px'
+          }}>
+            <PlayCircle size={15} />
+            {isArabic ? 'جولة عملية داخل المنصة' : 'Live Platform Walkthrough'}
+          </div>
+          <h3 style={{
+            fontSize: '1.9rem',
+            fontWeight: 800,
+            fontFamily: 'var(--font-display)',
+            color: 'var(--text-primary)',
+            marginBottom: '8px'
+          }}>
+            {isArabic ? 'شاهد كيف تعمل THE QS HUB خطوة بخطوة' : 'See How THE QS HUB Works Step by Step'}
+          </h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '720px', margin: '0 auto', lineHeight: '1.6' }}>
+            {isArabic
+              ? 'عرض مرئي سريع لرحلة المهندس من رفع مخططات الفيلا حتى استخراج جداول الكميات والجدول الزمني والتدفق النقدي.'
+              : 'A quick visual walkthrough from uploading villa drawings to generating BOQ, CPM Work Programme, and Cash Flow.'}
+          </p>
+        </div>
+
+        <div className="glass-panel" style={{
+          padding: '14px',
+          borderRadius: '20px',
+          border: '1px solid rgba(59, 130, 246, 0.3)',
+          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.06) 0%, rgba(15, 23, 42, 0.25) 100%)',
+          boxShadow: '0 14px 40px rgba(0, 0, 0, 0.22)'
+        }}>
+          <video
+            src="/qshub-demo.mp4"
+            controls
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            style={{
+              width: '100%',
+              height: 'auto',
+              display: 'block',
+              borderRadius: '14px',
+              backgroundColor: '#020617'
+            }}
+          >
+            {isArabic
+              ? 'متصفحك لا يدعم تشغيل الفيديو مباشرة.'
+              : 'Your browser does not support HTML5 video playback.'}
+          </video>
+        </div>
       </section>
 
       {/* Pricing Tiers Section */}

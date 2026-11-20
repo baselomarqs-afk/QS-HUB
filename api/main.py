@@ -328,7 +328,7 @@ async def track_visitors_middleware(request: Request, call_next):
 
     if method != "OPTIONS":
         skip_prefixes = ("/assets/", "/favicon", "/health", "/test-health", "/docs", "/openapi", "/redoc")
-        skip_extensions = (".js", ".css", ".png", ".jpg", ".jpeg", ".svg", ".ico", ".woff", ".woff2", ".ttf")
+        skip_extensions = (".js", ".css", ".png", ".jpg", ".jpeg", ".svg", ".ico", ".woff", ".woff2", ".ttf", ".mp4", ".webm")
 
         if not path.startswith(skip_prefixes) and not any(path.endswith(ext) for ext in skip_extensions):
             client_ip = _rate_client_ip(request) or "127.0.0.1"
@@ -516,6 +516,8 @@ if os.path.isdir(_frontend_dist):
     async def serve_root_files(file_name: str):
         full_path = os.path.realpath(os.path.join(_dist_real, file_name))
         if full_path.startswith(_dist_real + os.sep) and os.path.isfile(full_path):
+            if file_name.lower().endswith((".mp4", ".webm")):
+                return FileResponse(full_path, media_type="video/mp4", headers={"Cache-Control": "public, max-age=86400"})
             return FileResponse(full_path)
         index_path = os.path.join(_dist_real, "index.html")
         if os.path.exists(index_path):
