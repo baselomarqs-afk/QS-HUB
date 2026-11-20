@@ -42,12 +42,26 @@ async def upload_drawings(
         state_data = {}
         
         # Load existing state if any
-        df_state = safe_query("SELECT state_data FROM qto_active_projects WHERE user_id=%s AND project_id=%s", (current_user["id"], project_id))
-        if not df_state.empty and df_state.iloc[0]["state_data"]:
-            try:
-                state_data = json.loads(df_state.iloc[0]["state_data"])
-            except:
-                pass
+        df_state = safe_query("SELECT current_step, state_data FROM qto_active_projects WHERE user_id=%s AND project_id=%s", (current_user["id"], project_id))
+        if not df_state.empty:
+            existing_step = int(df_state.iloc[0]["current_step"] or 1)
+            if existing_step >= 7 and current_user.get("role") != "admin":
+                raise HTTPException(
+                    status_code=403,
+                    detail="This project is already completed. Please start a new project from the Dashboard.",
+                )
+            if df_state.iloc[0]["state_data"]:
+                try:
+                    state_data = json.loads(df_state.iloc[0]["state_data"])
+                except Exception:
+                    pass
+        else:
+            df_done = safe_query("SELECT current_step FROM qto_projects WHERE id=%s AND user_id=%s", (project_id, current_user["id"]))
+            if not df_done.empty and int(df_done.iloc[0]["current_step"] or 1) >= 7 and current_user.get("role") != "admin":
+                raise HTTPException(
+                    status_code=403,
+                    detail="This project is already completed. Please start a new project from the Dashboard.",
+                )
 
         # Clear old pipeline data
         state_data["classified_pages"] = []

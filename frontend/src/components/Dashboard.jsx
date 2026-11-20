@@ -62,8 +62,13 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
             console.error("Error parsing active project state_data:", e);
           }
         }
-        data.project_id = data.project_id || data.state_data?.project_id;
-        setActiveProject(data);
+        // Only show "unsaved/incomplete project" recovery banner for projects not yet finished
+        if ((data.current_step || 1) < 7) {
+          data.project_id = data.project_id || data.state_data?.project_id;
+          setActiveProject(data);
+        } else {
+          setActiveProject(null);
+        }
       }
     } catch (err) {
       console.error(err);

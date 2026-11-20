@@ -27,7 +27,7 @@ const LABEL_KEY = {
   defectsLiabilityMonths: ['DLP (Months)', 'فترة ضمان العيوب (بالأشهر)'],
 };
 
-export default function SpecPrefill({ cfg, setCfg, isArabic, token }) {
+export default function SpecPrefill({ cfg, setCfg, isArabic, token, feature }) {
   const t = (en, ar) => (isArabic ? ar : en);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -54,7 +54,8 @@ export default function SpecPrefill({ cfg, setCfg, isArabic, token }) {
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch('/api/modules/spec/prefill', {
+      const url = feature ? `/api/modules/spec/prefill?feature=${encodeURIComponent(feature)}` : '/api/modules/spec/prefill';
+      const res = await fetch(url, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -63,8 +64,12 @@ export default function SpecPrefill({ cfg, setCfg, isArabic, token }) {
       });
 
       const r = await res.json();
+      if (!res.ok) {
+        setResult({ _success: false, _error: r.detail || r._error || t('Request denied.', 'تم رفض الطلب.') });
+        return;
+      }
       setResult(r);
-      if (res.ok && r._success && r.suggestions) {
+      if (r._success && r.suggestions) {
         const init = {};
         for (const k of Object.keys(r.suggestions)) {
           init[k] = true;

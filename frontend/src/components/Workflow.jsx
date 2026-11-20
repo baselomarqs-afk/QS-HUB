@@ -13,7 +13,7 @@ import FeedbackModal from './common/FeedbackModal';
 
 const API_URL = "/api/workflow";
 
-export default function Workflow({ token, project, isArabic, onNavigate }) {
+export default function Workflow({ token, project, isArabic, onNavigate, onProjectComplete }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
@@ -766,6 +766,7 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
       
       setCurrentStep(8); // Proceed directly to download
       await saveActiveState(8);
+      if (onProjectComplete) onProjectComplete();
     } catch (err) {
       alert(err.message);
     } finally {
@@ -852,10 +853,11 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
         {[1, 2, 3, 4, 5, 6, 8].map((num, idx) => {
           const isActive = num === effectiveStep;
           const isDone = num < effectiveStep;
+          const canJumpBack = isDone && effectiveStep < 8;
           return (
             <div 
               key={num} 
-              onClick={() => isDone && setCurrentStep(num)}
+              onClick={() => canJumpBack && setCurrentStep(num)}
               style={{
                 flex: 1,
                 minWidth: '95px',
@@ -865,7 +867,7 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
                 background: isActive ? 'linear-gradient(135deg, var(--primary), var(--primary-hover))' : isDone ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-primary)',
                 border: isActive ? 'none' : isDone ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--border-color)',
                 color: isActive ? 'white' : isDone ? 'var(--success)' : 'var(--text-secondary)',
-                cursor: isDone ? 'pointer' : 'default',
+                cursor: canJumpBack ? 'pointer' : 'default',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',

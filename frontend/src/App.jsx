@@ -34,14 +34,30 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [moduleProjectName, setModuleProjectName] = useState({ programme: '', cashflow: '' });
   const [activeModules, setActiveModules] = useState({ programme: false, cashflow: false });
+  const [completedSessions, setCompletedSessions] = useState({ workflow: false, programme: false, cashflow: false });
+  const [moduleSessionSeq, setModuleSessionSeq] = useState({ programme: 0, cashflow: 0 });
   const [paymentSuccess, setPaymentSuccess] = useState(() =>
     new URLSearchParams(window.location.search).get('payment_success') === '1'
   );
 
+  // Centralized navigation: automatically deactivate any tool tab once its completed
+  // project session is left, so users must start a new project from Dashboard.
   const handleNavigate = useCallback((newPage, params = null) => {
+    if (page === 'workflow' && newPage !== 'workflow' && completedSessions.workflow) {
+      setSelectedProject(null);
+      setCompletedSessions((s) => ({ ...s, workflow: false }));
+    }
+    if (page === 'programme' && newPage !== 'programme' && completedSessions.programme) {
+      setActiveModules((m) => ({ ...m, programme: false }));
+      setCompletedSessions((s) => ({ ...s, programme: false }));
+    }
+    if (page === 'cashflow' && newPage !== 'cashflow' && completedSessions.cashflow) {
+      setActiveModules((m) => ({ ...m, cashflow: false }));
+      setCompletedSessions((s) => ({ ...s, cashflow: false }));
+    }
     setPage(newPage);
     setPageParams(params);
-  }, []);
+  }, [page, completedSessions]);
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('qto_token');
@@ -49,8 +65,11 @@ export default function App() {
     setToken('');
     setUser(null);
     setSelectedProject(null);
-    handleNavigate('dashboard');
-  }, [handleNavigate]);
+    setActiveModules({ programme: false, cashflow: false });
+    setCompletedSessions({ workflow: false, programme: false, cashflow: false });
+    setPage('dashboard');
+    setPageParams(null);
+  }, []);
 
   useEffect(() => {
     // Clean URL after Dodo payment redirect (initial page/paymentSuccess handled lazily)
@@ -98,16 +117,24 @@ export default function App() {
     handleNavigate('dashboard');
   };
 
+  const handleSelectProject = useCallback((proj) => {
+    setSelectedProject(proj);
+    setCompletedSessions((s) => ({ ...s, workflow: false }));
+  }, []);
+
   const handleStartModuleProject = (module, name) => {
     setModuleProjectName(prev => ({ ...prev, [module]: name }));
+    setModuleSessionSeq(prev => ({ ...prev, [module]: prev[module] + 1 }));
     setActiveModules(prev => ({ ...prev, [module]: true }));
+    setCompletedSessions(prev => ({ ...prev, [module]: false }));
     handleNavigate(module);
   };
 
-  const isQtoLimitZero = user && user.role !== 'admin' && (!user.plan || user.plan.projects === 0);
-  const isWorkflowActive = selectedProject !== null && !isQtoLimitZero;
-  const isProgrammeActive = activeModules.programme && !isQtoLimitZero;
-  const isCashflowActive = activeModules.cashflow && !isQtoLimitZero;
+  // Each of the 3 tools is strictly independent and active ONLY while an unfinished
+  // project session is open (deactivated once completed & exited).
+  const isWorkflowActive = selectedProject !== null;
+  const isProgrammeActive = activeModules.programme;
+  const isCashflowActive = activeModules.cashflow;
 
   if (!token) {
     if (guestReviewsTab) {
@@ -216,7 +243,7 @@ export default function App() {
 
             {/* Dashboard Link */}
             <button 
-              onClick={() => { setPage('dashboard'); setMobileMenuOpen(false); }}
+              onClick={() => { handleNavigate('dashboard'); setMobileMenuOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -240,7 +267,7 @@ export default function App() {
 
             {/* About / Overview Link */}
             <button
-              onClick={() => { setPage('about'); setMobileMenuOpen(false); }}
+              onClick={() => { handleNavigate('about'); setMobileMenuOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -264,7 +291,7 @@ export default function App() {
 
             {/* Projects Link */}
             <button 
-              onClick={() => { setPage('projects'); setMobileMenuOpen(false); }}
+              onClick={() => { handleNavigate('projects'); setMobileMenuOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -290,7 +317,7 @@ export default function App() {
             <button 
               onClick={() => {
                 if (isWorkflowActive) {
-                  setPage('workflow');
+                  handleNavigate('workflow');
                   setMobileMenuOpen(false);
                 }
               }}
@@ -321,7 +348,7 @@ export default function App() {
             <button
               onClick={() => {
                 if (isProgrammeActive) {
-                  setPage('programme');
+                  handleNavigate('programme');
                   setMobileMenuOpen(false);
                 }
               }}
@@ -345,7 +372,7 @@ export default function App() {
             <button
               onClick={() => {
                 if (isCashflowActive) {
-                  setPage('cashflow');
+                  handleNavigate('cashflow');
                   setMobileMenuOpen(false);
                 }
               }}
@@ -367,7 +394,7 @@ export default function App() {
 
             {/* Drawing Compare Link */}
             <button
-              onClick={() => { setPage('compare'); setMobileMenuOpen(false); }}
+              onClick={() => { handleNavigate('compare'); setMobileMenuOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -391,7 +418,7 @@ export default function App() {
 
             {/* Market Prices Link */}
             <button 
-              onClick={() => { setPage('market'); setMobileMenuOpen(false); }}
+              onClick={() => { handleNavigate('market'); setMobileMenuOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -415,7 +442,7 @@ export default function App() {
 
             {/* Billing Link */}
             <button 
-              onClick={() => { setPage('billing'); setMobileMenuOpen(false); }}
+              onClick={() => { handleNavigate('billing'); setMobileMenuOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -439,7 +466,7 @@ export default function App() {
 
             {/* QS Assistant Link */}
             <button 
-              onClick={() => { setPage('qs_assistant'); setMobileMenuOpen(false); }}
+              onClick={() => { handleNavigate('qs_assistant'); setMobileMenuOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -463,7 +490,7 @@ export default function App() {
 
             {/* Reviews & Inquiries Link */}
             <button 
-              onClick={() => { setPage('reviews'); setMobileMenuOpen(false); }}
+              onClick={() => { handleNavigate('reviews'); setMobileMenuOpen(false); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -488,7 +515,7 @@ export default function App() {
             {/* Admin Dashboard Link */}
             {user && user.role === 'admin' && (
               <button 
-                onClick={() => { setPage('admin'); setMobileMenuOpen(false); }}
+                onClick={() => { handleNavigate('admin'); setMobileMenuOpen(false); }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -566,7 +593,7 @@ export default function App() {
           <Dashboard 
             token={token} 
             isArabic={isArabic} 
-            onSelectProject={setSelectedProject}
+            onSelectProject={handleSelectProject}
             onNavigate={handleNavigate}
             onStartModuleProject={handleStartModuleProject}
             user={user}
@@ -577,7 +604,7 @@ export default function App() {
             key={pageParams?.tab || 'qto'}
             token={token} 
             isArabic={isArabic} 
-            onSelectProject={setSelectedProject}
+            onSelectProject={handleSelectProject}
             onNavigate={handleNavigate}
             initialTab={pageParams?.tab}
           />
@@ -588,29 +615,34 @@ export default function App() {
             token={token} 
             project={selectedProject} 
             isArabic={isArabic}
-            onNavigate={setPage}
+            onNavigate={handleNavigate}
+            onProjectComplete={() => setCompletedSessions(prev => ({ ...prev, workflow: true }))}
           />
         )}
         {page === 'programme' && (
           <Programme 
-            key={pageParams?.loadData?.id ?? 'new'}
+            key={`prog-${moduleSessionSeq.programme}-${pageParams?.loadData?.id ?? 'new'}`}
             token={token} 
             isArabic={isArabic} 
             initialProjectName={moduleProjectName.programme}
             onClearInitialName={() => setModuleProjectName(prev => ({ ...prev, programme: '' }))}
             onStartProject={() => setActiveModules(prev => ({ ...prev, programme: true }))}
+            onProjectComplete={() => setCompletedSessions(prev => ({ ...prev, programme: true }))}
+            onNavigate={handleNavigate}
             initialLoadData={pageParams?.loadData}
             onClearInitialLoadData={() => setPageParams(null)}
           />
         )}
         {page === 'cashflow' && (
           <CashFlow 
-            key={pageParams?.loadData?.id ?? 'new'}
+            key={`cf-${moduleSessionSeq.cashflow}-${pageParams?.loadData?.id ?? 'new'}`}
             token={token} 
             isArabic={isArabic} 
             initialProjectName={moduleProjectName.cashflow}
             onClearInitialName={() => setModuleProjectName(prev => ({ ...prev, cashflow: '' }))}
             onStartProject={() => setActiveModules(prev => ({ ...prev, cashflow: true }))}
+            onProjectComplete={() => setCompletedSessions(prev => ({ ...prev, cashflow: true }))}
+            onNavigate={handleNavigate}
             initialLoadData={pageParams?.loadData}
             onClearInitialLoadData={() => setPageParams(null)}
           />

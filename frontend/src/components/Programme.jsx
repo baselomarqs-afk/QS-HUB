@@ -1,9 +1,9 @@
 // نافذة برنامج الأعمال — Work Programme window (bilingual). Genuine CPM
-// schedule (Forward + Backward Pass, Total Float, Critical Path) for a UAE villa:
-// enter the project, press Process, get a phase-coloured Gantt with red critical
-// bars, editable & persisted durations, Excel export and history save.
+// schedule (Forward + Backward Pass, Total Float, Critical Path) for a UAE villa.
+// Enforces server-verified per-project quota before revealing results/exports and
+// locks the input form once completed so users must start a new project from Dashboard.
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { Loader2, Download, Save, Rocket, RotateCcw, PlusCircle } from 'lucide-react';
+import { Loader2, Download, Save, Rocket, RotateCcw, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import FeatureGate from './FeatureGate';
 import ModuleHistory from './ModuleHistory';
 import SpecPrefill from './SpecPrefill';
@@ -28,7 +28,11 @@ function sanitizeConfigForSave(cfg) {
   return { ...cfg, drawings };
 }
 
-function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName, onStartProject, initialLoadData, onClearInitialLoadData }) {
+function ProgrammeTool({
+  token, isArabic, initialProjectName, onClearInitialName,
+  onStartProject, onProjectComplete, onNavigate,
+  initialLoadData, onClearInitialLoadData,
+}) {
   const t = (en, ar) => (isArabic ? ar : en);
   const [cfg, setCfg] = useState(() => {
     if (initialLoadData?.config) return { ...DEFAULT_CONFIG, ...initialLoadData.config };
@@ -38,12 +42,12 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
   const [processed, setProcessed] = useState(() => Boolean(initialLoadData?.config));
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
+  const [processError, setProcessError] = useState('');
   const [dirtyEdits, setDirtyEdits] = useState(false);
-  const [savedId, setSavedId] = useState(() => initialLoadData?.id ?? null); // reused so re-saves don't consume another credit
-  const justLoaded = useRef(Boolean(initialLoadData));
+  const [savedId, setSavedId] = useState(() => initialLoadData?.id ?? null);
   const [isSimulating, setIsSimulating] = useState(false);
   const [loadingPct, setLoadingPct] = useState(0);
-  const [isHistoryView, setIsHistoryView] = useState(() => Boolean(initialLoadData));
+  const [isHistoryView] = useState(() => Boolean(initialLoadData));
   const timerRef = useRef(null);
 
   useEffect(() => () => {
@@ -51,20 +55,14 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
   }, []);
 
   const patch = (p) => {
+    if (processed || isHistoryView) return; // Lock form once completed
     const isStructural = Object.keys(p).some((k) => SIG_KEYS.has(k));
     setCfg((c) => ({
       ...c,
       ...p,
-      // Reset manual duration overrides if the user changes villa structure/dates
       ...(isStructural ? { customDurations: {} } : {}),
     }));
-    if (isStructural) {
-      setProcessed(false);
-      setDirtyEdits(false);
-      setSavedMsg('');
-      if (justLoaded.current) justLoaded.current = false;
-      else setSavedId(null);
-    }
+    setProcessError('');
   };
 
   const derived = useMemo(() => deriveVilla(cfg), [cfg]);
@@ -96,8 +94,7 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
   const totalDays = out?.totalDays ?? 1;
   const hasCustomEdits = Object.keys(cfg.customDurations || {}).length > 0;
 
-  const save = async (scheduleOut = out, configToSave = cfg) => {
-    if (!scheduleOut) return;
+  const saveToServer = async (scheduleOut, configToSave, existingId = savedId) => {
     setSaving(true);
     setSavedMsg('');
     try {
@@ -106,7 +103,7 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          project_id: savedId,
+          project_id: existingId,
           name: cleanCfg.projectName,
           config: cleanCfg,
           summary: {
@@ -125,40 +122,65 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
         setSavedId(data.project_id);
         setDirtyEdits(false);
         setSavedMsg(t('Saved to history ✓', 'حُفظ في السجل ✓'));
-      } else {
-        setSavedMsg(data.detail || t('Save failed', 'فشل الحفظ'));
+        return { ok: true, id: data.project_id };
       }
+      return { ok: false, error: data.detail || t('Save failed — quota limit reached.', 'فشل الحفظ — تم الوصول للحد المسموح.') };
     } catch {
-      setSavedMsg(t('Save failed', 'فشل الحفظ'));
+      return { ok: false, error: t('Network error while saving project.', 'حدث خطأ في الاتصال أثناء حفظ المشروع.') };
     } finally {
       setSaving(false);
     }
   };
 
-  // Keep the 1-minute (600ms x 100) processing progress bar as requested by user
-  const process = () => {
-    if (canProcess) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      setIsSimulating(true);
-      setLoadingPct(0);
-      let pct = 0;
-      timerRef.current = setInterval(() => {
-        pct += 1;
-        setLoadingPct(pct);
-        if (pct >= 100) {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
-          setIsSimulating(false);
-          setProcessed(true);
-          if (!savedId) {
-            const newActs = buildActivityList(cfg);
-            const scheduleOut = runScheduler(cfg, newActs);
-            save(scheduleOut, cfg);
-          }
-          if (onStartProject) onStartProject();
+  // Server-verified entitlement gate + keep the 1-minute (600ms x 100) waiting bar intact
+  const process = async () => {
+    if (!canProcess || isSimulating || processed) return;
+    setProcessError('');
+
+    // Pre-check server entitlement so exhausted users get blocked immediately
+    try {
+      const accRes = await fetch('/api/billing/feature-access?feature=programme', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (accRes.ok) {
+        const acc = await accRes.json();
+        if (!acc.can_create) {
+          setProcessError(t(
+            'Project limit reached for Work Programme. Please subscribe or purchase an extra project from the Dashboard.',
+            'تم الوصول للحد المسموح في برنامج الأعمال. يرجى الاشتراك أو إضافة مشروع من لوحة التحكم.',
+          ));
+          return;
         }
-      }, 600);
+      }
+    } catch {
+      // Final authoritative check still runs on /save below
     }
+
+    if (timerRef.current) clearInterval(timerRef.current);
+    setIsSimulating(true);
+    setLoadingPct(0);
+    let pct = 0;
+    timerRef.current = setInterval(() => {
+      pct += 1;
+      setLoadingPct(pct);
+      if (pct >= 100) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+        (async () => {
+          const newActs = buildActivityList(cfg);
+          const scheduleOut = runScheduler(cfg, newActs);
+          const res = await saveToServer(scheduleOut, cfg, null);
+          setIsSimulating(false);
+          if (res.ok) {
+            setProcessed(true);
+            if (onStartProject) onStartProject();
+            if (onProjectComplete) onProjectComplete();
+          } else {
+            setProcessError(res.error);
+          }
+        })();
+      }
+    }, 600);
   };
 
   const patchActDuration = (id, weeks) => {
@@ -175,17 +197,6 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
     setCfg((c) => ({ ...c, customDurations: {} }));
     setDirtyEdits(Boolean(savedId));
     setSavedMsg('');
-  };
-
-  const startNewProject = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    setIsSimulating(false);
-    setIsHistoryView(false);
-    setProcessed(false);
-    setSavedId(null);
-    setDirtyEdits(false);
-    setSavedMsg('');
-    setCfg({ ...DEFAULT_CONFIG });
   };
 
   const onStart = (startISO) => {
@@ -207,26 +218,16 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
     <div style={{ padding: '28px clamp(16px, 4vw, 40px)', maxWidth: 1260, margin: '0 auto' }}>
       <h1 style={{ color: 'var(--text-primary)', marginBottom: 4 }}>📅 {t('Construction Work Programme', 'الجدول الزمني للتنفيذ')}</h1>
       <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
-        {t('Flow: (1) Enter the project entries or pre-fill from a specification, (2) attach the drawings, (3) press Process to build the CPM schedule.',
-           'خطوات العمل: (١) أدخل بيانات المشروع أو املأها تلقائياً من المواصفات، (٢) أرفق المخططات للرجوع إليها، (٣) اضغط معالجة لإنشاء جدول المسار الحرج (CPM).')}
+        {t('Flow: (1) Enter the project entries or pre-fill from a specification, (2) attach & analyze drawings, (3) press Process to build the CPM schedule.',
+           'خطوات العمل: (١) أدخل بيانات المشروع أو املأها تلقائياً من المواصفات، (٢) أرفق المخططات لتحليلها، (٣) اضغط معالجة لإنشاء جدول المسار الحرج (CPM).')}
       </p>
 
+      {/* Download-only history shortcut (re-running a new project always starts from Dashboard) */}
       <ModuleHistory
         feature="programme"
         token={token}
         isArabic={isArabic}
         refreshKey={savedId}
-        onLoad={({ id, config }) => {
-          justLoaded.current = true;
-          const merged = { ...DEFAULT_CONFIG, ...config };
-          setCfg(merged);
-          setProcessed(true);
-          setSavedId(id);
-          setDirtyEdits(false);
-          setSavedMsg('');
-          setIsHistoryView(true);
-          if (onStartProject) onStartProject();
-        }}
         onExport={async ({ config }) => {
           const merged = { ...DEFAULT_CONFIG, ...config };
           const newActs = buildActivityList(merged);
@@ -236,21 +237,10 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
         }}
       />
 
-      {isHistoryView && (
-        <div style={{ marginBottom: 15, padding: '12px 16px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-            {t('Viewing Saved Project (you can still adjust durations & save updates)', 'عرض مشروع محفوظ (يمكنك تعديل المدد وحفظ التحديثات أو بدء مشروع جديد)')}
-          </span>
-          <button className="btn btn-secondary" onClick={startNewProject} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.84rem' }}>
-            <PlusCircle size={15} /> {t('New Project', 'مشروع جديد')}
-          </button>
-        </div>
-      )}
-
-      {!isHistoryView && (
+      {!processed && !isHistoryView && (
         <div style={card}>
           <h3 style={{ marginTop: 0, color: 'var(--text-primary)' }}>① {t('Project Entries', 'بيانات المشروع')}</h3>
-          <SpecPrefill cfg={cfg} setCfg={patch} isArabic={isArabic} token={token} />
+          <SpecPrefill cfg={cfg} setCfg={patch} isArabic={isArabic} token={token} feature="programme" />
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 14 }}>
             <div>
@@ -340,6 +330,7 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
             cfg={cfg}
             setCfg={patch}
             token={token}
+            feature="programme"
           />
 
           <h3 style={{ marginTop: 22, color: 'var(--text-primary)' }}>③ {t('Run Process', 'تشغيل المعالجة')}</h3>
@@ -348,6 +339,11 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
           )}
           {missing.length > 0 && (
             <p style={{ color: 'var(--warning, #d97706)', marginTop: 14 }}>⚠️ {t('Please fill required fields', 'يرجى تعبئة الحقول المطلوبة')}: {missing.join('، ')}</p>
+          )}
+          {processError && (
+            <p style={{ color: 'var(--error)', background: 'rgba(239, 68, 68, 0.1)', padding: 12, borderRadius: 8, marginTop: 14, fontWeight: 600 }}>
+              ⚠️ {processError}
+            </p>
           )}
 
           {isSimulating ? (
@@ -360,7 +356,7 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
                 {loadingPct}% {t('Complete', 'مكتمل')}
               </p>
             </div>
-          ) : !out && (
+          ) : (
             <button className="btn btn-primary" disabled={!canProcess} onClick={process} style={{ marginTop: 16, padding: '12px 20px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Rocket size={16} /> {t('Process — Build CPM Schedule', 'معالجة — إنشاء برنامج الأعمال')}
             </button>
@@ -370,6 +366,21 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
 
       {out && (
         <>
+          <div style={{ marginBottom: 16, padding: '14px 18px', borderRadius: 10, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.35)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--success)', fontWeight: 700 }}>
+              <CheckCircle2 size={18} />
+              <span>
+                {t('Work Programme completed & saved! Export your Excel below. To create another project, start a new one from the Dashboard.',
+                   'تم إنشاء وحفظ برنامج الأعمال بنجاح! يمكنك تحميل ملف الإكسل أدناه، ولعمل مشروع جديد ابدأ من لوحة التحكم.')}
+              </span>
+            </div>
+            {onNavigate && (
+              <button className="btn btn-secondary" onClick={() => onNavigate('dashboard')} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.84rem' }}>
+                <ArrowLeft size={15} /> {t('Return to Dashboard', 'العودة للوحة التحكم')}
+              </button>
+            )}
+          </div>
+
           <div style={card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
               <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>
@@ -381,10 +392,9 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
                     <RotateCcw size={15} /> {t('Re-fit Handover', 'ضبط لتاريخ التسليم')}
                   </button>
                 )}
-                {(!savedId || dirtyEdits) && (
-                  <button className="btn btn-secondary" onClick={() => save()} disabled={saving}>
-                    {saving ? <Loader2 size={15} className="spin" /> : <Save size={15} />}{' '}
-                    {savedId ? t('Save Changes', 'حفظ التعديلات') : t('Save to History', 'حفظ في السجل')}
+                {dirtyEdits && savedId && (
+                  <button className="btn btn-secondary" onClick={() => saveToServer(out, cfg, savedId)} disabled={saving}>
+                    {saving ? <Loader2 size={15} className="spin" /> : <Save size={15} />} {t('Save Duration Tweaks', 'حفظ تعديلات المدد')}
                   </button>
                 )}
                 <button className="btn btn-primary" onClick={exportExcel}>
@@ -429,8 +439,8 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
               <tbody>{renderRows()}</tbody>
             </table>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: 12 }}>
-              {t('Genuine CPM schedule (Forward & Backward Pass). Fixed technical durations (7-day curing, 48hr flood test, handover) are protected. 🔴 / Red bars = Critical Path (Total Float = 0 days). Editing any duration updates the schedule live and can be saved.',
-                 'جدول مسار حرج CPM حقيقي (حساب المسار الأمامي والخلفي والسماحية). المدد الفنية الثابتة (معالجة الخرسانة ٧ أيام، اختبار الغمر ٤٨ ساعة) محمية من المطّ. 🔴 / الأعمدة الحمراء = المسار الحرج (سماحية = ٠ يوم). تعديل أي مدة يحدّث الجدول فوراً ويمكن حفظه.')}
+              {t('Genuine CPM schedule (Forward & Backward Pass). Fixed technical durations (7-day curing, 48hr flood test, handover) are protected. 🔴 / Red bars = Critical Path (Total Float = 0 days).',
+                 'جدول مسار حرج CPM حقيقي (حساب المسار الأمامي والخلفي والسماحية). المدد الفنية الثابتة (معالجة الخرسانة ٧ أيام، اختبار الغمر ٤٨ ساعة) محمية من المطّ. 🔴 / الأعمدة الحمراء = المسار الحرج (سماحية = ٠ يوم).')}
             </p>
           </div>
 
@@ -518,7 +528,11 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
   }
 }
 
-export default function Programme({ token, isArabic, initialProjectName, onClearInitialName, onStartProject, initialLoadData, onClearInitialLoadData }) {
+export default function Programme({
+  token, isArabic, initialProjectName, onClearInitialName,
+  onStartProject, onProjectComplete, onNavigate,
+  initialLoadData, onClearInitialLoadData,
+}) {
   return (
     <FeatureGate feature="programme" token={token} isArabic={isArabic} title={isArabic ? 'جدول زمني' : 'Work Programme'}>
       <ProgrammeTool
@@ -527,6 +541,8 @@ export default function Programme({ token, isArabic, initialProjectName, onClear
         initialProjectName={initialProjectName}
         onClearInitialName={onClearInitialName}
         onStartProject={onStartProject}
+        onProjectComplete={onProjectComplete}
+        onNavigate={onNavigate}
         initialLoadData={initialLoadData}
         onClearInitialLoadData={onClearInitialLoadData}
       />

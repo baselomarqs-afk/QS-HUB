@@ -83,7 +83,7 @@ function countPdfPages(file) {
   });
 }
 
-export default function DrawingUpload({ drawings, setDrawings, isArabic, cfg, setCfg, token }) {
+export default function DrawingUpload({ drawings, setDrawings, isArabic, cfg, setCfg, token, feature }) {
   const t = (en, ar) => (isArabic ? ar : en);
   const [busy, setBusy] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
@@ -114,14 +114,19 @@ export default function DrawingUpload({ drawings, setDrawings, isArabic, cfg, se
       for (const f of targetFiles) {
         formData.append('files', f);
       }
-      const res = await fetch('/api/modules/drawings/analyze', {
+      const url = feature ? `/api/modules/drawings/analyze?feature=${encodeURIComponent(feature)}` : '/api/modules/drawings/analyze';
+      const res = await fetch(url, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
       const r = await res.json();
+      if (!res.ok) {
+        setAnalysis({ _success: false, _error: r.detail || r._error || t('Request denied.', 'تم رفض الطلب.') });
+        return;
+      }
       setAnalysis(r);
-      if (res.ok && r._success && r.suggestions) {
+      if (r._success && r.suggestions) {
         const init = {};
         for (const k of Object.keys(r.suggestions)) init[k] = true;
         setPicked(init);

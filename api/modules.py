@@ -6,7 +6,7 @@ import json
 import re
 from typing import Optional, Dict, Any, List, Tuple
 
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
 from pydantic import BaseModel
 
 from api.auth import get_current_user
@@ -61,13 +61,28 @@ async def save(feature: str, req: SaveModuleReq, current_user: dict = Depends(ge
         if not ok:
             raise HTTPException(status_code=403, detail=msg)
 
-    pid = save_module_project(user_id, feature, req.name, req.config, req.summary, req.project_id)
+    save_name = req.name
+    save_config = dict(req.config or {})
+    if not is_new and not is_admin:
+        # Prevent overwriting a completed project with a brand-new villa for free.
+        existing = get_module_project(user_id, feature, req.project_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Project not found.")
+        if feature == "cashflow":
+            raise HTTPException(status_code=403, detail="Completed cash flow projects cannot be overwritten. Start a new project from the Dashboard.")
+        # For Work Programme, only manual activity duration edits on the SAME villa are allowed
+        locked_cfg = dict(existing.get("config") or {})
+        locked_cfg["customDurations"] = save_config.get("customDurations", {})
+        save_config = locked_cfg
+        save_name = existing.get("name") or req.name
+
+    pid = save_module_project(user_id, feature, save_name, save_config, req.summary, req.project_id)
     if pid is None:
         raise HTTPException(status_code=500, detail="Failed to save.")
 
     if is_new and not is_admin:
         from utils.usage import settle_project_creation
-        settle_project_creation(current_user, feature, {"project_id": pid, "project_name": req.name})
+        settle_project_creation(current_user, feature, {"project_id": pid, "project_name": save_name})
 
     return {"message": "Saved.", "project_id": pid}
 
@@ -325,8 +340,26 @@ def _extract_drawing_evidence(file_entries: List[Tuple[str, bytes, str]], max_vi
     }
 
 
+def _require_module_quota(current_user: dict, feature: Optional[str] = None):
+    """Ensure non-admin user has quota to create a project before running AI pre-fill/drawing analysis."""
+    if current_user.get("role") == "admin":
+        return
+    from utils.usage import project_entitlement
+    targets = [feature] if feature in FEATURES else list(FEATURES.keys())
+    if not any(project_entitlement(current_user, f)["can_create"] for f in targets):
+        raise HTTPException(
+            status_code=403,
+            detail="Project limit reached. Please subscribe or purchase an extra project before analyzing new drawings.",
+        )
+
+
 @router.post("/spec/prefill")
-async def spec_prefill(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+async def spec_prefill(
+    file: UploadFile = File(...),
+    feature: Optional[str] = Query(None),
+    current_user: dict = Depends(get_current_user),
+):
+    _require_module_quota(current_user, feature)
     filename = file.filename or ""
     text = ""
     scanned_images = []
@@ -394,10 +427,12 @@ Inside "suggestions", include ONLY keys you found; OMIT anything not stated (do 
 @router.post("/drawings/analyze")
 async def analyze_drawings(
     files: List[UploadFile] = File(...),
+    feature: Optional[str] = Query(None),
     current_user: dict = Depends(get_current_user),
 ):
     """Actively read uploaded villa architectural/structural drawings (PDFs or images)
     using PyMuPDF text sweep + Gemini Vision to extract real villa schedule parameters."""
+    _require_module_quota(current_user, feature)
     if not files:
         raise HTTPException(status_code=400, detail="No drawing files uploaded.")
 

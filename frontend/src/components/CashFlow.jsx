@@ -1,9 +1,9 @@
 // نافذة التدفق النقدي — Cash Flow window (bilingual). UAE / FIDIC-compliant
-// S-Curve & monthly certificate forecast linked to the parametric construction
-// schedule: pro-rata advance recovery, UAE FTA 5% VAT accounting, retention
-// release tracking, interactive SVG S-Curve & cash flow charts, and Excel export.
+// S-Curve & monthly certificate forecast. Enforces server-verified per-project
+// quota before revealing results/exports and locks the input form once completed
+// so users must start a new project from the Dashboard.
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { Loader2, Download, Save, Rocket, PlusCircle } from 'lucide-react';
+import { Download, Rocket, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import FeatureGate from './FeatureGate';
 import ModuleHistory from './ModuleHistory';
 import SpecPrefill from './SpecPrefill';
@@ -16,12 +16,6 @@ import { runScheduler } from '../engine/scheduler';
 import { computeCashFlow, fmtAed } from '../engine/cashflow';
 import FeedbackModal from './common/FeedbackModal';
 
-const GEOM_KEYS = new Set([
-  'villaType', 'buaPerFloor', 'complexityFactor', 'foundationType',
-  'hasPool', 'hasDemolition', 'hasRoofGarden', 'hasBoundaryWall', 'hasExternalLandscape',
-  'basementArea', 'mezzanineArea', 'startISO', 'handoverISO',
-]);
-
 /** Strip large base64 image thumbnails from drawings before persisting to DB. */
 function sanitizeConfigForSave(cfg) {
   const drawings = Array.isArray(cfg.drawings)
@@ -30,7 +24,11 @@ function sanitizeConfigForSave(cfg) {
   return { ...cfg, drawings };
 }
 
-function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName, onStartProject, initialLoadData, onClearInitialLoadData }) {
+function CashFlowTool({
+  token, isArabic, initialProjectName, onClearInitialName,
+  onStartProject, onProjectComplete, onNavigate,
+  initialLoadData, onClearInitialLoadData,
+}) {
   const t = (en, ar) => (isArabic ? ar : en);
   const [cfg, setCfg] = useState(() => {
     if (initialLoadData?.config) return { ...DEFAULT_CONFIG, ...initialLoadData.config };
@@ -38,13 +36,12 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
     return { ...DEFAULT_CONFIG };
   });
   const [processed, setProcessed] = useState(() => Boolean(initialLoadData));
-  const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
-  const [savedId, setSavedId] = useState(() => initialLoadData?.id ?? null); // reused so re-saves don't consume another credit
-  const justLoaded = useRef(Boolean(initialLoadData));
+  const [processError, setProcessError] = useState('');
+  const [savedId, setSavedId] = useState(() => initialLoadData?.id ?? null);
   const [isSimulating, setIsSimulating] = useState(false);
   const [loadingPct, setLoadingPct] = useState(0);
-  const [isHistoryView, setIsHistoryView] = useState(() => Boolean(initialLoadData));
+  const [isHistoryView] = useState(() => Boolean(initialLoadData));
   const timerRef = useRef(null);
 
   useEffect(() => () => {
@@ -72,19 +69,17 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
   }, [initialLoadData, onClearInitialLoadData]);
 
   const result = useMemo(() => {
-    if (!cfg.projectName.trim() || !cfg.villaType || !(cfg.buaPerFloor > 0) || !(cfg.contractValueAed > 0) || !cfg.startISO || handoverInvalid) {
+    if (!processed || !cfg.projectName.trim() || !cfg.villaType || !(cfg.buaPerFloor > 0) || !(cfg.contractValueAed > 0) || !cfg.startISO || handoverInvalid) {
       return null;
     }
     const acts = buildActivityList(cfg);
     const out = runScheduler(cfg, acts);
     return computeCashFlow(cfg, out.monthly);
-  }, [cfg, handoverInvalid]);
+  }, [processed, cfg, handoverInvalid]);
 
   const show = processed && canProcess && result;
 
-  const save = async (resultObj = result, configToSave = cfg) => {
-    if (!resultObj) return;
-    setSaving(true);
+  const saveToServer = async (resultObj, configToSave) => {
     setSavedMsg('');
     try {
       const cleanCfg = sanitizeConfigForSave(configToSave);
@@ -92,7 +87,7 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          project_id: savedId,
+          project_id: null,
           name: cleanCfg.projectName,
           config: cleanCfg,
           summary: resultObj.summary,
@@ -102,61 +97,70 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
       if (res.ok) {
         setSavedId(data.project_id);
         setSavedMsg(t('Saved to history ✓', 'حُفظ في السجل ✓'));
-      } else {
-        setSavedMsg(data.detail || t('Save failed', 'فشل الحفظ'));
+        return { ok: true, id: data.project_id };
       }
+      return { ok: false, error: data.detail || t('Save failed — quota limit reached.', 'فشل الحفظ — تم الوصول للحد المسموح.') };
     } catch {
-      setSavedMsg(t('Save failed', 'فشل الحفظ'));
-    } finally {
-      setSaving(false);
+      return { ok: false, error: t('Network error while saving project.', 'حدث خطأ في الاتصال أثناء حفظ المشروع.') };
     }
   };
 
-  // Keep the 1-minute (600ms x 100) processing progress bar as requested by user
-  const process = () => {
-    if (canProcess) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      setIsSimulating(true);
-      setLoadingPct(0);
-      let pct = 0;
-      timerRef.current = setInterval(() => {
-        pct += 1;
-        setLoadingPct(pct);
-        if (pct >= 100) {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
-          setIsSimulating(false);
-          setProcessed(true);
-          if (!savedId) {
-            const acts = buildActivityList(cfg);
-            const out = runScheduler(cfg, acts);
-            const resObj = computeCashFlow(cfg, out.monthly);
-            save(resObj, cfg);
-          }
-          if (onStartProject) onStartProject();
+  // Server-verified entitlement gate + keep the 1-minute (600ms x 100) waiting bar intact
+  const process = async () => {
+    if (!canProcess || isSimulating || processed) return;
+    setProcessError('');
+
+    // Pre-check server entitlement before running the 1-minute bar
+    try {
+      const accRes = await fetch('/api/billing/feature-access?feature=cashflow', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (accRes.ok) {
+        const acc = await accRes.json();
+        if (!acc.can_create) {
+          setProcessError(t(
+            'Project limit reached for Cash Flow. Please subscribe or purchase an extra project from the Dashboard.',
+            'تم الوصول للحد المسموح في التدفق النقدي. يرجى الاشتراك أو إضافة مشروع من لوحة التحكم.',
+          ));
+          return;
         }
-      }, 600);
+      }
+    } catch {
+      // Authoritative check still executes on /save below
     }
+
+    if (timerRef.current) clearInterval(timerRef.current);
+    setIsSimulating(true);
+    setLoadingPct(0);
+    let pct = 0;
+    timerRef.current = setInterval(() => {
+      pct += 1;
+      setLoadingPct(pct);
+      if (pct >= 100) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+        (async () => {
+          const acts = buildActivityList(cfg);
+          const out = runScheduler(cfg, acts);
+          const resObj = computeCashFlow(cfg, out.monthly);
+          const res = await saveToServer(resObj, cfg);
+          setIsSimulating(false);
+          if (res.ok) {
+            setProcessed(true);
+            if (onStartProject) onStartProject();
+            if (onProjectComplete) onProjectComplete();
+          } else {
+            setProcessError(res.error);
+          }
+        })();
+      }
+    }, 600);
   };
 
   const patch = (p) => {
+    if (processed || isHistoryView) return; // Lock inputs once completed
     setCfg((c) => ({ ...c, ...p }));
-    if (Object.keys(p).some((k) => GEOM_KEYS.has(k))) {
-      setProcessed(false);
-      setSavedMsg('');
-      if (justLoaded.current) justLoaded.current = false;
-      else setSavedId(null);
-    }
-  };
-
-  const startNewProject = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    setIsSimulating(false);
-    setIsHistoryView(false);
-    setProcessed(false);
-    setSavedId(null);
-    setSavedMsg('');
-    setCfg({ ...DEFAULT_CONFIG });
+    setProcessError('');
   };
 
   const exportExcel = async () => {
@@ -205,25 +209,16 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
     <div style={{ padding: '28px clamp(16px, 4vw, 40px)', maxWidth: 1280, margin: '0 auto' }}>
       <h1 style={{ color: 'var(--text-primary)', marginBottom: 4 }}>💰 {t('Cash-Flow Forecast', 'توقع التدفق النقدي')}</h1>
       <p style={{ color: 'var(--text-muted)', marginTop: 0 }}>
-        {t('Flow: (1) Enter project and financial parameters, (2) attach drawings, (3) press Process to calculate the UAE FTA-compliant cash flow & S-Curve.',
-           'خطوات العمل: (١) أدخل البيانات الهندسية والمالية للمشروع، (٢) أرفق المخططات، (٣) اضغط معالجة لإنشاء التدفق النقدي ومنحنى S-Curve وفق نظام الضريبة الإماراتي.')}
+        {t('Flow: (1) Enter project and financial parameters, (2) attach & analyze drawings, (3) press Process to calculate the UAE FTA-compliant cash flow & S-Curve.',
+           'خطوات العمل: (١) أدخل البيانات الهندسية والمالية للمشروع، (٢) أرفق المخططات لتحليلها، (٣) اضغط معالجة لإنشاء التدفق النقدي ومنحنى S-Curve وفق نظام الضريبة الإماراتي.')}
       </p>
 
+      {/* Download-only history shortcut (re-running a new project always starts from Dashboard) */}
       <ModuleHistory
         feature="cashflow"
         token={token}
         isArabic={isArabic}
         refreshKey={savedId}
-        onLoad={({ id, config }) => {
-          justLoaded.current = true;
-          const merged = { ...DEFAULT_CONFIG, ...config };
-          setCfg(merged);
-          setProcessed(true);
-          setSavedId(id);
-          setSavedMsg('');
-          setIsHistoryView(true);
-          if (onStartProject) onStartProject();
-        }}
         onExport={async ({ config }) => {
           const merged = { ...DEFAULT_CONFIG, ...config };
           const acts = buildActivityList(merged);
@@ -234,21 +229,10 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
         }}
       />
 
-      {isHistoryView && (
-        <div style={{ marginBottom: 15, padding: '12px 16px', background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-            {t('History View — Read Only', 'وضع عرض السجل — للقراءة فقط')}
-          </span>
-          <button className="btn btn-secondary" onClick={startNewProject} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.84rem' }}>
-            <PlusCircle size={15} /> {t('New Project', 'مشروع جديد')}
-          </button>
-        </div>
-      )}
-
-      {!isHistoryView && (
+      {!processed && !isHistoryView && (
         <div style={card}>
           <h3 style={{ marginTop: 0, color: 'var(--text-primary)' }}>① {t('Project Entries', 'بيانات المشروع')}</h3>
-          <SpecPrefill cfg={cfg} setCfg={patch} isArabic={isArabic} token={token} />
+          <SpecPrefill cfg={cfg} setCfg={patch} isArabic={isArabic} token={token} feature="cashflow" />
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 14 }}>
             <div>
@@ -344,6 +328,7 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
             cfg={cfg}
             setCfg={patch}
             token={token}
+            feature="cashflow"
           />
 
           <h3 style={{ marginTop: 22, color: 'var(--text-primary)' }}>④ {t('Run Process', 'تشغيل المعالجة')}</h3>
@@ -353,6 +338,12 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
           {missing.length > 0 && (
             <p style={{ color: 'var(--warning, #d97706)', marginTop: 14 }}>⚠️ {t('Please fill required fields', 'يرجى تعبئة الحقول المطلوبة')}: {missing.join('، ')}</p>
           )}
+          {processError && (
+            <p style={{ color: 'var(--error)', background: 'rgba(239, 68, 68, 0.1)', padding: 12, borderRadius: 8, marginTop: 14, fontWeight: 600 }}>
+              ⚠️ {processError}
+            </p>
+          )}
+
           {isSimulating ? (
             <div style={{ marginTop: 20, padding: 20, background: 'var(--bg-primary)', borderRadius: 8, border: '1px solid var(--border-color)', textAlign: 'center' }}>
               <h4 style={{ margin: 0, marginBottom: 10, color: 'var(--text-primary)' }}>{t('Processing Financial Data...', 'جاري معالجة البيانات المالية...')}</h4>
@@ -363,7 +354,7 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
                 {loadingPct}% {t('Complete', 'مكتمل')}
               </p>
             </div>
-          ) : !processed && (
+          ) : (
             <button className="btn btn-primary" disabled={!canProcess} onClick={process} style={{ marginTop: 16, padding: '12px 20px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Rocket size={16} /> {t('Process — Build Cash Flow', 'معالجة — إنشاء التدفق النقدي')}
             </button>
@@ -377,15 +368,25 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
 
       {show && result && (
         <>
+          <div style={{ marginBottom: 16, padding: '14px 18px', borderRadius: 10, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.35)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--success)', fontWeight: 700 }}>
+              <CheckCircle2 size={18} />
+              <span>
+                {t('Cash Flow Forecast completed & saved! Export your Excel below. To create another project, start a new one from the Dashboard.',
+                   'تم إنشاء وحفظ التدفق النقدي بنجاح! يمكنك تحميل ملف الإكسل أدناه، ولعمل مشروع جديد ابدأ من لوحة التحكم.')}
+              </span>
+            </div>
+            {onNavigate && (
+              <button className="btn btn-secondary" onClick={() => onNavigate('dashboard')} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.84rem' }}>
+                <ArrowLeft size={15} /> {t('Return to Dashboard', 'العودة للوحة التحكم')}
+              </button>
+            )}
+          </div>
+
           <div style={card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
               <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>📈 {cfg.projectName} — {cfg.villaType}</h3>
               <div style={{ display: 'flex', gap: 8 }}>
-                {!savedId && (
-                  <button className="btn btn-secondary" onClick={() => save()} disabled={saving}>
-                    {saving ? <Loader2 size={15} className="spin" /> : <Save size={15} />} {t('Save to History', 'حفظ في السجل')}
-                  </button>
-                )}
                 <button className="btn btn-primary" onClick={exportExcel}>
                   <Download size={15} /> {t('Export Excel', 'تصدير إكسل')}
                 </button>
@@ -500,7 +501,11 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
   );
 }
 
-export default function CashFlow({ token, isArabic, initialProjectName, onClearInitialName, onStartProject, initialLoadData, onClearInitialLoadData }) {
+export default function CashFlow({
+  token, isArabic, initialProjectName, onClearInitialName,
+  onStartProject, onProjectComplete, onNavigate,
+  initialLoadData, onClearInitialLoadData,
+}) {
   return (
     <FeatureGate feature="cashflow" token={token} isArabic={isArabic} title={isArabic ? 'التدفق النقدي' : 'Cash Flow'}>
       <CashFlowTool
@@ -509,6 +514,8 @@ export default function CashFlow({ token, isArabic, initialProjectName, onClearI
         initialProjectName={initialProjectName}
         onClearInitialName={onClearInitialName}
         onStartProject={onStartProject}
+        onProjectComplete={onProjectComplete}
+        onNavigate={onNavigate}
         initialLoadData={initialLoadData}
         onClearInitialLoadData={onClearInitialLoadData}
       />
