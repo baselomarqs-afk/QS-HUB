@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import About from './components/About';
@@ -16,13 +16,15 @@ import Programme from './components/Programme';
 import CashFlow from './components/CashFlow';
 import ReviewsAndInquiries from './components/ReviewsAndInquiries';
 import {
-  LayoutDashboard, Folder, Play, BarChart2, Eye, LogOut, Globe, Moon, Sun, CreditCard, Shield, Bot, Menu, X, CalendarDays, Wallet, Info, Star, MessageSquare
+  LayoutDashboard, Folder, Play, BarChart2, Eye, LogOut, Globe, Moon, Sun, CreditCard, Shield, Bot, Menu, X, CalendarDays, Wallet, Info, Star
 } from 'lucide-react';
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('qto_token') || '');
   const [user, setUser] = useState(null);
-  const [page, setPage] = useState('dashboard');
+  const [page, setPage] = useState(() =>
+    new URLSearchParams(window.location.search).get('payment_success') === '1' ? 'billing' : 'dashboard'
+  );
   const [pageParams, setPageParams] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
   const [isArabic, setIsArabic] = useState(false);
@@ -32,26 +34,54 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [moduleProjectName, setModuleProjectName] = useState({ programme: '', cashflow: '' });
   const [activeModules, setActiveModules] = useState({ programme: false, cashflow: false });
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(() =>
+    new URLSearchParams(window.location.search).get('payment_success') === '1'
+  );
 
+  const handleNavigate = useCallback((newPage, params = null) => {
+    setPage(newPage);
+    setPageParams(params);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('qto_token');
+    localStorage.removeItem('qto_user');
+    setToken('');
+    setUser(null);
+    setSelectedProject(null);
+    handleNavigate('dashboard');
+  }, [handleNavigate]);
 
   useEffect(() => {
-    // Detect return from Dodo payment page
+    // Clean URL after Dodo payment redirect (initial page/paymentSuccess handled lazily)
     const params = new URLSearchParams(window.location.search);
     if (params.get('payment_success') === '1') {
-      setPaymentSuccess(true);
-      // Clean the URL
       window.history.replaceState({}, '', window.location.pathname);
-      // Navigate to billing page to show activated subscription
-      setPage('billing');
     }
   }, []);
 
   useEffect(() => {
-    if (token) {
-      fetchUserProfile();
-    }
-  }, [token]);
+    if (!token) return;
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/profile", {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!active) return;
+        if (res.ok) {
+          setUser(data);
+        } else {
+          // Token invalid, logout
+          handleLogout();
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+    return () => { active = false; };
+  }, [token, handleLogout]);
 
   useEffect(() => {
     // Apply dark mode class to body
@@ -62,41 +92,10 @@ export default function App() {
     }
   }, [isDark]);
 
-  const fetchUserProfile = async () => {
-    try {
-      const res = await fetch("/api/auth/profile", {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setUser(data);
-      } else {
-        // Token invalid, logout
-        handleLogout();
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const handleLoginSuccess = (authToken, userData) => {
     setToken(authToken);
     setUser(userData);
     handleNavigate('dashboard');
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('qto_token');
-    localStorage.removeItem('qto_user');
-    setToken('');
-    setUser(null);
-    setSelectedProject(null);
-    handleNavigate('dashboard');
-  };
-
-  const handleNavigate = (newPage, params = null) => {
-    setPage(newPage);
-    setPageParams(params);
   };
 
   const handleStartModuleProject = (module, name) => {
@@ -575,6 +574,7 @@ export default function App() {
         )}
         {page === 'projects' && (
           <Projects 
+            key={pageParams?.tab || 'qto'}
             token={token} 
             isArabic={isArabic} 
             onSelectProject={setSelectedProject}
@@ -584,6 +584,7 @@ export default function App() {
         )}
         {page === 'workflow' && (
           <Workflow 
+            key={selectedProject?.id || 'none'}
             token={token} 
             project={selectedProject} 
             isArabic={isArabic}
@@ -592,6 +593,7 @@ export default function App() {
         )}
         {page === 'programme' && (
           <Programme 
+            key={pageParams?.loadData?.id ?? 'new'}
             token={token} 
             isArabic={isArabic} 
             initialProjectName={moduleProjectName.programme}
@@ -603,6 +605,7 @@ export default function App() {
         )}
         {page === 'cashflow' && (
           <CashFlow 
+            key={pageParams?.loadData?.id ?? 'new'}
             token={token} 
             isArabic={isArabic} 
             initialProjectName={moduleProjectName.cashflow}

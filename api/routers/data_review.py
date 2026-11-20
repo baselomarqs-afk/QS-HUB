@@ -70,7 +70,9 @@ def reconstruct_project_inputs(state_data: dict):
     confirmed["schedules"] = schedules
 
     # Reconstruct openings if missing or empty
+    sources_existing = confirmed.get("sources") or {}
     openings = confirmed.get("openings") or {}
+    prev_totals = dict(openings.get("totals") or {})
     openings["totals"] = {"door_count": 0, "window_area": 0.0}
     
     # First pass: Extract arrays from schedules if not already present
@@ -140,6 +142,35 @@ def reconstruct_project_inputs(state_data: dict):
             openings["totals"]["door_count"] = v_doors
         openings["_source"] = "vector_text"
         openings["_needs_size_review"] = bool(vec.get("_needs_size_review"))
+
+    # Preserve explicit user overrides in openings.totals so confirm/reload never wipes them
+    door_user_edited = (
+        bool(prev_totals.get("user_edited_door_count"))
+        or openings.get("user_override_door_count") is not None
+        or (sources_existing.get("door_count") == "User Verified" and prev_totals.get("door_count") is not None)
+    )
+    if door_user_edited and prev_totals.get("door_count") is not None:
+        door_val = int(float(prev_totals.get("door_count") or 0))
+        openings["totals"]["door_count"] = door_val
+        openings["totals"]["door_count_is_estimated"] = False
+        if bool(prev_totals.get("user_edited_door_count")) or openings.get("user_override_door_count") is not None:
+            openings["totals"]["user_edited_door_count"] = True
+            openings["user_override_door_count"] = door_val
+            confirmed["total_doors_count"] = door_val
+
+    win_user_edited = (
+        bool(prev_totals.get("user_edited_window_area"))
+        or openings.get("user_override_window_area") is not None
+        or (sources_existing.get("window_area") == "User Verified" and prev_totals.get("window_area") is not None)
+    )
+    if win_user_edited and prev_totals.get("window_area") is not None:
+        win_val = float(prev_totals.get("window_area") or 0.0)
+        openings["totals"]["window_area"] = win_val
+        openings["totals"]["window_area_is_estimated"] = False
+        if bool(prev_totals.get("user_edited_window_area")) or openings.get("user_override_window_area") is not None:
+            openings["totals"]["user_edited_window_area"] = True
+            openings["user_override_window_area"] = win_val
+            confirmed["total_windows_area"] = win_val
 
     confirmed["openings"] = openings
 
@@ -227,6 +258,9 @@ def reconstruct_project_inputs(state_data: dict):
 
     # Heal and sanitize flat fields if empty or overwritten
     sources = confirmed.get("sources") or {}
+    _wall_sum_10 = 0.0
+    _wall_sum_20 = 0.0
+    _wall_any_fallback = False
     for page_key, page in ext_res.items():
         if not isinstance(page, dict) or not page.get("_ok"):
             continue
@@ -275,8 +309,11 @@ def reconstruct_project_inputs(state_data: dict):
             elif "compound_length" not in sources:
                 sources["compound_length"] = "AI OCR"
                 
-        # Copy internal walls to flat keys so VerifyStep.jsx can read them
+        # Copy internal walls to flat keys cleanly (recompute sum without += bloat on repeat calls)
         if dtype in ["ground_floor_plan", "first_floor_plan", "second_floor_plan", "roof_floor_plan"]:
+            fk = floor_map.get(dtype)
+            if fk and (floors.get(fk) or {}).get("is_stair_room"):
+                continue
             val_10 = float(page.get("int_walls_10cm_m") or 0.0)
             val_20 = float(page.get("int_walls_20cm_m") or 0.0)
             
@@ -284,22 +321,34 @@ def reconstruct_project_inputs(state_data: dict):
             # calculated by step3_extract.py (int_walls_length) as 20cm walls.
             if val_10 == 0 and val_20 == 0:
                 val_20 = float(page.get("int_walls_length") or 0.0)
+                if fk and val_20 > 0 and not confirmed.get("walls_user_verified"):
+                    w_fk = walls.setdefault(fk, {"internal_total_m": 0.0, "internal_10cm_m": 0.0, "internal_20cm_m": 0.0})
+                    if float(w_fk.get("internal_10cm_m") or 0.0) == 0.0 and float(w_fk.get("internal_20cm_m") or 0.0) == 0.0:
+                        w_fk["internal_20cm_m"] = val_20
+                        w_fk["internal_total_m"] = val_20
                 
             # GEOMETRIC FALLBACK: If internal walls failed completely, estimate from floor area
             if val_10 == 0 and val_20 == 0:
                 area = float(page.get("total_floor_area") or page.get("floor_area") or confirmed.get("gf_area") or 0.0)
                 if area > 0:
                     val_20 = round(area * 1.5, 2)
-                    sources["int_walls_20cm_m"] = "Geometric Fallback"
-                
-            if "int_walls_10cm_m" not in sources or sources["int_walls_10cm_m"] == "AI OCR":
-                if val_10 > 0:
-                    confirmed["int_walls_10cm_m"] = confirmed.get("int_walls_10cm_m", 0.0) + val_10
-                    sources["int_walls_10cm_m"] = "AI OCR"
-            if "int_walls_20cm_m" not in sources or sources["int_walls_20cm_m"] == "AI OCR":
-                if val_20 > 0:
-                    confirmed["int_walls_20cm_m"] = confirmed.get("int_walls_20cm_m", 0.0) + val_20
-                    sources["int_walls_20cm_m"] = "AI OCR"
+                    _wall_any_fallback = True
+                    if fk and not confirmed.get("walls_user_verified"):
+                        w_fk = walls.setdefault(fk, {"internal_total_m": 0.0, "internal_10cm_m": 0.0, "internal_20cm_m": 0.0})
+                        if float(w_fk.get("internal_10cm_m") or 0.0) == 0.0 and float(w_fk.get("internal_20cm_m") or 0.0) == 0.0:
+                            w_fk["internal_20cm_m"] = val_20
+                            w_fk["internal_total_m"] = val_20
+
+            _wall_sum_10 += val_10
+            _wall_sum_20 += val_20
+
+    if not confirmed.get("walls_user_verified"):
+        if sources.get("int_walls_10cm_m") != "User Verified" and _wall_sum_10 > 0:
+            confirmed["int_walls_10cm_m"] = round(_wall_sum_10, 2)
+            sources["int_walls_10cm_m"] = "AI OCR"
+        if sources.get("int_walls_20cm_m") != "User Verified" and _wall_sum_20 > 0:
+            confirmed["int_walls_20cm_m"] = round(_wall_sum_20, 2)
+            sources["int_walls_20cm_m"] = "Geometric Fallback" if _wall_any_fallback else "AI OCR"
 
 
     # Heal building dimensions from ANY page that carries them —
@@ -521,6 +570,17 @@ def reconstruct_project_inputs(state_data: dict):
         sources["solid_block_height"] = "Eng. Standard (Default)"
     elif "solid_block_height" not in sources:
         sources["solid_block_height"] = "Eng. Standard (Default)"
+
+    for _def_key, _def_val in (
+        ("sog_thickness", 0.10),
+        ("default_col_length", 0.60),
+        ("default_col_width", 0.20),
+    ):
+        if _def_key not in confirmed or confirmed.get(_def_key) in (None, ""):
+            confirmed[_def_key] = _def_val
+            sources[_def_key] = "Eng. Standard (Default)"
+        elif _def_key not in sources:
+            sources[_def_key] = "Eng. Standard (Default)"
             
     # Column Fallback
     if "column_schedule" not in confirmed.get("schedules", {}) or not confirmed["schedules"]["column_schedule"].get("columns"):
@@ -542,7 +602,7 @@ def reconstruct_project_inputs(state_data: dict):
     # "2nd floor = 3× ground" bug) we cap it to a sane multiple of GF and flag it.
     _walls = confirmed.get("walls") or {}
     _gf_wall = float((_walls.get("gf") or {}).get("internal_total_m") or 0.0)
-    if _gf_wall > 0:
+    if _gf_wall > 0 and not confirmed.get("walls_user_verified"):
         _cap = _gf_wall * 1.5
         for _fk in ("1f", "2f"):
             _w = _walls.get(_fk) or {}
@@ -583,17 +643,92 @@ async def confirm_data(req: ConfirmDataReq, current_user: dict = Depends(get_cur
         raise HTTPException(status_code=400, detail="No active project.")
         
     state_data = json.loads(df_state.iloc[0]["state_data"])
+    old_confirmed = state_data.get("confirmed_auto_data") or {}
+    old_sources = old_confirmed.get("sources") or {}
+    old_openings = old_confirmed.get("openings") or {}
+    old_totals = old_openings.get("totals") or {}
     
     confirmed = req.confirmed_data
+    req_sources = dict(confirmed.get("sources") or {})
     # Clear is_estimated flags since they are confirmed/verified
     confirmed["compound_length_is_estimated"] = False
     if "openings" in confirmed and "totals" in confirmed["openings"]:
-        confirmed["openings"]["totals"]["door_count_is_estimated"] = False
-        confirmed["openings"]["totals"]["window_area_is_estimated"] = False
+        req_totals = confirmed["openings"]["totals"]
+        req_totals["door_count_is_estimated"] = False
+        req_totals["window_area_is_estimated"] = False
+
+        door_edited = (
+            bool(req_totals.get("user_edited_door_count"))
+            or old_openings.get("user_override_door_count") is not None
+            or (req_sources.get("door_count") == "User Verified" and old_sources.get("door_count") != "User Verified")
+            or (old_totals.get("door_count") is not None and req_totals.get("door_count") is not None and float(req_totals.get("door_count") or 0) != float(old_totals.get("door_count") or 0))
+        )
+        if door_edited and req_totals.get("door_count") is not None:
+            door_val = int(float(req_totals.get("door_count") or 0))
+            req_totals["user_edited_door_count"] = True
+            confirmed["openings"]["user_override_door_count"] = door_val
+            confirmed["total_doors_count"] = door_val
+
+        win_edited = (
+            bool(req_totals.get("user_edited_window_area"))
+            or old_openings.get("user_override_window_area") is not None
+            or (req_sources.get("window_area") == "User Verified" and old_sources.get("window_area") != "User Verified")
+            or (old_totals.get("window_area") is not None and req_totals.get("window_area") is not None and abs(float(req_totals.get("window_area") or 0.0) - float(old_totals.get("window_area") or 0.0)) > 0.01)
+        )
+        if win_edited and req_totals.get("window_area") is not None:
+            win_val = float(req_totals.get("window_area") or 0.0)
+            req_totals["user_edited_window_area"] = True
+            confirmed["openings"]["user_override_window_area"] = win_val
+            confirmed["total_windows_area"] = win_val
+
+    # Propagate user edits on flat internal wall lengths proportionally to per-floor confirmed["walls"]
+    walls_edited_10 = (
+        (req_sources.get("int_walls_10cm_m") == "User Verified" and old_sources.get("int_walls_10cm_m") != "User Verified")
+        or (confirmed.get("int_walls_10cm_m") is not None and old_confirmed.get("int_walls_10cm_m") is not None and abs(float(confirmed.get("int_walls_10cm_m") or 0.0) - float(old_confirmed.get("int_walls_10cm_m") or 0.0)) > 0.01)
+    )
+    walls_edited_20 = (
+        (req_sources.get("int_walls_20cm_m") == "User Verified" and old_sources.get("int_walls_20cm_m") != "User Verified")
+        or (confirmed.get("int_walls_20cm_m") is not None and old_confirmed.get("int_walls_20cm_m") is not None and abs(float(confirmed.get("int_walls_20cm_m") or 0.0) - float(old_confirmed.get("int_walls_20cm_m") or 0.0)) > 0.01)
+    )
+    if walls_edited_10 or walls_edited_20 or old_confirmed.get("walls_user_verified"):
+        confirmed["walls_user_verified"] = True
+        _w_map = dict(confirmed.get("walls") or old_confirmed.get("walls") or {})
+        _f_map = confirmed.get("floors") or old_confirmed.get("floors") or {}
+        if not _w_map:
+            _w_map = {"gf": {"internal_total_m": 0.0, "internal_10cm_m": 0.0, "internal_20cm_m": 0.0}}
+        _active_fks = [fk for fk in _w_map if not (_f_map.get(fk) or {}).get("is_stair_room")] or list(_w_map.keys())
+        if _active_fks:
+            def _distribute(target_total: float, field_name: str):
+                cur_vals = {fk: float((_w_map.get(fk) or {}).get(field_name) or 0.0) for fk in _active_fks}
+                cur_sum = sum(cur_vals.values())
+                if cur_sum > 0:
+                    weights = {fk: cur_vals[fk] / cur_sum for fk in _active_fks}
+                else:
+                    area_vals = {fk: float((_f_map.get(fk) or {}).get("area") or 0.0) for fk in _active_fks}
+                    area_sum = sum(area_vals.values())
+                    if area_sum > 0:
+                        weights = {fk: area_vals[fk] / area_sum for fk in _active_fks}
+                    else:
+                        weights = {fk: (1.0 if fk == _active_fks[0] else 0.0) for fk in _active_fks}
+                for fk in _active_fks:
+                    _w_map[fk] = dict(_w_map.get(fk) or {})
+                    _w_map[fk][field_name] = round(target_total * weights[fk], 2)
+
+            if walls_edited_10 and confirmed.get("int_walls_10cm_m") is not None:
+                _distribute(float(confirmed.get("int_walls_10cm_m") or 0.0), "internal_10cm_m")
+            if walls_edited_20 and confirmed.get("int_walls_20cm_m") is not None:
+                _distribute(float(confirmed.get("int_walls_20cm_m") or 0.0), "internal_20cm_m")
+            for fk in _active_fks:
+                _w_map[fk] = dict(_w_map.get(fk) or {})
+                _w_map[fk]["internal_total_m"] = round(
+                    float(_w_map[fk].get("internal_10cm_m") or 0.0) + float(_w_map[fk].get("internal_20cm_m") or 0.0),
+                    2,
+                )
+        confirmed["walls"] = _w_map
         
     # Mark edited fields as User Verified
     sources = confirmed.get("sources") or {}
-    for k in ["longest_length", "longest_width", "plot_area", "gf_area", "ext_perimeter", "total_villa_height", "roof_perimeter", "roof_slab_area", "compound_length", "excavation_depth", "neck_column_height", "solid_block_height", "staircase_volume_per_level", "int_walls_10cm_m", "int_walls_20cm_m"]:
+    for k in ["longest_length", "longest_width", "plot_area", "gf_area", "ext_perimeter", "total_villa_height", "roof_perimeter", "roof_slab_area", "compound_length", "excavation_depth", "neck_column_height", "solid_block_height", "staircase_volume_per_level", "sog_thickness", "default_col_length", "default_col_width", "int_walls_10cm_m", "int_walls_20cm_m"]:
         if k in confirmed:
             sources[k] = "User Verified"
     if "openings" in confirmed and "totals" in confirmed["openings"]:

@@ -9,7 +9,9 @@ from api.auth import get_current_user
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    # Ensure isolated local SQLite fallback during FastAPI TestClient lifespan
+    monkeypatch.setenv("TIDB_HOST", "")
     # Setup test client with dependency overrides
     mock_user = {"id": 1, "email": "test@example.com", "role": "user", "plan_tier": 2}
     app.dependency_overrides[get_current_user] = lambda: mock_user
@@ -62,10 +64,10 @@ def test_calculate_endpoint(client, monkeypatch):
         }
     }
     
-    # Mock database query
+    # Mock database query (endpoints live in api.routers.boq)
     mock_df = pd.DataFrame([{"state_data": json.dumps(mock_state_data)}])
-    monkeypatch.setattr("api.workflow.safe_query", lambda sql, params=None: mock_df)
-    monkeypatch.setattr("api.workflow.safe_execute", lambda sql, params=None: (1, None))
+    monkeypatch.setattr("api.routers.boq.safe_query", lambda sql, params=None: mock_df)
+    monkeypatch.setattr("api.routers.boq.safe_execute", lambda sql, params=None: (1, None))
     
     # Run calculation request
     payload = {
@@ -113,7 +115,8 @@ def test_export_blocked_by_critical_validation(client, monkeypatch):
         "boq_items": [{"#": "D.3", "Description (English)": "Concrete", "Quantity": 10.0}]
     }
     mock_df = pd.DataFrame([{"name": "Invalid Villa", "boq_data": "{}", "state_data": json.dumps(mock_state_data)}])
-    monkeypatch.setattr("api.workflow.safe_query", lambda sql, params=None: mock_df)
+    monkeypatch.setattr("api.routers.boq.safe_query", lambda sql, params=None: mock_df)
+    monkeypatch.setattr("utils.usage.check_limit", lambda *a, **kw: (True, "OK"))
     
     # Request excel export, should be blocked by validation with 400 Bad Request
     response = client.get("/api/workflow/export/excel?project_id=1")
@@ -142,7 +145,9 @@ def test_export_excel_success(client, monkeypatch):
         "boq_meta": {"needs_input": [], "estimates": []}
     }
     mock_df = pd.DataFrame([{"name": "Valid Villa", "boq_data": "{}", "state_data": json.dumps(mock_state_data)}])
-    monkeypatch.setattr("api.workflow.safe_query", lambda sql, params=None: mock_df)
+    monkeypatch.setattr("api.routers.boq.safe_query", lambda sql, params=None: mock_df)
+    monkeypatch.setattr("utils.usage.check_limit", lambda *a, **kw: (True, "OK"))
+    monkeypatch.setattr("utils.usage.log_usage", lambda *a, **kw: None)
     
     # Request excel export, should succeed
     response = client.get("/api/workflow/export/excel?project_id=1")

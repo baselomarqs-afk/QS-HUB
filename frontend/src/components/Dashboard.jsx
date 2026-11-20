@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Folder, Calendar, ArrowRight, Trash2, ShieldAlert, Play, CalendarDays, Wallet } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, ShieldAlert, Play, CalendarDays, Wallet } from 'lucide-react';
 
 export default function Dashboard({ token, isArabic, onSelectProject, onNavigate, onStartModuleProject, user }) {
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [qtoProjName, setQtoProjName] = useState('');
   const [programmeProjName, setProgrammeProjName] = useState('');
   const [cashflowProjName, setCashflowProjName] = useState('');
@@ -14,34 +12,69 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
   const [cashflowAccess, setCashflowAccess] = useState(null);
   const [paymentMsg, setPaymentMsg] = useState('');
 
-  useEffect(() => {
-    fetchProjects();
-    fetchActiveProjectState();
-    fetchSubscriptionDetails();
-    fetchModuleAccess();
-
-    // Detect return from payment page
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('payment_success') === '1') {
-      window.history.replaceState({}, '', window.location.pathname);
-      setPaymentMsg(isArabic
-        ? '⚡ جاري تفعيل اشتراكك، قد يستغرق بضع ثوانٍ...'
-        : '⚡ Activating your subscription, please wait a few seconds...');
-      activateAfterPayment();
-    }
-
-    // When user returns to this tab (from payment tab), refresh data
-    const handleVisibility = () => {
-      if (!document.hidden) {
-        fetchSubscriptionDetails();
-        fetchModuleAccess();
+  const fetchSubscriptionDetails = useCallback(async () => {
+    try {
+      const res = await fetch("/api/billing/subscription", {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setDetails(data);
       }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, []);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [token]);
 
-  const activateAfterPayment = async () => {
+  const fetchModuleAccess = useCallback(async () => {
+    try {
+      const pRes = await fetch("/api/billing/feature-access?feature=programme", {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (pRes.ok) {
+        const pData = await pRes.json();
+        setProgrammeAccess(pData);
+      }
+
+      const cRes = await fetch("/api/billing/feature-access?feature=cashflow", {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (cRes.ok) {
+        const cData = await cRes.json();
+        setCashflowAccess(cData);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, [token]);
+
+  const fetchActiveProjectState = useCallback(async () => {
+    try {
+      const res = await fetch("/api/projects/active", {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.has_active) {
+        if (data.state_data && typeof data.state_data === 'string') {
+          try {
+            data.state_data = JSON.parse(data.state_data);
+          } catch (e) {
+            console.error("Error parsing active project state_data:", e);
+          }
+        }
+        data.project_id = data.project_id || data.state_data?.project_id;
+        setActiveProject(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, [token]);
+
+  const activateAfterPayment = useCallback(async () => {
+    await Promise.resolve();
+    setPaymentMsg(isArabic
+      ? '⚡ جاري تفعيل اشتراكك، قد يستغرق بضع ثوانٍ...'
+      : '⚡ Activating your subscription, please wait a few seconds...');
     // Authoritative, synchronous activation — hits Dodo directly for each
     // feature so we don't depend on the webhook. Retries a few times because
     // Dodo may take a second or two to mark the subscription active.
@@ -78,43 +111,41 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
     setPaymentMsg(isArabic
       ? '⚠️ تم الدفع لكن التفعيل يتأخر. حدّث الصفحة بعد دقيقة، وإن استمر تواصل معنا.'
       : '⚠️ Payment received but activation is delayed. Refresh in a minute; contact us if it persists.');
-  };
+  }, [token, isArabic, fetchSubscriptionDetails, fetchModuleAccess]);
 
-  const fetchSubscriptionDetails = async () => {
-    try {
-      const res = await fetch("/api/billing/subscription", {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setDetails(data);
-      }
-    } catch (err) {
-      console.error(err);
+  useEffect(() => {
+    let cancelled = false;
+    // Detect return from payment page
+    const params = new URLSearchParams(window.location.search);
+    const isPaymentReturn = params.get('payment_success') === '1';
+    if (isPaymentReturn) {
+      window.history.replaceState({}, '', window.location.pathname);
     }
-  };
 
-  const fetchModuleAccess = async () => {
-    try {
-      const pRes = await fetch("/api/billing/feature-access?feature=programme", {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (pRes.ok) {
-        const pData = await pRes.json();
-        setProgrammeAccess(pData);
+    (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      fetchActiveProjectState();
+      fetchSubscriptionDetails();
+      fetchModuleAccess();
+      if (isPaymentReturn) {
+        activateAfterPayment();
       }
+    })();
 
-      const cRes = await fetch("/api/billing/feature-access?feature=cashflow", {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (cRes.ok) {
-        const cData = await cRes.json();
-        setCashflowAccess(cData);
+    // When user returns to this tab (from payment tab), refresh data
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        fetchSubscriptionDetails();
+        fetchModuleAccess();
       }
-    } catch (err) {
-      console.error(err);
-    }
-  };
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [fetchActiveProjectState, fetchSubscriptionDetails, fetchModuleAccess, activateAfterPayment]);
 
   const handleCheckout = async (tier, feature = 'qto') => {
     try {
@@ -129,49 +160,6 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
       }
     } catch (err) {
       alert(`Error: ${err.message}`);
-    }
-  };
-
-  const handleCheckoutAddon = async () => {
-    await handleCheckout('addon');
-  };
-
-  const fetchProjects = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/projects", {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setProjects(data);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchActiveProjectState = async () => {
-    try {
-      const res = await fetch("/api/projects/active", {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok && data.has_active) {
-        if (data.state_data && typeof data.state_data === 'string') {
-          try {
-            data.state_data = JSON.parse(data.state_data);
-          } catch (e) {
-            console.error("Error parsing active project state_data:", e);
-          }
-        }
-        data.project_id = data.project_id || data.state_data?.project_id;
-        setActiveProject(data);
-      }
-    } catch (err) {
-      console.error(err);
     }
   };
 
@@ -205,26 +193,6 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
     }
   };
 
-  const handleDeleteProject = async (id, e) => {
-    e.stopPropagation();
-    if (!confirm(isArabic ? 'هل أنت متأكد من رغبتك في حذف هذا المشروع نهائياً؟' : 'Are you sure you want to delete this project permanently?')) return;
-
-    try {
-      const res = await fetch(`/api/projects/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        setProjects(prev => prev.filter(p => p.id !== id));
-        if (activeProject && activeProject.project_id === id) {
-          setActiveProject(null);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const handleResumeActive = () => {
     if (activeProject) {
       onSelectProject({
@@ -249,7 +217,6 @@ export default function Dashboard({ token, isArabic, onSelectProject, onNavigate
       console.error(err);
     }
   };
-  const limitReached = details && details.can_create === false;
   const isAdmin = user && user.role === 'admin';
 
   let userName = '';

@@ -1,16 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ZoomIn, ZoomOut, Plus, Trash2, Info } from 'lucide-react';
 import { cacheUrl } from '../../cacheUrl';
 
-const ImageWithRetry = ({ src, alt, style, isArabic }) => {
+const ImageWithRetryInner = ({ src, alt, style, isArabic }) => {
   const [retryKey, setRetryKey] = useState(0);
   const [loading, setLoading] = useState(true);
-
-  // Reset loading state when src changes
-  useEffect(() => {
-    setLoading(true);
-    setRetryKey(0);
-  }, [src]);
 
   return (
     <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
@@ -36,6 +30,8 @@ const ImageWithRetry = ({ src, alt, style, isArabic }) => {
     </div>
   );
 };
+
+const ImageWithRetry = (props) => <ImageWithRetryInner key={props.src} {...props} />;
 
 
 export default function ClassifyStep({

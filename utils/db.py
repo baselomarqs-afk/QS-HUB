@@ -153,6 +153,7 @@ def initialize_sqlite_db(conn):
         google_id TEXT,
         microsoft_id TEXT,
         extra_projects_allowance INTEGER DEFAULT 0,
+        token_version INTEGER DEFAULT 0,
         name TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -190,12 +191,20 @@ def initialize_sqlite_db(conn):
         name TEXT NOT NULL,
         date TEXT,
         boq_data TEXT,
+        state_data TEXT,
+        current_step INTEGER DEFAULT 1,
         status TEXT DEFAULT 'completed',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user_id, name)
     );
     """)
+    cur.execute("PRAGMA table_info(qto_projects)")
+    existing_proj_cols = {row[1] for row in cur.fetchall()}
+    if "state_data" not in existing_proj_cols:
+        cur.execute("ALTER TABLE qto_projects ADD COLUMN state_data TEXT;")
+    if "current_step" not in existing_proj_cols:
+        cur.execute("ALTER TABLE qto_projects ADD COLUMN current_step INTEGER DEFAULT 1;")
     
     # 4. qto_usage_logs
     cur.execute("""
@@ -374,14 +383,45 @@ def initialize_sqlite_db(conn):
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
+
+    # 16. qto_active_projects
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS qto_active_projects (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        project_id INTEGER NOT NULL,
+        current_step INTEGER DEFAULT 1,
+        state_data TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, project_id)
+    );
+    """)
+
+    # 17. qto_visitor_logs
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS qto_visitor_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ip_address TEXT,
+        path TEXT,
+        user_agent TEXT,
+        referer TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
     
     # Seed admin user if none exists
     cur.execute("SELECT COUNT(*) FROM qto_users")
     count = cur.fetchone()[0]
     if count == 0:
         import bcrypt
+        import secrets as _secrets
         admin_emails = ["basel00omar.92@gmail.com", "basel.omar.qs@gmail.com", "admin@qto.com"]
-        admin_password = os.environ.get("QTO_ADMIN_PASSWORD") or "Nodnod1606"
+        admin_password = os.environ.get("QTO_ADMIN_PASSWORD")
+        generated_pw = False
+        if not admin_password:
+            admin_password = _secrets.token_urlsafe(16)
+            generated_pw = True
         hashed = bcrypt.hashpw(admin_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
         for em in admin_emails:
             cur.execute(
@@ -389,7 +429,10 @@ def initialize_sqlite_db(conn):
                 (em, hashed, "admin")
             )
         conn.commit()
-        print("Local SQLite database seeded with admin users.")
+        if generated_pw:
+            print("Local SQLite database seeded with admin users (set QTO_ADMIN_PASSWORD or use reset flow).")
+        else:
+            print("Local SQLite database seeded with admin users.")
         
         # Seed default prices
         try:

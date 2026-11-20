@@ -1,6 +1,9 @@
-import urllib.request, json, time
+import os, urllib.request, json, time
 
-headers = {'Authorization': 'Bearer rnd_0xIMlSdVK3MeyuGAxuc6X8csimml', 'Accept': 'application/json', 'Content-Type': 'application/json'}
+render_key = os.environ.get("RENDER_API_KEY")
+if not render_key:
+    raise SystemExit("Set RENDER_API_KEY env var before running trigger_deploy.py")
+headers = {'Authorization': f'Bearer {render_key}', 'Accept': 'application/json', 'Content-Type': 'application/json'}
 
 # Clear build cache and trigger fresh deploy
 data = json.dumps({"clearCache": "clear"}).encode()

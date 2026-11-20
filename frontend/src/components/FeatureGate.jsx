@@ -2,54 +2,35 @@
 // Cash Flow tools (50 AED each). Checks the user's feature credits from the API;
 // if none, shows a bilingual payment box that opens the Dodo checkout. Children
 // (the actual tool) render only when the user has access.
-import React, { useState, useEffect } from 'react';
-import { Lock, CheckCircle2, Loader2 } from 'lucide-react';
-
-const PRICE_AED = 50;
+import { useState, useEffect } from 'react';
+import { Lock, Loader2 } from 'lucide-react';
 
 export default function FeatureGate({ feature, token, isArabic, title, children }) {
   const t = (en, ar) => (isArabic ? ar : en);
   const [state, setState] = useState({ loading: true, access: false, credits: 0, error: '' });
-  const [buying, setBuying] = useState(false);
 
-  const checkAccess = async () => {
-    setState((s) => ({ ...s, loading: true }));
-    try {
-      const res = await fetch(`/api/billing/feature-access?feature=${feature}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setState({ loading: false, access: !!data.access, credits: data.credits || 0, error: '' });
-      } else {
-        // Endpoint not ready / error — fail closed (locked) but allow retry.
-        setState({ loading: false, access: false, credits: 0, error: '' });
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/billing/feature-access?feature=${feature}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!active) return;
+        if (res.ok) {
+          const data = await res.json();
+          setState({ loading: false, access: !!data.access, credits: data.credits || 0, error: '' });
+        } else {
+          // Endpoint not ready / error — fail closed (locked) but allow retry.
+          setState({ loading: false, access: false, credits: 0, error: '' });
+        }
+      } catch {
+        if (!active) return;
+        setState({ loading: false, access: false, credits: 0, error: isArabic ? 'تعذّر التحقق من الصلاحية.' : 'Could not check access.' });
       }
-    } catch {
-      setState({ loading: false, access: false, credits: 0, error: t('Could not check access.', 'تعذّر التحقق من الصلاحية.') });
-    }
-  };
-
-  useEffect(() => { checkAccess(); /* eslint-disable-next-line */ }, [feature, token]);
-
-  const buy = async () => {
-    setBuying(true);
-    try {
-      const res = await fetch(`/api/billing/checkout?tier=${feature}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (res.ok && data.checkout_url) {
-        window.location.href = data.checkout_url;
-      } else {
-        setState((s) => ({ ...s, error: data.detail || t('Checkout unavailable.', 'الدفع غير متاح حالياً.') }));
-      }
-    } catch {
-      setState((s) => ({ ...s, error: t('Checkout failed.', 'فشل فتح صفحة الدفع.') }));
-    } finally {
-      setBuying(false);
-    }
-  };
+    })();
+    return () => { active = false; };
+  }, [feature, token, isArabic]);
 
   if (state.loading) {
     return (

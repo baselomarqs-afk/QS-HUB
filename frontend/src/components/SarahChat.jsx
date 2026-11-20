@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MessageCircle, Send, X, Headset } from 'lucide-react';
 
 export default function SarahChat({ token, isArabic }) {
@@ -9,39 +9,43 @@ export default function SarahChat({ token, isArabic }) {
   const chatEndRef = useRef(null);
 
   useEffect(() => {
-    if (isOpen && token) {
-      fetchChatHistory();
-    }
-  }, [isOpen]);
+    if (!isOpen || !token) return;
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/agents/history?role=cc", {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!active) return;
+        if (res.ok) {
+          if (data.length === 0) {
+            setMessages([
+              {
+                sender: 'assistant',
+                message: isArabic 
+                  ? "أهلاً بك! أنا سارة من فريق خدمة العملاء. كيف يمكنني مساعدتك اليوم؟" 
+                  : "Welcome! I am Sarah from Customer Support. How can I assist you today?"
+              }
+            ]);
+          } else {
+            setMessages(data);
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+    return () => { active = false; };
+  }, [isOpen, token, isArabic]);
+
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   useEffect(() => {
     scrollToBottom();
   }, [messages, loading]);
-
-  const fetchChatHistory = async () => {
-    try {
-      const res = await fetch("/api/agents/history?role=cc", {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok) {
-        if (data.length === 0) {
-          setMessages([
-            {
-              sender: 'assistant',
-              message: isArabic 
-                ? "أهلاً بك! أنا سارة من فريق خدمة العملاء. كيف يمكنني مساعدتك اليوم؟" 
-                : "Welcome! I am Sarah from Customer Support. How can I assist you today?"
-            }
-          ]);
-        } else {
-          setMessages(data);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -70,10 +74,6 @@ export default function SarahChat({ token, isArabic }) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (

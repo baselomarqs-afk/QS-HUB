@@ -1,10 +1,8 @@
-import React from 'react';
 import { AlertTriangle, FileSpreadsheet, FileText } from 'lucide-react';
 
 export default function BoqStep({
   currentStep,
   boqMeta,
-  calculateGrandTotal,
   boqItems,
   handlePriceChange,
   handleQtyChange,

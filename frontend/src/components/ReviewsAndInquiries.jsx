@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Star, MessageSquare, Send, CheckCircle2, ShieldCheck, 
-  ThumbsUp, Sparkles, Building2, User, Mail, HelpCircle, 
-  Clock, AlertCircle, Filter, ArrowRight, ArrowLeft 
+  Sparkles, Mail, HelpCircle, 
+  Clock, AlertCircle, ArrowRight, ArrowLeft 
 } from 'lucide-react';
 
 export default function ReviewsAndInquiries({ isArabic, user, onBack, initialTab = 'reviews' }) {
@@ -36,23 +36,22 @@ export default function ReviewsAndInquiries({ isArabic, user, onBack, initialTab
   const [inquiryErrorMsg, setInquiryErrorMsg] = useState(null);
 
   useEffect(() => {
-    fetchPublicReviews();
-  }, []);
-
-  const fetchPublicReviews = async () => {
-    try {
-      setLoadingReviews(true);
-      const res = await fetch('/api/reviews/public');
-      if (res.ok) {
-        const data = await res.json();
-        setReviewsData(data);
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/reviews/public');
+        if (active && res.ok) {
+          const data = await res.json();
+          if (active) setReviewsData(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch reviews:', err);
+      } finally {
+        if (active) setLoadingReviews(false);
       }
-    } catch (err) {
-      console.error('Failed to fetch reviews:', err);
-    } finally {
-      setLoadingReviews(false);
-    }
-  };
+    })();
+    return () => { active = false; };
+  }, []);
 
   const handleReviewSubmit = async (e) => {
     e.preventDefault();

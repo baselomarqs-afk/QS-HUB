@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { CreditCard, Check, AlertCircle, Sparkles, Layers, Briefcase, DollarSign, CheckCircle, Loader } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Check, Layers, Briefcase, DollarSign } from 'lucide-react';
 
 export default function Billing({ token, isArabic, user, onLogout, paymentSuccess, onPaymentSuccessHandled }) {
   const [details, setDetails] = useState(null);
@@ -18,17 +18,27 @@ export default function Billing({ token, isArabic, user, onLogout, paymentSucces
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(user?.name || '');
 
-  // When paymentSuccess prop arrives, start polling for activation
-  useEffect(() => {
-    if (paymentSuccess) {
-      setActivating(true);
-      pollCountRef.current = 0;
-      startPolling();
+  const fetchSubscriptionDetails = useCallback(async (feature) => {
+    await Promise.resolve();
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/billing/subscription?feature=${feature}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setDetails(data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-  }, [paymentSuccess]);
+  }, [token]);
 
-  const startPolling = () => {
+  const startPolling = useCallback(() => {
     // Poll every 2.5 seconds for up to 40 seconds (16 attempts)
+    if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = setInterval(async () => {
       pollCountRef.current += 1;
       if (pollCountRef.current > 16) {
@@ -59,30 +69,49 @@ export default function Billing({ token, isArabic, user, onLogout, paymentSucces
             return;
           }
         }
-      } catch (e) { /* ignore */ }
+      } catch { /* ignore */ }
     }, 2500);
-  };
+  }, [activeTab, fetchSubscriptionDetails, onPaymentSuccessHandled, token]);
+
+  // When paymentSuccess prop arrives, start polling for activation
+  useEffect(() => {
+    if (!paymentSuccess) return;
+    let cancelled = false;
+    (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      setActivating(true);
+      pollCountRef.current = 0;
+      startPolling();
+    })();
+    return () => {
+      cancelled = true;
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [paymentSuccess, startPolling]);
 
   useEffect(() => {
-    fetchSubscriptionDetails(activeTab);
-  }, [activeTab]);
-
-  const fetchSubscriptionDetails = async (feature) => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/billing/subscription?feature=${feature}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setDetails(data);
+    let active = true;
+    (async () => {
+      await Promise.resolve();
+      if (!active) return;
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/billing/subscription?feature=${activeTab}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (active && res.ok) {
+          setDetails(data);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (active) setLoading(false);
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    })();
+    return () => { active = false; };
+  }, [activeTab, token]);
 
   const handleCheckout = async (tier, feature = 'qto') => {
     setLoading(true);

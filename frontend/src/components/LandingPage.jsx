@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Sparkles, Zap, Smartphone, BarChart2, Globe, Bot, TrendingUp, CalendarDays, Wallet, Star, MessageSquare, CheckCircle2, ShieldCheck, ArrowRight, ArrowLeft } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Zap, Globe, CalendarDays, Wallet, Star, MessageSquare, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 import { PrivacyModal, TermsModal, RefundModal } from './LegalModals';
 

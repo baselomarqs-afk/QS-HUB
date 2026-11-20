@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends, Header, Request
 from pydantic import BaseModel, EmailStr
-import hmac
 import hashlib
-import time
+import hmac
+import json
 import os
+import time
 from typing import Optional
 from utils.db import safe_query, safe_execute
 from utils.security import password_hash, password_ok, login_rate_limited, touch_login
@@ -145,7 +146,7 @@ async def login(req: UserLogin):
         # Log failed attempt
         safe_execute(
             "INSERT INTO qto_usage_logs (event_type, metadata) VALUES (%s, %s)",
-            ("login_failed", f'{{"email": "{email}"}}')
+            ("login_failed", json.dumps({"email": email}))
         )
         raise HTTPException(status_code=401, detail="Invalid email or password.")
         
@@ -153,7 +154,7 @@ async def login(req: UserLogin):
     if not password_ok(req.password, user["password_hash"]):
         safe_execute(
             "INSERT INTO qto_usage_logs (event_type, metadata) VALUES (%s, %s)",
-            ("login_failed", f'{{"email": "{email}"}}')
+            ("login_failed", json.dumps({"email": email}))
         )
         raise HTTPException(status_code=401, detail="Invalid email or password.")
         
@@ -208,7 +209,7 @@ async def forgot_password(req: ResetPasswordReq):
     token = issue_reset_token(req.email)
     if token:
         import logging
-        logging.getLogger("qto").info("Password reset token for %s: %s", req.email, token)
+        logging.getLogger("qto").info("Password reset requested for %s", req.email)
         # Send actual email
         from utils.mailer import send_reset_email
         send_reset_email(req.email, token)

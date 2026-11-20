@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Star, X } from 'lucide-react';
 
 const FeedbackModal = ({ isOpen, onClose, toolName, projectName, isArabic, inline = false }) => {

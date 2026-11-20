@@ -229,8 +229,8 @@ def _columns_for_floor(project: dict, floor_key: str) -> list[dict]:
         total_needed = max(1, int(gf_area / 16)) # 1 col per 16 sqm
         fallback_count_per_col = max(1, total_needed // len(cols))
         
-    default_len = safe_float(project.get("default_col_length", 0.60))
-    default_wid = safe_float(project.get("default_col_width", 0.20))
+    default_len = safe_float(project.get("default_col_length")) or 0.60
+    default_wid = safe_float(project.get("default_col_width")) or 0.20
     
     if len(cols) == 0:
         gf_area = safe_float(project.get("gf_area")) or 250.0
@@ -305,9 +305,13 @@ def _columns_for_floor(project: dict, floor_key: str) -> list[dict]:
 
 def _doors(project: dict) -> list[dict]:
     """
-    Prefer door schedule counts if available, otherwise fallback to floor plan AI counts.
+    Prefer explicit user override, then door schedule counts, else floor plan AI counts.
     """
     openings = project.get("openings", {})
+    if openings.get("user_override_door_count") is not None:
+        override_cnt = safe_int(openings.get("user_override_door_count"))
+        return [{"count": override_cnt}] if override_cnt > 0 else []
+
     doors = openings.get("doors") or openings.get("doors_schedule") or []
     
     sched_total = 0
@@ -329,9 +333,13 @@ def _doors(project: dict) -> list[dict]:
 
 def _windows(project: dict) -> list[dict]:
     """
-    Prefer window schedule if available, otherwise fallback to floor plan AI area.
+    Prefer explicit user override, then window schedule, else floor plan AI area.
     """
     openings = project.get("openings", {})
+    if openings.get("user_override_window_area") is not None:
+        override_area = safe_float(openings.get("user_override_window_area"))
+        return [{"width_m": 1.0, "height_m": override_area, "count": 1}] if override_area > 0 else []
+
     wins = openings.get("windows") or openings.get("windows_schedule") or []
     
     out = []
@@ -421,6 +429,7 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
         "neck_column_height": project.get("neck_column_height") or 1.0,
         "solid_block_height": project.get("solid_block_height") or 1.0,
         "staircase_volume_per_level": project.get("staircase_volume_per_level") or 5.2,
+        "sog_thickness":     safe_float(project.get("sog_thickness")) or 0.10,
         "structural_levels": structural_levels,
         # schedules (engine-correct keys)
         "foundations_schedule":  _footings(project),
@@ -430,8 +439,16 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
         "tb_total_length":   tb_len,
         "doors_schedule":    _doors(project),
         "windows_schedule":  _windows(project),
-        "total_windows_area": project.get("total_windows_area") or (project.get("openings") or {}).get("totals", {}).get("window_area") or 0.0,
-        "total_doors_count":  project.get("total_doors_count") or (project.get("openings") or {}).get("totals", {}).get("door_count") or 0.0,
+        "total_windows_area": (
+            safe_float((project.get("openings") or {}).get("user_override_window_area"))
+            if (project.get("openings") or {}).get("user_override_window_area") is not None
+            else (project.get("total_windows_area") or (project.get("openings") or {}).get("totals", {}).get("window_area") or 0.0)
+        ),
+        "total_doors_count": (
+            safe_int((project.get("openings") or {}).get("user_override_door_count"))
+            if (project.get("openings") or {}).get("user_override_door_count") is not None
+            else (project.get("total_doors_count") or (project.get("openings") or {}).get("totals", {}).get("door_count") or 0.0)
+        ),
         "concrete_grade":    project.get("concrete_grade") or "C30/37",
         "block_thickness":   project.get("block_thickness") or "200mm",
     }
@@ -639,6 +656,13 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
                 f"scaled to fit; please confirm."
             )
 
+        _walls_all = project.get("walls") or {}
+        _has_per_floor_walls = bool(project.get("walls_user_verified")) or any(
+            safe_float((_walls_all.get(_k) or {}).get("internal_10cm_m")) > 0
+            or safe_float((_walls_all.get(_k) or {}).get("internal_20cm_m")) > 0
+            or safe_float((_walls_all.get(_k) or {}).get("internal_total_m")) > 0
+            for _k in ("gf", "1f", "2f")
+        )
         floors[fk] = {
             "floor_id":         fk,
             "is_ground_floor":  bool(f.get("is_ground_floor", fk == "gf")),
@@ -648,9 +672,9 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
             "floor_height":     project.get(heights.get(fk, ""), 0.0) or f.get("height") or 4.0,
             "ext_perimeter":    f.get("ext_perimeter") or ext_perim,
             "external_perimeter": f.get("ext_perimeter") or ext_perim,
-            "int_walls_length": project.get("int_walls_length") if fk == "gf" and project.get("int_walls_length") is not None else (w.get("internal_total_m") or f.get("int_walls_length") or 0.0),
-            "int_walls_10cm": project.get("int_walls_10cm_m") if fk == "gf" and project.get("int_walls_10cm_m") is not None else (w.get("internal_10cm_m") or 0.0),
-            "int_walls_20cm": project.get("int_walls_20cm_m") if fk == "gf" and project.get("int_walls_20cm_m") is not None else (w.get("internal_20cm_m") or 0.0),
+            "int_walls_length": project.get("int_walls_length") if (fk == "gf" and not _has_per_floor_walls and project.get("int_walls_length") is not None) else (w.get("internal_total_m") or f.get("int_walls_length") or 0.0),
+            "int_walls_10cm": project.get("int_walls_10cm_m") if (fk == "gf" and not _has_per_floor_walls and project.get("int_walls_10cm_m") is not None) else (w.get("internal_10cm_m") or 0.0),
+            "int_walls_20cm": project.get("int_walls_20cm_m") if (fk == "gf" and not _has_per_floor_walls and project.get("int_walls_20cm_m") is not None) else (w.get("internal_20cm_m") or 0.0),
             "wet_area":         f.get("wet_area") or 0.0,
             "wet_perimeter":    f.get("wet_perimeter") or 0.0,
             "dry_perimeter":    f.get("dry_perimeter") or 0.0,
@@ -667,10 +691,9 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
         # classified on two pages and its wall lengths summed) can inflate these
         # values several-fold — e.g. internal blockwork reading 5000+ m² on a
         # 270 m² floor. Clamp the 10 cm / 20 cm split (and the total) to a
-        # generous floor-area ceiling; realistic, well-under-the-cap layouts are
-        # left untouched, so this only ever REDUCES a gross over-estimate.
+        # generous floor-area ceiling; skip only when the user manually verified walls.
         _fa = floors[fk]["floor_area"] or 0.0
-        if _fa > 0:
+        if _fa > 0 and not project.get("walls_user_verified"):
             # Internal partition-wall RUN of a villa floor is empirically ~0.4–0.5
             # of the floor area; 0.55 is a realistic ceiling. The vector wall
             # measurement over-reads (double face-lines, gridlines, a floor plan
@@ -922,6 +945,16 @@ def build_boq_dataframe_from_project(project: dict) -> tuple[pd.DataFrame, dict]
 
             en_name = item["name_en"]
             ar_name = item["name_ar"]
+            if (
+                ("concrete" in item["key"] or "concrete" in en_name.lower())
+                and "pcc" not in item["key"]
+                and "blinding" not in item["key"]
+                and "rebar" not in item["key"]
+                and "formwork" not in item["key"]
+            ):
+                grade = project.get("concrete_grade") or "C30/37"
+                en_name += f" (Grade {grade})"
+                ar_name += f" (درجة {grade})"
             if "block" in item["key"]:
                 t = "200mm"
                 if "solid" in item["key"]:

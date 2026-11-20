@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FileUp, BarChart2, Eye, Download, Info } from 'lucide-react';
+import { useState } from 'react';
+import { FileUp, Eye, Download } from 'lucide-react';
 
 export default function PlanComparison({ token, isArabic }) {
   const [file1, setFile1] = useState(null);

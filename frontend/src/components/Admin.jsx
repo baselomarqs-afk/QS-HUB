@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
-  Users, CreditCard, Shield, Bot, Brain, AlertTriangle, Send, Loader, CheckCircle, XCircle 
+  AlertTriangle, Send, Loader, CheckCircle 
 } from 'lucide-react';
 
 export default function Admin({ token, isArabic }) {
@@ -26,62 +26,66 @@ export default function Admin({ token, isArabic }) {
   ]);
   const [chatLoading, setChatLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  const fetchData = () => setRefreshTick((n) => n + 1);
 
   useEffect(() => {
-    fetchData();
-  }, [activeTab]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      if (activeTab === 'users') {
-        const res = await fetch('/api/admin/users', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) setUsers(await res.json());
-      } else if (activeTab === 'subscriptions') {
-        const res = await fetch('/api/admin/subscriptions', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) setSubscriptions(await res.json());
-      } else if (activeTab === 'system') {
-        const res = await fetch('/api/admin/stats', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) setSystemStats(await res.json());
-      } else if (activeTab === 'rules') {
-        const res = await fetch('/api/admin/memory-rules', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) setRules(await res.json());
-      } else if (activeTab === 'complaints') {
-        const res = await fetch('/api/admin/complaints', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) setComplaints(await res.json());
-      } else if (activeTab === 'feedback') {
-        const res = await fetch('/api/admin/feedback', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) setFeedback(await res.json());
-      } else if (activeTab === 'inquiries') {
-        const res = await fetch('/api/admin/inquiries', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) setInquiries(await res.json());
-      } else if (activeTab === 'reviews') {
-        const res = await fetch('/api/admin/reviews', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) setReviewsList(await res.json());
+    let active = true;
+    (async () => {
+      await Promise.resolve();
+      if (!active) return;
+      setLoading(true);
+      try {
+        if (activeTab === 'users') {
+          const res = await fetch('/api/admin/users', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (active && res.ok) setUsers(await res.json());
+        } else if (activeTab === 'subscriptions') {
+          const res = await fetch('/api/admin/subscriptions', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (active && res.ok) setSubscriptions(await res.json());
+        } else if (activeTab === 'system') {
+          const res = await fetch('/api/admin/stats', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (active && res.ok) setSystemStats(await res.json());
+        } else if (activeTab === 'rules') {
+          const res = await fetch('/api/admin/memory-rules', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (active && res.ok) setRules(await res.json());
+        } else if (activeTab === 'complaints') {
+          const res = await fetch('/api/admin/complaints', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (active && res.ok) setComplaints(await res.json());
+        } else if (activeTab === 'feedback') {
+          const res = await fetch('/api/admin/feedback', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (active && res.ok) setFeedback(await res.json());
+        } else if (activeTab === 'inquiries') {
+          const res = await fetch('/api/admin/inquiries', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (active && res.ok) setInquiries(await res.json());
+        } else if (activeTab === 'reviews') {
+          const res = await fetch('/api/admin/reviews', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (active && res.ok) setReviewsList(await res.json());
+        }
+      } catch (err) {
+        console.error('Admin fetch error:', err);
+      } finally {
+        if (active) setLoading(false);
       }
-    } catch (err) {
-      console.error('Admin fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-
-  };
+    })();
+    return () => { active = false; };
+  }, [activeTab, token, refreshTick]);
 
   const handleApproveRule = async (ruleId) => {
     try {
@@ -235,7 +239,7 @@ export default function Admin({ token, isArabic }) {
       } else {
         setChatHistory(prev => [...prev, { role: 'assistant', content: 'Error communicating with AI manager.' }]);
       }
-    } catch (err) {
+    } catch {
       setChatHistory(prev => [...prev, { role: 'assistant', content: 'Connection failed.' }]);
     } finally {
       setChatLoading(false);

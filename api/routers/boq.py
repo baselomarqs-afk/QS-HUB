@@ -103,6 +103,10 @@ async def calculate_boq(req: RunCalculationReq, current_user: dict = Depends(get
         "neck_column_height": state_data["confirmed_auto_data"].get("neck_column_height") or 1.0,
         "solid_block_height": state_data["confirmed_auto_data"].get("solid_block_height") or 1.0,
         "staircase_volume_per_level": state_data["confirmed_auto_data"].get("staircase_volume_per_level") or 5.2,
+        "sog_thickness": state_data["confirmed_auto_data"].get("sog_thickness") if state_data["confirmed_auto_data"].get("sog_thickness") is not None else 0.10,
+        "default_col_length": state_data["confirmed_auto_data"].get("default_col_length") if state_data["confirmed_auto_data"].get("default_col_length") is not None else 0.60,
+        "default_col_width": state_data["confirmed_auto_data"].get("default_col_width") if state_data["confirmed_auto_data"].get("default_col_width") is not None else 0.20,
+        "walls_user_verified": bool(state_data["confirmed_auto_data"].get("walls_user_verified", False)),
         "structural_levels": req.num_floors,
         "road_base_included": req.include_road_base,
         "concrete_grade": req.concrete_grade,
@@ -116,8 +120,16 @@ async def calculate_boq(req: RunCalculationReq, current_user: dict = Depends(get
         "floors": state_data["confirmed_auto_data"].get("floors") or {},
         "walls": state_data["confirmed_auto_data"].get("walls") or {},
         "openings": state_data["confirmed_auto_data"].get("openings") or {},
-        "total_windows_area": state_data["confirmed_auto_data"].get("total_windows_area") or 0.0,
-        "total_doors_count": state_data["confirmed_auto_data"].get("total_doors_count") or 0.0
+        "total_windows_area": (
+            state_data["confirmed_auto_data"].get("total_windows_area")
+            if state_data["confirmed_auto_data"].get("total_windows_area") is not None
+            else ((state_data["confirmed_auto_data"].get("openings") or {}).get("totals", {}).get("window_area") or 0.0)
+        ),
+        "total_doors_count": (
+            state_data["confirmed_auto_data"].get("total_doors_count")
+            if state_data["confirmed_auto_data"].get("total_doors_count") is not None
+            else ((state_data["confirmed_auto_data"].get("openings") or {}).get("totals", {}).get("door_count") or 0.0)
+        )
     }
     
     df, meta = build_boq_dataframe_from_project(project_payload)

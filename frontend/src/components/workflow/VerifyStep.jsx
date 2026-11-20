@@ -2,13 +2,58 @@ import React from 'react';
 import { Trash2, Plus, Info } from 'lucide-react';
 import { cacheUrl } from '../../cacheUrl';
 
+const _toMeters = (row, meterKeys, mmKeys) => {
+  for (const k of meterKeys) {
+    if (row[k] !== undefined && row[k] !== null && row[k] !== '') {
+      const val = parseFloat(row[k]);
+      if (!Number.isNaN(val)) return val;
+    }
+  }
+  for (const k of mmKeys) {
+    if (row[k] !== undefined && row[k] !== null && row[k] !== '') {
+      const val = parseFloat(row[k]);
+      if (!Number.isNaN(val)) return Number((val / 1000).toFixed(3));
+    }
+  }
+  return 0;
+};
+
+const _normalizeFootingRow = (row) => ({
+  ...row,
+  type: row.type || row.mark || '',
+  length: _toMeters(row, ['length', 'length_m'], ['long_mm', 'length_mm']),
+  width: _toMeters(row, ['width', 'width_m'], ['short_mm', 'width_mm']),
+  depth: _toMeters(row, ['depth', 'depth_m'], ['depth_mm']),
+  count: parseInt(row.count ?? row.qty ?? row.quantity ?? 1, 10) || 0,
+});
+
+const _normalizeColumnRow = (row) => ({
+  ...row,
+  type: row.type || row.mark || '',
+  length: _toMeters(row, ['length', 'length_m'], ['depth_mm', 'long_mm', 'length_mm']),
+  width: _toMeters(row, ['width', 'width_m'], ['width_mm', 'short_mm']),
+  count: parseInt(row.count ?? row.count_gf ?? row.count_1f ?? row.count_2f ?? row.count_roof ?? 1, 10) || 0,
+  _countDirty: false,
+});
+
 const ScheduleTableEditorModal = ({ isArabic, schedules, onSave, onClose }) => {
-  const [footings, setFootings] = React.useState(schedules?.foundation?.footings || []);
-  const [columns, setColumns] = React.useState(schedules?.superstructure?.columns || []);
+  const [footings, setFootings] = React.useState(() =>
+    (schedules?.foundation?.footings || []).map(_normalizeFootingRow)
+  );
+  const [columns, setColumns] = React.useState(() => {
+    const rawCols = schedules?.column_schedule?.columns?.length
+      ? schedules.column_schedule.columns
+      : (schedules?.superstructure?.columns || []);
+    return rawCols.map(_normalizeColumnRow);
+  });
 
   const handleUpdate = (state, setter, index, field, val) => {
     const updated = [...state];
-    updated[index] = { ...updated[index], [field]: val };
+    const nextRow = { ...updated[index], [field]: val };
+    if (field === 'count') {
+      nextRow._countDirty = true;
+    }
+    updated[index] = nextRow;
     setter(updated);
   };
 
@@ -16,15 +61,88 @@ const ScheduleTableEditorModal = ({ isArabic, schedules, onSave, onClose }) => {
     setter(state.filter((_, i) => i !== index));
   };
 
-  const handleAdd = (setter, state, defaultPrefix) => {
-    setter([...state, { type: `${defaultPrefix}${state.length + 1}`, length: 1.0, width: 1.0, count: 1 }]);
+  const handleAdd = (setter, state, defaultPrefix, withDepth = false) => {
+    const baseRow = {
+      type: `${defaultPrefix}${state.length + 1}`,
+      length: 1.0,
+      width: 1.0,
+      count: 1,
+      _countDirty: true,
+    };
+    if (withDepth) baseRow.depth = 0.5;
+    setter([...state, baseRow]);
   };
 
-  const renderTable = (title, state, setter, prefix) => (
+  const handleSave = () => {
+    const cleanFootings = footings.map((row) => {
+      const next = { ...row };
+      delete next._countDirty;
+      delete next.long_mm;
+      delete next.length_mm;
+      delete next.short_mm;
+      delete next.width_mm;
+      delete next.depth_mm;
+      const len = parseFloat(next.length) || 0;
+      const wid = parseFloat(next.width) || 0;
+      const dep = parseFloat(next.depth) || 0;
+      const cnt = parseInt(next.count, 10) || 0;
+      return {
+        ...next,
+        type: next.type || '',
+        mark: next.type || next.mark || '',
+        length: len,
+        length_m: len,
+        width: wid,
+        width_m: wid,
+        depth: dep,
+        depth_m: dep,
+        count: cnt,
+      };
+    });
+
+    const cleanColumns = columns.map((row) => {
+      const next = { ...row };
+      const countDirty = Boolean(next._countDirty);
+      delete next._countDirty;
+      delete next.depth_mm;
+      delete next.long_mm;
+      delete next.length_mm;
+      delete next.width_mm;
+      delete next.short_mm;
+      if (countDirty) {
+        delete next.count_gf;
+        delete next.count_1f;
+        delete next.count_2f;
+        delete next.count_roof;
+      }
+      const len = parseFloat(next.length) || 0;
+      const wid = parseFloat(next.width) || 0;
+      const cnt = parseInt(next.count, 10) || 0;
+      return {
+        ...next,
+        type: next.type || '',
+        mark: next.type || next.mark || '',
+        length: len,
+        length_m: len,
+        width: wid,
+        width_m: wid,
+        count: cnt,
+      };
+    });
+
+    onSave({
+      ...schedules,
+      foundation: { ...(schedules?.foundation || {}), footings: cleanFootings },
+      column_schedule: { ...(schedules?.column_schedule || {}), columns: cleanColumns },
+      superstructure: { ...(schedules?.superstructure || {}), columns: cleanColumns },
+    });
+  };
+
+  const renderTable = (title, state, setter, prefix, withDepth = false) => (
     <div style={{ marginBottom: '25px', backgroundColor: '#1e293b', padding: '15px', borderRadius: '8px' }}>
       <h4 style={{ color: 'white', marginTop: 0, marginBottom: '10px', display: 'flex', justifyContent: 'space-between' }}>
         {title}
-        <button type="button" onClick={() => handleAdd(setter, state, prefix)} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <button type="button" onClick={() => handleAdd(setter, state, prefix, withDepth)} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
           <Plus size={14} /> {isArabic ? 'إضافة صف' : 'Add Row'}
         </button>
       </h4>
@@ -37,6 +155,7 @@ const ScheduleTableEditorModal = ({ isArabic, schedules, onSave, onClose }) => {
               <th style={{ padding: '8px 4px' }}>{isArabic ? 'النوع' : 'Type'}</th>
               <th style={{ padding: '8px 4px' }}>{isArabic ? 'الطول (م)' : 'Length (m)'}</th>
               <th style={{ padding: '8px 4px' }}>{isArabic ? 'العرض (م)' : 'Width (m)'}</th>
+              {withDepth && <th style={{ padding: '8px 4px' }}>{isArabic ? 'العمق (م)' : 'Depth (m)'}</th>}
               <th style={{ padding: '8px 4px' }}>{isArabic ? 'العدد' : 'Count'}</th>
               <th style={{ padding: '8px 4px' }}></th>
             </tr>
@@ -48,13 +167,18 @@ const ScheduleTableEditorModal = ({ isArabic, schedules, onSave, onClose }) => {
                   <input type="text" value={row.type || ''} onChange={(e) => handleUpdate(state, setter, i, 'type', e.target.value)} style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: 'white', padding: '4px', borderRadius: '4px' }} />
                 </td>
                 <td style={{ padding: '6px 4px' }}>
-                  <input type="number" step="0.01" value={row.length || ''} onChange={(e) => handleUpdate(state, setter, i, 'length', parseFloat(e.target.value) || 0)} style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: 'white', padding: '4px', borderRadius: '4px' }} />
+                  <input type="number" step="0.01" value={row.length ?? ''} onChange={(e) => handleUpdate(state, setter, i, 'length', parseFloat(e.target.value) || 0)} style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: 'white', padding: '4px', borderRadius: '4px' }} />
                 </td>
                 <td style={{ padding: '6px 4px' }}>
-                  <input type="number" step="0.01" value={row.width || ''} onChange={(e) => handleUpdate(state, setter, i, 'width', parseFloat(e.target.value) || 0)} style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: 'white', padding: '4px', borderRadius: '4px' }} />
+                  <input type="number" step="0.01" value={row.width ?? ''} onChange={(e) => handleUpdate(state, setter, i, 'width', parseFloat(e.target.value) || 0)} style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: 'white', padding: '4px', borderRadius: '4px' }} />
                 </td>
+                {withDepth && (
+                  <td style={{ padding: '6px 4px' }}>
+                    <input type="number" step="0.01" value={row.depth ?? ''} onChange={(e) => handleUpdate(state, setter, i, 'depth', parseFloat(e.target.value) || 0)} style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: 'white', padding: '4px', borderRadius: '4px' }} />
+                  </td>
+                )}
                 <td style={{ padding: '6px 4px' }}>
-                  <input type="number" value={row.count || ''} onChange={(e) => handleUpdate(state, setter, i, 'count', parseInt(e.target.value) || 0)} style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: 'white', padding: '4px', borderRadius: '4px' }} />
+                  <input type="number" value={row.count ?? ''} onChange={(e) => handleUpdate(state, setter, i, 'count', parseInt(e.target.value, 10) || 0)} style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: 'white', padding: '4px', borderRadius: '4px' }} />
                 </td>
                 <td style={{ padding: '6px 4px', textAlign: 'center' }}>
                   <button type="button" onClick={() => handleRemove(state, setter, i)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }} title={isArabic ? 'حذف' : 'Remove'}>
@@ -83,19 +207,15 @@ const ScheduleTableEditorModal = ({ isArabic, schedules, onSave, onClose }) => {
         </p>
         
         <div style={{ flex: 1, overflowY: 'auto', paddingRight: '10px' }}>
-          {renderTable(isArabic ? 'جدول القواعد (Footings)' : 'Footings Schedule', footings, setFootings, 'F')}
-          {renderTable(isArabic ? 'جدول الأعمدة (Columns)' : 'Columns Schedule', columns, setColumns, 'C')}
+          {renderTable(isArabic ? 'جدول القواعد (Footings)' : 'Footings Schedule', footings, setFootings, 'F', true)}
+          {renderTable(isArabic ? 'جدول الأعمدة (Columns)' : 'Columns Schedule', columns, setColumns, 'C', false)}
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
           <button type="button" onClick={onClose} className="btn" style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--border-color)' }}>
             {isArabic ? 'إلغاء' : 'Cancel'}
           </button>
-          <button type="button" onClick={() => onSave({
-            ...schedules,
-            foundation: { ...(schedules?.foundation || {}), footings },
-            superstructure: { ...(schedules?.superstructure || {}), columns }
-          })} className="btn btn-primary" style={{ padding: '8px 16px' }}>
+          <button type="button" onClick={handleSave} className="btn btn-primary" style={{ padding: '8px 16px' }}>
             {isArabic ? 'حفظ الجداول' : 'Save Schedules'}
           </button>
         </div>
@@ -106,8 +226,6 @@ const ScheduleTableEditorModal = ({ isArabic, schedules, onSave, onClose }) => {
 
 export default function VerifyStep({
   currentStep,
-  projectId,
-  token,
   confirmedData,
   extractionResults,
   sanityWarnings,
@@ -126,43 +244,6 @@ export default function VerifyStep({
 }) {
   const [markupImage, setMarkupImage] = React.useState(null);
   const [showTableEditor, setShowTableEditor] = React.useState(false);
-
-  // Scale Calibration State
-  const [calibPixel, setCalibPixel] = React.useState('');
-  const [calibReal, setCalibReal] = React.useState('');
-  const [calibStatus, setCalibStatus] = React.useState('');
-  const [calibLoading, setCalibLoading] = React.useState(false);
-
-  const handleCalibrate = async () => {
-    if (!calibPixel || !calibReal || !projectId || !token) return;
-    setCalibLoading(true);
-    setCalibStatus('');
-    try {
-      const res = await fetch(`/api/projects/${projectId}/calibrate_scale`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          pixel_distance: parseFloat(calibPixel),
-          real_distance: parseFloat(calibReal)
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Calibration failed');
-      setCalibStatus(isArabic ? 'تم معايرة المقياس بنجاح. يمكنك الآن إعادة تشغيل استخراج الأبعاد.' : 'Scale calibrated successfully. You can now re-run extraction.');
-      
-      // Update local inputs with the new scale (just roughly)
-      if (confirmedData.longest_length && data.scale_factor) {
-         // This is a naive update, real calculation happens on the backend on re-extract
-      }
-    } catch (err) {
-      setCalibStatus(isArabic ? `خطأ: ${err.message}` : `Error: ${err.message}`);
-    } finally {
-      setCalibLoading(false);
-    }
-  };
 
   if (currentStep === 4) {
     return (

@@ -1,6 +1,5 @@
 // About / Overview page — a professional, engineer-facing walkthrough of the
 // platform and its three tools. Fully bilingual (Arabic / English).
-import React from 'react';
 import { Play, CalendarDays, Wallet, Bot, BarChart2, Eye, CheckCircle2, ArrowRight } from 'lucide-react';
 
 export default function About({ isArabic, onNavigate }) {

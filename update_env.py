@@ -22,8 +22,11 @@ for line in lines:
         
     env_vars.append({"envVar": {"key": key, "value": val}})
 
+render_key = os.environ.get("RENDER_API_KEY")
+if not render_key:
+    raise SystemExit("Set RENDER_API_KEY env var before running update_env.py")
 headers = {
-    'Authorization': 'Bearer rnd_0xIMlSdVK3MeyuGAxuc6X8csimml',
+    'Authorization': f'Bearer {render_key}',
     'Accept': 'application/json',
     'Content-Type': 'application/json'
 }

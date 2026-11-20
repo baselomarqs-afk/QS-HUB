@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Folder, Calendar, ArrowRight, Trash2, FileSpreadsheet, LayoutList, CheckCircle2, Clock } from 'lucide-react';
+import { buildActivityList } from '../engine/durationEngine';
+import { runScheduler } from '../engine/scheduler';
+import { computeCashFlow } from '../engine/cashflow';
 
 export default function Projects({ token, isArabic, onSelectProject, onNavigate, initialTab }) {
   const [activeTab, setActiveTab] = useState(initialTab || 'qto');
@@ -7,40 +10,47 @@ export default function Projects({ token, isArabic, onSelectProject, onNavigate,
   const [progProjects, setProgProjects] = useState([]);
   const [cfProjects, setCfProjects] = useState([]);
   const [loading, setLoading] = useState(false);
+  const fetchedTabs = useRef({ qto: false, programme: false, cashflow: false });
 
-  useEffect(() => {
-    setActiveTab(initialTab || 'qto');
-  }, [initialTab]);
-
-  useEffect(() => {
-    if (activeTab === 'qto' && qtoProjects.length === 0) fetchQto();
-    else if (activeTab === 'programme' && progProjects.length === 0) fetchProg();
-    else if (activeTab === 'cashflow' && cfProjects.length === 0) fetchCf();
-  }, [activeTab]);
-
-  const fetchQto = async () => {
+  const fetchQto = useCallback(async () => {
+    await Promise.resolve();
     setLoading(true);
     try {
       const res = await fetch("/api/projects", { headers: { 'Authorization': `Bearer ${token}` } });
       if (res.ok) setQtoProjects(await res.json());
     } catch (err) { console.error(err); } finally { setLoading(false); }
-  };
+  }, [token]);
 
-  const fetchProg = async () => {
+  const fetchProg = useCallback(async () => {
+    await Promise.resolve();
     setLoading(true);
     try {
       const res = await fetch("/api/modules/programme", { headers: { 'Authorization': `Bearer ${token}` } });
       if (res.ok) setProgProjects(await res.json());
     } catch (err) { console.error(err); } finally { setLoading(false); }
-  };
+  }, [token]);
 
-  const fetchCf = async () => {
+  const fetchCf = useCallback(async () => {
+    await Promise.resolve();
     setLoading(true);
     try {
       const res = await fetch("/api/modules/cashflow", { headers: { 'Authorization': `Bearer ${token}` } });
       if (res.ok) setCfProjects(await res.json());
     } catch (err) { console.error(err); } finally { setLoading(false); }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    if (activeTab === 'qto' && !fetchedTabs.current.qto) {
+      fetchedTabs.current.qto = true;
+      fetchQto();
+    } else if (activeTab === 'programme' && !fetchedTabs.current.programme) {
+      fetchedTabs.current.programme = true;
+      fetchProg();
+    } else if (activeTab === 'cashflow' && !fetchedTabs.current.cashflow) {
+      fetchedTabs.current.cashflow = true;
+      fetchCf();
+    }
+  }, [activeTab, fetchQto, fetchProg, fetchCf]);
 
   const handleDeleteQto = async (id, e) => {
     e.stopPropagation();
@@ -63,16 +73,6 @@ export default function Projects({ token, isArabic, onSelectProject, onNavigate,
     } catch (err) { console.error(err); }
   };
 
-  const handleLoadModule = async (feature, id) => {
-    try {
-      const res = await fetch(`/api/modules/${feature}/item/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) {
-        const data = await res.json();
-        onNavigate(feature, { loadData: { id: data.id, config: data.config } });
-      }
-    } catch (err) { console.error(err); }
-  };
-
   const handleExportModuleExcel = async (feature, id, e) => {
     e.stopPropagation();
     // Default configs for fallback
@@ -87,15 +87,12 @@ export default function Projects({ token, isArabic, onSelectProject, onNavigate,
       if (res.ok) {
         const data = await res.json();
         const cfg = { ...DEFAULT_CFG, ...data.config };
-        const { buildActivityList } = await import('../engine/durationEngine');
-        const { runScheduler } = await import('../engine/scheduler');
         const acts = buildActivityList(cfg);
         const out = runScheduler(cfg, acts);
         if (feature === 'programme') {
           const mod = await import('../engine/programmeExcel');
           mod.exportProgrammeToExcel(out, cfg.projectName || 'Project');
         } else {
-          const { computeCashFlow } = await import('../engine/cashflow');
           const resObj = computeCashFlow(cfg, out.monthly);
           const mod = await import('../engine/cashflowExcel');
           mod.exportCashFlowToExcel(cfg, resObj, cfg.projectName || 'Project');

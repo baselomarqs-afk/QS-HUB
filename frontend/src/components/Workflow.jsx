@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
-  Upload, CheckCircle, AlertTriangle, Play, HelpCircle, 
-  Layers, Check, ChevronRight, FileSpreadsheet, FileText, ZoomIn, ZoomOut
+  Upload, CheckCircle, Play, 
+  Layers, Check, FileSpreadsheet, FileText
 } from 'lucide-react';
 import UploadStep from './workflow/UploadStep';
 import ClassifyStep from './workflow/ClassifyStep';
@@ -10,6 +10,8 @@ import LoadingOverlay from './common/LoadingOverlay';
 import VerifyStep from './workflow/VerifyStep';
 import BoqStep from './workflow/BoqStep';
 import FeedbackModal from './common/FeedbackModal';
+
+const API_URL = "/api/workflow";
 
 export default function Workflow({ token, project, isArabic, onNavigate }) {
   const [currentStep, setCurrentStep] = useState(1);
@@ -21,7 +23,6 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
   // File Upload State
   const [strFiles, setStrFiles] = useState([]);
   const [archFiles, setArchFiles] = useState([]);
-  const [uploadResult, setUploadResult] = useState(null);
   
   // Classification State
   const [classifiedPages, setClassifiedPages] = useState([]);
@@ -138,18 +139,29 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
 
   const updateOpeningField = (subField, value) => {
     setConfirmedData(prev => {
-      const updated = { ...prev };
-      if (!updated.openings) updated.openings = {};
-      if (!updated.openings.totals) updated.openings.totals = {};
+      const updated = {
+        ...prev,
+        openings: {
+          ...(prev.openings || {}),
+          totals: { ...(prev.openings?.totals || {}) }
+        },
+        sources: { ...(prev.sources || {}) }
+      };
       updated.openings.totals[subField] = value;
-      
-      if (!updated.sources) updated.sources = {};
       updated.sources[subField] = "User Verified";
       
       if (subField === 'door_count') {
+        const parsedDoors = parseInt(value) || 0;
         updated.openings.totals.door_count_is_estimated = false;
+        updated.openings.totals.user_edited_door_count = true;
+        updated.openings.user_override_door_count = parsedDoors;
+        updated.total_doors_count = parsedDoors;
       } else if (subField === 'window_area') {
+        const parsedWin = parseFloat(value) || 0;
         updated.openings.totals.window_area_is_estimated = false;
+        updated.openings.totals.user_edited_window_area = true;
+        updated.openings.user_override_window_area = parsedWin;
+        updated.total_windows_area = parsedWin;
       }
       return updated;
     });
@@ -159,74 +171,75 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
                        confirmedData.openings?.totals?.door_count_is_estimated || 
                        confirmedData.openings?.totals?.window_area_is_estimated);
 
-  const API_URL = "/api/workflow";
+  const projectId = project?.id;
 
   useEffect(() => {
-    // If project already has some state, load it
-    if (project) {
-      setCurrentStep(project.current_step || 1);
-      fetchActiveState();
-    }
-  }, [project]);
-
-  const fetchActiveState = async () => {
-    try {
-      const res = await fetch(`${API_URL}/projects/active?project_id=${project.id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) return;
-      const text = await res.text();
-      if (!text) return;
-      let data = null;
-      try { data = JSON.parse(text); } catch (e) { return; }
-      if (data.has_active && data.state_data) {
-        const state = typeof data.state_data === 'string' ? JSON.parse(data.state_data) : data.state_data;
-        if (state.classified_pages) setClassifiedPages(state.classified_pages);
-        if (state.extraction_results) setExtractionResults(state.extraction_results);
-        if (state.confirmed_auto_data) {
-          setConfirmedData(prev => ({ 
-            ...prev, 
-            excavation_depth: 1.25,
-            neck_column_height: 1.0,
-            solid_block_height: 1.0,
-            staircase_volume_per_level: 5.2,
-            ...state.confirmed_auto_data 
-          }));
-        }
-        if (state.boq_items) setBoqItems(state.boq_items);
-        if (state.boq_meta) setBoqMeta(state.boq_meta);
-        // Pre-fill the auto-detected roof stair-room flag for the top floor.
-        {
-          const ftypes = (state.confirmed_auto_data && state.confirmed_auto_data.floor_types) || state.floor_types || {};
-          const nf = state.num_floors || (state.confirmed_auto_data && state.confirmed_auto_data.structural_levels) || 2;
-          const topFk = nf >= 3 ? '2f' : '1f';
-          const topIsStair = ftypes[topFk] === 'stair_room';
-          const topFloor = ((state.confirmed_auto_data && state.confirmed_auto_data.floors) || {})[topFk] || {};
-          setCalcParams(prev => ({
+    if (!projectId) return;
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/projects/active?project_id=${projectId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!active || !res.ok) return;
+        const text = await res.text();
+        if (!active || !text) return;
+        let data = null;
+        try { data = JSON.parse(text); } catch { return; }
+        if (data.has_active && data.state_data) {
+          const state = typeof data.state_data === 'string' ? JSON.parse(data.state_data) : data.state_data;
+          if (state.classified_pages) setClassifiedPages(state.classified_pages);
+          if (state.extraction_results) setExtractionResults(state.extraction_results);
+          if (state.sanity_warnings) setSanityWarnings(state.sanity_warnings);
+          if (state.confirmed_auto_data) {
+            setConfirmedData(prev => ({ 
+              ...prev, 
+              excavation_depth: 1.25,
+              neck_column_height: 1.0,
+              solid_block_height: 1.0,
+              staircase_volume_per_level: 5.2,
+              sog_thickness: 0.10,
+              default_col_length: 0.60,
+              default_col_width: 0.20,
+              ...state.confirmed_auto_data 
+            }));
+          }
+          if (state.boq_items) setBoqItems(state.boq_items);
+          if (state.boq_meta) setBoqMeta(state.boq_meta);
+          // Pre-fill the auto-detected roof stair-room flag for the top floor.
+          {
+            const ftypes = (state.confirmed_auto_data && state.confirmed_auto_data.floor_types) || state.floor_types || {};
+            const nf = state.num_floors || (state.confirmed_auto_data && state.confirmed_auto_data.structural_levels) || 2;
+            const topFk = nf >= 3 ? '2f' : '1f';
+            const topIsStair = ftypes[topFk] === 'stair_room';
+            const topFloor = ((state.confirmed_auto_data && state.confirmed_auto_data.floors) || {})[topFk] || {};
+            setCalcParams(prev => ({
+              ...prev,
+              top_floor_is_stair_room: topIsStair,
+              stair_room_area: (topIsStair && topFloor.is_stair_room) ? (topFloor.area ?? '') : prev.stair_room_area,
+              stair_room_perimeter: (topIsStair && topFloor.is_stair_room) ? (topFloor.ext_perimeter ?? '') : prev.stair_room_perimeter,
+            }));
+          }
+          if (state.num_floors) setCalcParams(prev => ({
             ...prev,
-            top_floor_is_stair_room: topIsStair,
-            stair_room_area: (topIsStair && topFloor.is_stair_room) ? (topFloor.area ?? '') : prev.stair_room_area,
-            stair_room_perimeter: (topIsStair && topFloor.is_stair_room) ? (topFloor.ext_perimeter ?? '') : prev.stair_room_perimeter,
+            num_floors: state.num_floors,
+            gf_height: state.gf_height || 4.0,
+            f1_height: state.f1_height || 4.0,
+            f2_height: state.f2_height || 4.0,
+            excavation_depth: state.excavation_depth || 1.25,
+            include_road_base: state.include_road_base !== false,
+            concrete_grade: state.concrete_grade || "C30/37",
+            solid_block_thickness: state.solid_block_thickness || "200mm",
+            thermal_block_thickness: state.thermal_block_thickness || "200mm",
+            hollow_block_thickness: state.hollow_block_thickness || "100mm"
           }));
         }
-        if (state.num_floors) setCalcParams(prev => ({
-          ...prev,
-          num_floors: state.num_floors,
-          gf_height: state.gf_height || 4.0,
-          f1_height: state.f1_height || 4.0,
-          f2_height: state.f2_height || 4.0,
-          excavation_depth: state.excavation_depth || 1.25,
-          include_road_base: state.include_road_base !== false,
-          concrete_grade: state.concrete_grade || "C30/37",
-          solid_block_thickness: state.solid_block_thickness || "200mm",
-          thermal_block_thickness: state.thermal_block_thickness || "200mm",
-          hollow_block_thickness: state.hollow_block_thickness || "100mm"
-        }));
+      } catch (err) {
+        console.error(err);
       }
-    } catch (err) {
-      console.error(err);
-    }
-  };
+    })();
+    return () => { active = false; };
+  }, [projectId, token]);
 
   const saveActiveState = async (step, overrideState = {}) => {
     try {
@@ -278,7 +291,7 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
       if (text) {
         try {
           data = JSON.parse(text);
-        } catch (e) {}
+        } catch { /* ignore non-JSON body */ }
       }
       if (!res.ok) {
         const msg = data?.detail || (res.status === 504 ? (isArabic ? 'انتهت مهلة استجابة الخادم (504). يرجى المحاولة مجدداً.' : 'Server gateway timeout (504). Please try again.') : (isArabic ? `فشل طلب الخادم (رمز ${res.status}).` : `Server request failed (HTTP ${res.status}).`));
@@ -291,8 +304,6 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
     };
 
     try {
-      let lastData = null;
-
       const formData = new FormData();
       formData.append('project_id', project.id);
       
@@ -310,14 +321,13 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
       
       if (hasStr || hasArch) {
         setLoadingSubtext(isArabic ? 'جاري رفع المخططات (الإنشائية والمعمارية)...' : 'Uploading Drawings (Structural & Architectural)...');
-        lastData = await safeJsonFetch(`${API_URL}/upload`, {
+        await safeJsonFetch(`${API_URL}/upload`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` },
           body: formData
         });
       }
       
-      setUploadResult(lastData);
       setMessage(isArabic ? 'تم رفع المخططات وتقسيمها بنجاح!' : 'Drawings uploaded successfully!');
       
       // Auto run classification
@@ -339,7 +349,7 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
         const text = await res.text();
         let data = null;
         if (text) {
-          try { data = JSON.parse(text); } catch (e) {}
+          try { data = JSON.parse(text); } catch { /* ignore non-JSON body */ }
         }
         if (!res.ok) {
           const msg = data?.detail || (res.status === 504 ? (isArabic ? 'انتهت مهلة استجابة الخادم أثناء التصنيف (504).' : 'Server gateway timeout during classification (504).') : `Server error (HTTP ${res.status})`);
@@ -397,7 +407,7 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
       const text = await res.text();
       let data = null;
       if (text) {
-        try { data = JSON.parse(text); } catch (e) {}
+        try { data = JSON.parse(text); } catch { /* ignore non-JSON body */ }
       }
       if (!res.ok) {
         throw new Error(data?.detail || (isArabic ? 'فشل حفظ التصنيفات.' : 'Failed to save classifications.'));
@@ -439,7 +449,7 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
             const errJson = JSON.parse(text);
             errorMsg = errJson.detail || errorMsg;
           }
-        } catch (e) {
+        } catch {
           errorMsg = res.status === 504 ? (isArabic ? 'انتهت مهلة خادم الاستخراج (504). يرجى المحاولة مجدداً.' : 'Extraction request timed out (504). Please try again.') : `Server Error (HTTP ${res.status})`;
         }
         throw new Error(errorMsg);
@@ -579,6 +589,7 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
                   }
 
                   setConfirmedData(confirmedObj);
+                  setSanityWarnings(data.sanity_warnings || []);
                   // Pre-fill the auto-detected roof stair-room flag for the top floor
                   {
                     const ftypes = confirmedObj.floor_types || {};
@@ -669,7 +680,7 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
       const text = await res.text();
       let data = null;
       if (text) {
-        try { data = JSON.parse(text); } catch (e) {}
+        try { data = JSON.parse(text); } catch { /* ignore non-JSON body */ }
       }
       if (!res.ok) throw new Error(data?.detail || 'Calculation engine failed.');
       if (!data) throw new Error('Calculation engine returned an invalid response.');
@@ -719,13 +730,6 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
     });
   };
 
-  const calculateGrandTotal = () => {
-    return boqItems.reduce((acc, item) => {
-      if (item._is_header) return acc;
-      return acc + (parseFloat(item["Total"]) || 0.0);
-    }, 0.0);
-  };
-
   const handleSaveReview = async () => {
     setLoading(true);
     setLoadingText(isArabic ? 'جاري الحفظ...' : 'Saving Review...');
@@ -752,16 +756,44 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
     }
   };
 
-  // Exporters
-  const downloadExcel = () => {
-    window.open(`/api/workflow/export/excel?project_id=${project.id}&Authorization=Bearer ${token}`);
-    setShowFeedback(true);
+  // Exporters (authenticated fetch + Blob download so JWT never leaks in URL query params)
+  const downloadAuthenticatedFile = async (endpoint, fallbackFilename) => {
+    try {
+      const res = await fetch(`${API_URL}${endpoint}?project_id=${project.id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        let errMsg = `Export failed (${res.status})`;
+        try {
+          const errJson = await res.json();
+          if (errJson?.detail) errMsg = errJson.detail;
+        } catch {
+          // Ignore non-JSON error body
+        }
+        alert(errMsg);
+        return;
+      }
+      const blob = await res.blob();
+      let filename = fallbackFilename;
+      const disp = res.headers.get('Content-Disposition') || '';
+      const match = disp.match(/filename="?([^";]+)"?/i);
+      if (match?.[1]) filename = match[1];
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setShowFeedback(true);
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
-  const downloadPDF = () => {
-    window.open(`/api/workflow/export/pdf?project_id=${project.id}&Authorization=Bearer ${token}`);
-    setShowFeedback(true);
-  };
+  const downloadExcel = () => downloadAuthenticatedFile('/export/excel', `${project.name || 'Project'}_BOQ.xlsx`);
+  const downloadPDF = () => downloadAuthenticatedFile('/export/pdf', `${project.name || 'Project'}_BOQ.pdf`);
 
   // UI Helpers
   const stepIcons = {
@@ -771,7 +803,6 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
     4: <Check size={16} />,
     5: <Layers size={16} />,
     6: <FileText size={16} />,
-    7: <Layers size={16} />,
     8: <FileSpreadsheet size={16} />
   };
 
@@ -782,9 +813,10 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
     4: { en: 'Confirm', ar: 'تأكيد الحقول' },
     5: { en: 'Equations', ar: 'تطبيق المعادلات' },
     6: { en: 'Review BOQ', ar: 'مراجعة الأسعار' },
-    7: { en: 'Arrange', ar: 'ترتيب البنود' },
     8: { en: 'Download', ar: 'تحميل التقارير' }
   };
+
+  const effectiveStep = currentStep === 7 ? 8 : currentStep;
 
   return (
     <div style={{ position: 'relative', width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -798,11 +830,11 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
       
       <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', direction: isArabic ? 'rtl' : 'ltr', textAlign: isArabic ? 'right' : 'left' }}>
       
-      {/* 8-Step Header Indicator */}
+      {/* 7-Step Header Indicator (maps to backend steps 1-6 and 8) */}
       <div className="glass-panel" style={{ margin: '20px 30px', padding: '15px 20px', display: 'flex', justifyContent: 'space-between', gap: '8px', overflowX: 'auto' }}>
-        {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => {
-          const isActive = num === currentStep;
-          const isDone = num < currentStep;
+        {[1, 2, 3, 4, 5, 6, 8].map((num, idx) => {
+          const isActive = num === effectiveStep;
+          const isDone = num < effectiveStep;
           return (
             <div 
               key={num} 
@@ -827,7 +859,7 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 {isDone ? <CheckCircle size={14} /> : stepIcons[num]}
-                <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{num}</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{idx + 1}</span>
               </div>
               <span style={{ fontSize: '0.72rem', fontWeight: 600, display: 'block', whiteSpace: 'nowrap' }}>
                 {isArabic ? stepLabels[num].ar : stepLabels[num].en}
@@ -879,8 +911,6 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
         {(currentStep === 4 || currentStep === 5) && (
           <VerifyStep
             currentStep={currentStep}
-            projectId={project.id}
-            token={token}
             confirmedData={confirmedData}
             sanityWarnings={sanityWarnings}
             updateConfirmedField={updateConfirmedField}
@@ -898,11 +928,10 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
             isArabic={isArabic}
           />
         )}
-        {(currentStep === 6 || currentStep === 8) && (
+        {effectiveStep >= 6 && (
           <BoqStep
-            currentStep={currentStep}
+            currentStep={effectiveStep}
             boqMeta={boqMeta}
-            calculateGrandTotal={calculateGrandTotal}
             boqItems={boqItems}
             handlePriceChange={handlePriceChange}
             handleQtyChange={handleQtyChange}

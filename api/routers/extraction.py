@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import asyncio
 from typing import List, Dict, Any
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
@@ -29,6 +30,7 @@ router = APIRouter()
 
 CACHE_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "_qto_cache")
 os.makedirs(CACHE_ROOT, exist_ok=True)
+_CLEANUP_TASKS: Dict[int, asyncio.Task] = {}
 
 class RunExtractionReq(BaseModel):
     project_id: int
@@ -80,6 +82,26 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
                 retry_map.setdefault("schedules", []).append(w)
         return retry_map
 
+    def _resolve_pdf_page(prefix: str, p_idx: int):
+        boundaries = state_data.get(f"{prefix}_boundaries", [])
+        for b in boundaries:
+            if b["start"] <= p_idx <= b["end"]:
+                return os.path.join(project_cache, b["pdf_path"]), p_idx - b["start"]
+        return None, p_idx
+
+    def _read_full_pdf_page_text(pdf_path: str, internal_idx: int, fallback_text: str = "") -> str:
+        if pdf_path and os.path.exists(pdf_path):
+            try:
+                import fitz
+                with fitz.open(pdf_path) as doc:
+                    if 0 <= internal_idx < len(doc):
+                        txt = doc[internal_idx].get_text("text")
+                        if txt and txt.strip():
+                            return txt
+            except Exception:
+                pass
+        return fallback_text
+
     def extract_single_page(args):
         page_info, previous_warnings = args
         dtype = page_info["detected_type"]
@@ -98,24 +120,11 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
             return None
             
         texts_src = str_texts if pdf_type == "structural" else arch_texts
-        page_text = texts_src[page_idx] if page_idx < len(texts_src) else ""
+        fallback_text = texts_src[page_idx] if page_idx < len(texts_src) else ""
         
-        # Resolve original pdf path for vector measurement
-        boundaries = state_data.get(f"{prefix}_boundaries", [])
-        original_pdf_path = None
-        for b in boundaries:
-            if b["start"] <= page_idx <= b["end"]:
-                # The pdf in the cache:
-                original_pdf_path = os.path.join(project_cache, b["pdf_path"])
-                break
-                
-        # Calculate the internal page index within the specific PDF (PyMuPDF needs 0-based index of the specific document)
-        internal_page_idx = page_idx
-        if original_pdf_path:
-            for b in boundaries:
-                if b["start"] <= page_idx <= b["end"]:
-                    internal_page_idx = page_idx - b["start"]
-                    break
+        # Resolve original pdf path and read full PDF page text (str_texts/arch_texts are capped previews)
+        original_pdf_path, internal_page_idx = _resolve_pdf_page(prefix, page_idx)
+        page_text = _read_full_pdf_page_text(original_pdf_path, internal_page_idx, fallback_text)
         
         try:
             # Bypassing Numpy/PIL to prevent RAM exhaustion and thrashing
@@ -219,13 +228,16 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
                 
         yield f'data: {json.dumps({"progress": 80, "status": "Cross-checking doors and windows..."})}\n\n'
         
-        # Cross check counts
+        # Cross check counts using full PDF page text when available
         plan_texts = []
         for p in ready:
             if p["pdf"] == "architectural" and p["detected_type"] in {"ground_floor_plan", "first_floor_plan", "second_floor_plan", "roof_floor_plan"}:
                 idx = p["page_index"]
-                if idx < len(arch_texts):
-                    plan_texts.append(arch_texts[idx].upper())
+                fallback_t = arch_texts[idx] if idx < len(arch_texts) else ""
+                arch_pdf_path, arch_internal_idx = _resolve_pdf_page("arch", idx)
+                full_page_t = _read_full_pdf_page_text(arch_pdf_path, arch_internal_idx, fallback_t)
+                if full_page_t:
+                    plan_texts.append(full_page_t.upper())
                     
         if plan_texts:
             full_text = " \n ".join(plan_texts)
@@ -239,7 +251,6 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
                                 match_pattern = "".join(c + r"[\s\-_./]*" if c.isalpha() else c for c in m_clean).rstrip(r"[\s\-_./]*")
                                 n = len(re.findall(rf"\b{match_pattern}\b", full_text))
                                 if n > 0:
-                                    item["count_in_plans"] = n
                                     item["count_in_plans"] = n
                                     item["count_source"] = "floor_plans_fitz"
 
@@ -259,36 +270,24 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
                         # Iterate through each column layout page and sum the counts
                         for lp in col_layout_pages:
                             pdf_idx = lp["page_index"]
-                            struct_texts = state_data.get("str_texts", [])
-                            if pdf_idx < len(struct_texts):
-                                # Determine original pdf path
-                                project_cache = os.path.join(CACHE_ROOT, str(req.project_id))
-                                str_pdf_path = os.path.join(project_cache, "str.pdf")
-                                if os.path.exists(str_pdf_path):
-                                    try:
-                                        # internal_page_idx logic
-                                        internal_idx = pdf_idx
-                                        boundaries = state_data.get("str_pdf_boundaries", [])
-                                        for b in boundaries:
-                                            if b["start"] <= pdf_idx <= b["end"]:
-                                                internal_idx = pdf_idx - b["start"]
-                                                break
-                                        
-                                        counts = count_token_in_page(str_pdf_path, internal_idx, all_marks)
-                                        for c in data.get("columns", []):
-                                            m = str(c.get("mark", "")).strip().upper()
-                                            if m in counts and counts[m] > 0:
-                                                # Column layouts are typically the Ground Floor / Neck columns view.
-                                                # We map these exact counts to gf, 1f, 2f.
-                                                c["count_gf"] = c.get("count_gf", 0) + counts[m]
-                                                c["count_1f"] = c.get("count_1f", 0) + counts[m]
-                                                if state_data.get("current_step") and state_data.get("confirmed_auto_data"):
-                                                    # check if 2f exists
-                                                    if "2f" in state_data.get("confirmed_auto_data", {}).get("floors", {}):
-                                                        c["count_2f"] = c.get("count_2f", 0) + counts[m]
-                                                c["count_source"] = "column_layout_fitz"
-                                    except Exception as ex:
-                                        print(f"Error counting columns with PyMuPDF: {ex}")
+                            str_pdf_path, internal_idx = _resolve_pdf_page("str", pdf_idx)
+                            if str_pdf_path and os.path.exists(str_pdf_path):
+                                try:
+                                    counts = count_token_in_page(str_pdf_path, internal_idx, all_marks)
+                                    for c in data.get("columns", []):
+                                        m = str(c.get("mark", "")).strip().upper()
+                                        if m in counts and counts[m] > 0:
+                                            # Column layouts are typically the Ground Floor / Neck columns view.
+                                            # We map these exact counts to gf, 1f, 2f.
+                                            c["count_gf"] = c.get("count_gf", 0) + counts[m]
+                                            c["count_1f"] = c.get("count_1f", 0) + counts[m]
+                                            if state_data.get("current_step") and state_data.get("confirmed_auto_data"):
+                                                # check if 2f exists
+                                                if "2f" in state_data.get("confirmed_auto_data", {}).get("floors", {}):
+                                                    c["count_2f"] = c.get("count_2f", 0) + counts[m]
+                                            c["count_source"] = "column_layout_fitz"
+                                except Exception as ex:
+                                    print(f"Error counting columns with PyMuPDF: {ex}")
                                         
         state_data["extraction_results"] = results
         state_data["current_step"] = 4
@@ -388,5 +387,16 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
             "next_step": 4
         }
         yield f'data: {json.dumps(final_payload)}\n\n'
+        old_task = _CLEANUP_TASKS.pop(req.project_id, None)
+        if old_task and not old_task.done():
+            old_task.cancel()
+        _cleanup_task = asyncio.create_task(
+            background_cleanup_project(os.path.join(CACHE_ROOT, str(req.project_id)), delay_seconds=6 * 3600)
+        )
+        _CLEANUP_TASKS[req.project_id] = _cleanup_task
+        _cleanup_task.add_done_callback(
+            lambda t, pid=req.project_id: _CLEANUP_TASKS.pop(pid, None)
+            if _CLEANUP_TASKS.get(pid) is t else None
+        )
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

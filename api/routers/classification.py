@@ -71,23 +71,27 @@ async def auto_classify(req: RunExtractionReq, current_user: dict = Depends(get_
     
     # Keyword classification using full page text
     for i, txt in enumerate(str_texts):
+        cls_info = _classify_single(txt, "structural")
         classified.append({
             "pdf": "structural",
             "page_index": i,
             "page_num": i + 1,
             "text_preview": txt[:100].replace("\n", " "),
             "image_url": f"/cache/{req.project_id}/str_page_{i}.jpg",
-            **_classify_single(txt, "structural"),
+            "auto_detected_type": cls_info.get("detected_type"),
+            **cls_info,
         })
         
     for i, txt in enumerate(arch_texts):
+        cls_info = _classify_single(txt, "architectural")
         classified.append({
             "pdf": "architectural",
             "page_index": i,
             "page_num": i + 1,
             "text_preview": txt[:100].replace("\n", " "),
             "image_url": f"/cache/{req.project_id}/arch_page_{i}.jpg",
-            **_classify_single(txt, "architectural"),
+            "auto_detected_type": cls_info.get("detected_type"),
+            **cls_info,
         })
 
     state_data["classified_pages"] = classified
@@ -119,8 +123,15 @@ def _background_record_memory(user_id: int, pages: list):
         from engine.qto_memory import record_mapping
         for p in pages:
             dtype = (p.get("detected_type") or "").strip()
-            if dtype and dtype != "unknown":
-                record_mapping(user_id, dtype[:120], dtype)
+            auto_dtype = (p.get("auto_detected_type") or "").strip()
+            preview = (p.get("text_preview") or "").strip()
+            if not dtype or dtype == "unknown":
+                continue
+            # Only learn when the user corrected an auto-detected category (map real page text clue -> corrected type)
+            if auto_dtype and dtype != auto_dtype:
+                clue = (preview or auto_dtype)[:120]
+                if clue:
+                    record_mapping(user_id, clue, dtype)
     except Exception as e:
         print(f"qto_memory record error: {e}")
 

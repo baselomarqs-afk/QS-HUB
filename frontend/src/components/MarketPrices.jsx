@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, MapPin, RefreshCw, BarChart2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, RefreshCw, BarChart2 } from 'lucide-react';
 
 export default function MarketPrices({ token, isArabic }) {
   const [prices, setPrices] = useState([]);
@@ -12,30 +12,35 @@ export default function MarketPrices({ token, isArabic }) {
   const [compareMode, setCompareMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  const fetchPrices = () => setRefreshTick((n) => n + 1);
 
   useEffect(() => {
-    fetchPrices();
-  }, [selectedCat, selectedEm, searchQuery, compareMode]);
-
-  const fetchPrices = async () => {
-    setLoading(true);
-    try {
-      const url = `/api/market/prices?category=${selectedCat}&emirate=${selectedEm}&search=${searchQuery}&compare=${compareMode}`;
-      const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setPrices(data.prices || []);
-        setCategories(data.categories || {});
-        setEmirates(data.emirates || {});
+    let active = true;
+    (async () => {
+      await Promise.resolve();
+      if (!active) return;
+      setLoading(true);
+      try {
+        const url = `/api/market/prices?category=${selectedCat}&emirate=${selectedEm}&search=${searchQuery}&compare=${compareMode}`;
+        const res = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (active && res.ok) {
+          setPrices(data.prices || []);
+          setCategories(data.categories || {});
+          setEmirates(data.emirates || {});
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (active) setLoading(false);
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    })();
+    return () => { active = false; };
+  }, [selectedCat, selectedEm, searchQuery, compareMode, token, refreshTick]);
 
   const handleForceUpdate = async () => {
     setMessage('');

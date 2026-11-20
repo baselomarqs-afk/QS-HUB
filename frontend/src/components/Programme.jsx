@@ -1,7 +1,7 @@
 // نافذة برنامج الأعمال — Work Programme window (bilingual). Parametric CPM
 // schedule for a UAE villa: enter the project, press Process, get a phase-coloured
 // Gantt with critical-path flags, editable durations, Excel export and history save.
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { Loader2, Download, Save, Rocket } from 'lucide-react';
 import FeatureGate from './FeatureGate';
 import ModuleHistory from './ModuleHistory';
@@ -13,21 +13,38 @@ import { buildActivityList, autoCalculateTotalWeeks } from '../engine/durationEn
 import { runScheduler, fmtDate } from '../engine/scheduler';
 import FeedbackModal from './common/FeedbackModal';
 
+const SIG_KEYS = new Set([
+  'villaType', 'buaPerFloor', 'complexityFactor', 'hasPool', 'hasDemolition',
+  'hasRoofGarden', 'basementArea', 'mezzanineArea', 'startISO', 'handoverISO',
+]);
+
 function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName, onStartProject, initialLoadData, onClearInitialLoadData }) {
   const t = (en, ar) => (isArabic ? ar : en);
-  const [cfg, setCfg] = useState({ ...DEFAULT_CONFIG });
-  const [acts, setActs] = useState(null);
+  const [cfg, setCfg] = useState(() => {
+    if (initialLoadData?.config) return { ...DEFAULT_CONFIG, ...initialLoadData.config };
+    if (initialProjectName) return { ...DEFAULT_CONFIG, projectName: initialProjectName };
+    return { ...DEFAULT_CONFIG };
+  });
+  const [acts, setActs] = useState(() =>
+    initialLoadData?.config ? buildActivityList({ ...DEFAULT_CONFIG, ...initialLoadData.config }) : null
+  );
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
-  const [savedId, setSavedId] = useState(null); // set after first save; reused so re-saves don't consume another credit
-  const justLoaded = useRef(false); // skip the savedId reset on the render right after loading from history
+  const [savedId, setSavedId] = useState(() => initialLoadData?.id ?? null); // set after first save; reused so re-saves don't consume another credit
+  const justLoaded = useRef(Boolean(initialLoadData)); // skip the savedId reset on the render right after loading from history
   const [isSimulating, setIsSimulating] = useState(false);
   const [loadingPct, setLoadingPct] = useState(0);
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [autoSavePending, setAutoSavePending] = useState(false);
-  const [isHistoryView, setIsHistoryView] = useState(false);
+  const [isHistoryView, setIsHistoryView] = useState(() => Boolean(initialLoadData));
 
-  const patch = (p) => setCfg((c) => ({ ...c, ...p }));
+  const patch = (p) => {
+    setCfg((c) => ({ ...c, ...p }));
+    if (Object.keys(p).some((k) => SIG_KEYS.has(k))) {
+      setActs(null);
+      setSavedMsg('');
+      if (justLoaded.current) justLoaded.current = false; // keep loaded project's id
+      else setSavedId(null);
+    }
+  };
   const derived = useMemo(() => deriveVilla(cfg), [cfg]);
 
   const missing = [];
@@ -39,33 +56,17 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
   const handoverInvalid = !!cfg.handoverISO && !!cfg.startISO && cfg.handoverISO <= cfg.startISO;
   const canProcess = missing.length === 0 && !handoverInvalid;
 
-  // Any generation-affecting change invalidates the result.
-  const sig = `${cfg.villaType}|${cfg.buaPerFloor}|${cfg.complexityFactor}|${cfg.hasPool}|${cfg.hasDemolition}|${cfg.hasRoofGarden}|${cfg.basementArea}|${cfg.mezzanineArea}|${cfg.startISO}|${cfg.handoverISO}`;
   useEffect(() => {
-    setActs(null);
-    setSavedMsg('');
-    if (justLoaded.current) justLoaded.current = false; // keep loaded project's id
-    else setSavedId(null);
-  }, [sig]);
-
-  useEffect(() => {
-    if (initialProjectName) {
-      patch({ projectName: initialProjectName });
+    if (initialProjectName && onClearInitialName) {
       onClearInitialName();
     }
-  }, [initialProjectName]);
+  }, [initialProjectName, onClearInitialName]);
 
   useEffect(() => {
-    if (initialLoadData) {
-      const merged = { ...DEFAULT_CONFIG, ...initialLoadData.config };
-      setCfg(merged);
-      setActs(buildActivityList(merged));
-      setSavedId(initialLoadData.id);
-      justLoaded.current = true;
-      setIsHistoryView(true);
-      if (onClearInitialLoadData) onClearInitialLoadData();
+    if (initialLoadData && onClearInitialLoadData) {
+      onClearInitialLoadData();
     }
-  }, [initialLoadData]);
+  }, [initialLoadData, onClearInitialLoadData]);
 
   const out = useMemo(() => (acts ? runScheduler(cfg, acts) : null), [acts, cfg]);
   const totalDays = out?.totalDays ?? 1;
@@ -157,7 +158,7 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
           setIsHistoryView(true);
           if (onStartProject) onStartProject();
         }} 
-        onExport={async ({ id, config }) => {
+        onExport={async ({ config }) => {
           const newActs = buildActivityList(config);
           const scheduleOut = runScheduler(config, newActs);
           const mod = await import('../engine/programmeExcel');
@@ -373,7 +374,7 @@ function ProgrammeTool({ token, isArabic, initialProjectName, onClearInitialName
   }
 }
 
-export default function Programme({ token, isArabic, initialProjectName, onClearInitialName, onStartProject }) {
+export default function Programme({ token, isArabic, initialProjectName, onClearInitialName, onStartProject, initialLoadData, onClearInitialLoadData }) {
   return (
     <FeatureGate feature="programme" token={token} isArabic={isArabic}
       title={isArabic ? 'جدول زمني' : 'Work Programme'}>
@@ -383,6 +384,8 @@ export default function Programme({ token, isArabic, initialProjectName, onClear
         initialProjectName={initialProjectName} 
         onClearInitialName={onClearInitialName} 
         onStartProject={onStartProject}
+        initialLoadData={initialLoadData}
+        onClearInitialLoadData={onClearInitialLoadData}
       />
     </FeatureGate>
   );

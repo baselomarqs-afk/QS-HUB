@@ -496,6 +496,18 @@ async def _ask_ai_with_retry(img_bytes: bytes, full_prompt: str, mgr, force_reex
     return json.dumps({"_error": last_err})
 
 
+def _vision_failure_fallback(drawing_type: str, err: object) -> dict:
+    """Return an explicit failure marker instead of fabricated default villa dimensions."""
+    return {
+        "_ok": False,
+        "_fallback": True,
+        "_error": str(err or "Vision API failed"),
+        "confidence": "failed (API Error)",
+        "notes": f"Gemini vision call failed ({err}). Manual verification required.",
+        "drawing_type": drawing_type,
+    }
+
+
 def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_id: int = None, previous_warnings: list = None, image_path: str = None, pdf_path: str = None, internal_page_idx: int = None, force_reextract: bool = False) -> dict:
     csv_injection = ""
     if pdf_path and internal_page_idx is not None:
@@ -575,17 +587,13 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             d2 = parse_json(r2)
             if "_error" in d1 or "_error" in d2:
                 err = d1.get("_error") or d2.get("_error")
-                return {
-                    "_ok": True, "_fallback": True,
-                    "confidence": "low (API Fallback)",
-                    "notes": f"Gemini vision call failed ({err}). Generated structural layout defaults.",
-                    "drawing_type": drawing_type,
-                    "longest_length": 20.0, "longest_width": 15.0, "footings": []
-                }
+                return _vision_failure_fallback(drawing_type, err)
             merged = {**d1, **d2}
             return merged
             
         data = asyncio.run(run_foundations())
+        if data.get("_ok") is False:
+            return data
         data = _normalize_units(data)
         
         from workflow.sanity_checks import perform_structural_sanity_checks
@@ -628,14 +636,7 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             d2 = parse_json(r2)
             if "_error" in d1 or "_error" in d2:
                 err = d1.get("_error") or d2.get("_error")
-                return {
-                    "_ok": True, "_fallback": True,
-                    "confidence": "low (API Fallback)",
-                    "notes": f"Gemini vision call failed ({err}). Generated structural layout defaults.",
-                    "drawing_type": drawing_type,
-                    "tb_width": 0.30, "tb_depth": 0.60, "tb_total_length": 80.0,
-                    "ext_perimeter": 70.0, "gf_area": 250.0
-                }
+                return _vision_failure_fallback(drawing_type, err)
             merged = {**d1, **d2}
             
             # --- VECTOR MEASUREMENT OVERRIDES ---
@@ -655,6 +656,8 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             return merged
             
         data = asyncio.run(run_tie_beams())
+        if data.get("_ok") is False:
+            return data
         data = _normalize_units(data)
         
         from workflow.sanity_checks import perform_structural_sanity_checks
@@ -697,16 +700,7 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             d2 = parse_json(r2)
             if "_error" in d1 or "_error" in d2:
                 err = d1.get("_error") or d2.get("_error")
-                fallback = {
-                    "_ok": True, "_fallback": True,
-                    "confidence": "low (API Fallback)",
-                    "notes": f"Gemini vision call failed ({err}). Generated structural layout defaults.",
-                    "drawing_type": drawing_type,
-                    "slab_area": 250.0, "slab_thickness": 0.20, "beams": []
-                }
-                if drawing_type == "roof_slab":
-                    fallback["roof_perimeter"] = 70.0
-                return fallback
+                return _vision_failure_fallback(drawing_type, err)
             merged = {**d1, **d2}
             
             # --- VECTOR MEASUREMENT OVERRIDES ---
@@ -731,6 +725,8 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             return merged
             
         data = asyncio.run(run_slabs())
+        if data.get("_ok") is False:
+            return data
         data = _normalize_units(data)
         
         from workflow.sanity_checks import perform_structural_sanity_checks
@@ -806,14 +802,7 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             if any("_error" in d for d in [arch_data, wall_data, open_data]):
                 errs = [d.get("_error") for d in [arch_data, wall_data, open_data] if "_error" in d]
                 err = errs[0] if errs else "Unknown Error"
-                return {
-                    "_ok": True, "_fallback": True,
-                    "confidence": "low (API Fallback)",
-                    "notes": f"Gemini vision call failed ({err}). Generated structural layout defaults.",
-                    "drawing_type": drawing_type,
-                    "total_floor_area": 250.0, "ext_perimeter": 70.0,
-                    "int_walls_10cm_m": 0.0, "int_walls_20cm_m": 50.0
-                }
+                return _vision_failure_fallback(drawing_type, err)
             
             # Merge them together into the schema expected by _finishes_from_rooms
             merged = {}
@@ -836,6 +825,8 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
             return merged
             
         data = asyncio.run(run_dedicated_extractors())
+        if data.get("_ok") is False:
+            return data
         
         # --- VECTOR MEASUREMENT OVERRIDES ---
         if pdf_path and internal_page_idx is not None:
@@ -1069,41 +1060,11 @@ Return ONLY this JSON structure (null for not found):
             sleep_time = min(10, 2 * (attempt + 1))
             time.sleep(sleep_time)
 
-    # API Fallback Mechanism: Return standard fallback object instead of failing completely
-    fallback_data = {
-        "_ok": True,
-        "_fallback": True,
-        "confidence": "low (API Fallback)",
-        "notes": f"Gemini vision call failed after {max_attempts} attempts ({last_err}). Generated structural layout defaults.",
-        "drawing_type": drawing_type
-    }
-    if drawing_type in COLUMN_TYPES or drawing_type in PERFLOOR_COLUMN_TYPES:
-        fallback_data["columns"] = []
-    elif drawing_type in FOUNDATION_TYPES:
-        fallback_data["longest_length"] = 20.0
-        fallback_data["longest_width"] = 15.0
-        fallback_data["footings"] = []
-    elif drawing_type in TIE_BEAM_TYPES:
-        fallback_data["tb_width"] = 0.30
-        fallback_data["tb_depth"] = 0.60
-        fallback_data["tb_total_length"] = 80.0
-        fallback_data["ext_perimeter"] = 70.0
-        fallback_data["gf_area"] = 250.0
-    elif drawing_type in ELEVATION_TYPES:
-        fallback_data["gf_height_m"] = 4.0
-        fallback_data["f1_height_m"] = 4.0
-        fallback_data["total_villa_height_m"] = 9.5
-        fallback_data["parapet_height_m"] = 1.2
-    elif drawing_type in SLAB_TYPES or drawing_type == "roof_slab":
-        fallback_data["slab_area"] = 250.0
-        fallback_data["slab_thickness"] = 0.20
-        fallback_data["beams"] = []
-        if drawing_type == "roof_slab":
-            fallback_data["roof_perimeter"] = 70.0
-    else:
-        fallback_data["longest_length"] = 20.0
-        fallback_data["longest_width"] = 15.0
-        
+    # Explicit API failure marker (never inject fabricated villa dimensions)
+    fallback_data = _vision_failure_fallback(
+        drawing_type,
+        f"Vision call failed after {max_attempts} attempts ({last_err})",
+    )
     return fallback_data
 
 def merge_schedule_json_to_results(results: dict):

@@ -65,7 +65,9 @@ def test_tie_beam_bitumen():
 
 
 def test_slab_on_grade():
-    assert _approx(calculate_item("slab_on_grade", {"gf_area": 350.0}), 35.0)  # 350 × 0.10
+    # Spec: gf_area * 1.1 * sog_thickness (1.1 layout waste/allowance factor, default 0.10m)
+    assert _approx(calculate_item("slab_on_grade", {"gf_area": 350.0}), 38.5)
+    assert _approx(calculate_item("slab_on_grade", {"gf_area": 350.0, "sog_thickness": 0.15}), 57.75)
 
 
 def test_solid_block_work():
@@ -90,7 +92,9 @@ def test_parapet_concrete():
 
 
 def test_slab_concrete_floor():
-    assert _approx(calculate_item("slab_concrete_1st", {"slab_area": 300.0, "slab_thickness": 0.20}), 60.0)
+    # Engine enforces minimum 0.25m structural slab thickness: 300 * max(0.20, 0.25) = 75.0
+    assert _approx(calculate_item("slab_concrete_1st", {"slab_area": 300.0, "slab_thickness": 0.20}), 75.0)
+    assert _approx(calculate_item("slab_concrete_1st", {"slab_area": 300.0, "slab_thickness": 0.30}), 90.0)
 
 
 def test_beam_concrete_floor():
@@ -107,7 +111,10 @@ def test_columns_floor():
 
 
 def test_staircase():
-    assert _approx(calculate_item("staircase_1st", {"structural_levels": 2}), 10.4)
+    # Staircase connects upper levels: (structural_levels - 1) * staircase_volume_per_level (default 5.2)
+    assert _approx(calculate_item("staircase_1st", {"structural_levels": 1}), 0.0)
+    assert _approx(calculate_item("staircase_1st", {"structural_levels": 2}), 5.2)
+    assert _approx(calculate_item("staircase_1st", {"structural_levels": 3}), 10.4)
 
 
 # ── Finishes (per-floor pattern) ───────────────────────────────────

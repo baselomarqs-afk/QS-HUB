@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import bcrypt
 
@@ -25,7 +25,7 @@ def password_ok(password: str, hashed: str) -> bool:
 
 def issue_reset_token(email: str) -> str | None:
     token = secrets.token_urlsafe(32)
-    expires = datetime.utcnow() + timedelta(hours=1)
+    expires = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=1)
     success, _ = safe_execute(
         """
         UPDATE qto_users
@@ -54,7 +54,8 @@ def reset_password(token: str, new_password: str) -> bool:
     ok, _ = safe_execute(
         """
         UPDATE qto_users
-        SET password_hash=%s, reset_token_hash=NULL, reset_token_expires_at=NULL
+        SET password_hash=%s, reset_token_hash=NULL, reset_token_expires_at=NULL,
+            token_version=COALESCE(token_version, 0) + 1
         WHERE id=%s
         """,
         (password_hash(new_password), user_id),

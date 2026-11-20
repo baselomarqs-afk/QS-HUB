@@ -1,5 +1,8 @@
-import urllib.request, json, time, sys
-headers = {'Authorization': 'Bearer rnd_0xIMlSdVK3MeyuGAxuc6X8csimml', 'Accept': 'application/json'}
+import urllib.request, json, os, time, sys
+render_key = os.environ.get("RENDER_API_KEY")
+if not render_key:
+    raise SystemExit("Set RENDER_API_KEY env var before running poll_deploy.py")
+headers = {'Authorization': f'Bearer {render_key}', 'Accept': 'application/json'}
 req = urllib.request.Request('https://api.render.com/v1/services/srv-d8ac3sa8qa3s73enggp0/deploys?limit=1', headers=headers)
 while True:
     try:

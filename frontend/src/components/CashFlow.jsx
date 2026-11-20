@@ -1,6 +1,6 @@
 // نافذة التدفق النقدي — Cash Flow window (bilingual). Parametric S-Curve linked to the 
 // Work Programme's CPM schedule. Enforces UAE advance, retention, VAT and payment delays.
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { Loader2, Download, Save, Rocket } from 'lucide-react';
 import FeatureGate from './FeatureGate';
 import ModuleHistory from './ModuleHistory';
@@ -13,18 +13,25 @@ import { runScheduler } from '../engine/scheduler';
 import { computeCashFlow, fmtAed } from '../engine/cashflow';
 import FeedbackModal from './common/FeedbackModal';
 
+const GEOM_KEYS = new Set([
+  'villaType', 'buaPerFloor', 'complexityFactor', 'hasPool',
+  'hasDemolition', 'startISO', 'handoverISO',
+]);
+
 function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName, onStartProject, initialLoadData, onClearInitialLoadData }) {
   const t = (en, ar) => (isArabic ? ar : en);
-  const [cfg, setCfg] = useState({ ...DEFAULT_CONFIG });
-  const [processed, setProcessed] = useState(false);
+  const [cfg, setCfg] = useState(() => {
+    if (initialLoadData?.config) return { ...DEFAULT_CONFIG, ...initialLoadData.config };
+    if (initialProjectName) return { ...DEFAULT_CONFIG, projectName: initialProjectName };
+    return { ...DEFAULT_CONFIG };
+  });
+  const [processed, setProcessed] = useState(() => Boolean(initialLoadData));
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
-  const [savedId, setSavedId] = useState(null); // reused so re-saves don't consume another credit
-  const justLoaded = useRef(false);
+  const [savedId, setSavedId] = useState(() => initialLoadData?.id ?? null); // reused so re-saves don't consume another credit
+  const justLoaded = useRef(Boolean(initialLoadData));
   const [isSimulating, setIsSimulating] = useState(false);
   const [loadingPct, setLoadingPct] = useState(0);
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [autoSavePending, setAutoSavePending] = useState(false);
 
   const process = () => {
     if (canProcess) {
@@ -50,7 +57,15 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
     }
   };
 
-  const patch = (p) => setCfg((c) => ({ ...c, ...p }));
+  const patch = (p) => {
+    setCfg((c) => ({ ...c, ...p }));
+    if (Object.keys(p).some((k) => GEOM_KEYS.has(k))) {
+      setProcessed(false);
+      setSavedMsg('');
+      if (justLoaded.current) justLoaded.current = false;
+      else setSavedId(null);
+    }
+  };
 
   const missing = [];
   if (!cfg.projectName.trim()) missing.push(t('Project Name', 'اسم المشروع'));
@@ -59,41 +74,28 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
   if (!(cfg.contractValueAed > 0)) missing.push(t('Contract Value', 'قيمة العقد'));
   const canProcess = missing.length === 0;
 
-  // Geometry changes alter the schedule → require re-processing.
-  const geomSig = `${cfg.villaType}|${cfg.buaPerFloor}|${cfg.complexityFactor}|${cfg.hasPool}|${cfg.hasDemolition}|${cfg.startISO}|${cfg.handoverISO}`;
   useEffect(() => {
-    setProcessed(false);
-    setSavedMsg('');
-    if (justLoaded.current) justLoaded.current = false;
-    else setSavedId(null);
-  }, [geomSig]);
-
-  useEffect(() => {
-    if (initialProjectName) {
-      patch({ projectName: initialProjectName });
+    if (initialProjectName && onClearInitialName) {
       onClearInitialName();
     }
-  }, [initialProjectName]);
+  }, [initialProjectName, onClearInitialName]);
 
-  const [isHistoryView, setIsHistoryView] = useState(false);
+  const [isHistoryView] = useState(() => Boolean(initialLoadData));
 
   useEffect(() => {
-    if (initialLoadData) {
-      setCfg({ ...DEFAULT_CONFIG, ...initialLoadData.config });
-      setSavedId(initialLoadData.id);
-      justLoaded.current = true;
-      setIsHistoryView(true);
-      setProcessed(true); // show output directly
-      if (onClearInitialLoadData) onClearInitialLoadData();
+    if (initialLoadData && onClearInitialLoadData) {
+      onClearInitialLoadData();
     }
-  }, [initialLoadData]);
+  }, [initialLoadData, onClearInitialLoadData]);
 
   const result = useMemo(() => {
-    if (!canProcess) return null;
+    if (!cfg.projectName.trim() || !cfg.villaType || !(cfg.buaPerFloor > 0) || !(cfg.contractValueAed > 0)) {
+      return null;
+    }
     const acts = buildActivityList(cfg);
     const out = runScheduler(cfg, acts);
     return computeCashFlow(cfg, out.monthly);
-  }, [cfg, canProcess]);
+  }, [cfg]);
 
 
   const show = processed && canProcess && result;
@@ -159,7 +161,7 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
           setSavedId(id);
           if (onStartProject) onStartProject();
         }} 
-        onExport={async ({ id, config }) => {
+        onExport={async ({ config }) => {
           const acts = buildActivityList(config);
           const scheduleOut = runScheduler(config, acts);
           const resObj = computeCashFlow(config, scheduleOut.monthly);
@@ -348,7 +350,7 @@ function CashFlowTool({ token, isArabic, initialProjectName, onClearInitialName,
   );
 }
 
-export default function CashFlow({ token, isArabic, initialProjectName, onClearInitialName, onStartProject }) {
+export default function CashFlow({ token, isArabic, initialProjectName, onClearInitialName, onStartProject, initialLoadData, onClearInitialLoadData }) {
   return (
     <FeatureGate feature="cashflow" token={token} isArabic={isArabic}
       title={isArabic ? 'التدفق النقدي' : 'Cash Flow'}>
@@ -358,6 +360,8 @@ export default function CashFlow({ token, isArabic, initialProjectName, onClearI
         initialProjectName={initialProjectName} 
         onClearInitialName={onClearInitialName} 
         onStartProject={onStartProject}
+        initialLoadData={initialLoadData}
+        onClearInitialLoadData={onClearInitialLoadData}
       />
     </FeatureGate>
   );

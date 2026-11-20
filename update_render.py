@@ -1,4 +1,5 @@
 import json
+import os
 import urllib.request
 
 with open(".env", "r", encoding="utf-8") as f:
@@ -20,8 +21,11 @@ for line in lines:
         
     env_vars.append({"key": key, "value": val})
 
+render_key = os.environ.get("RENDER_API_KEY")
+if not render_key:
+    raise SystemExit("Set RENDER_API_KEY env var before running update_render.py")
 headers = {
-    'Authorization': 'Bearer rnd_0xIMlSdVK3MeyuGAxuc6X8csimml',
+    'Authorization': f'Bearer {render_key}',
     'Accept': 'application/json',
     'Content-Type': 'application/json'
 }

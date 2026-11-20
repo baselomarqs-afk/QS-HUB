@@ -4,7 +4,7 @@ import shutil
 import asyncio
 
 CACHE_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "_qto_cache")
-MAX_AGE_SECONDS = 48 * 60 * 60  # 48 hours
+MAX_AGE_SECONDS = 12 * 60 * 60  # 12 hours
 
 async def cache_cleanup_task():
     """
@@ -31,10 +31,10 @@ async def cache_cleanup_task():
         except Exception as ex:
             print(f"[Garbage Collection] Critical error in cleanup task: {ex}")
         
-        # Sleep for 6 hours before checking again
-        await asyncio.sleep(6 * 60 * 60)
+        # Sleep for 2 hours before checking again
+        await asyncio.sleep(2 * 60 * 60)
 
-async def background_cleanup_project(project_cache_path: str, delay_seconds: int = 3600):
+async def background_cleanup_project(project_cache_path: str, delay_seconds: int = 21600):
     """
     Schedules a single project cache folder for deletion after a delay.
     Called after a project extraction completes to free disk space.

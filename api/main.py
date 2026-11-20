@@ -157,7 +157,9 @@ async def global_exception_handler(request: Request, exc: Exception):
         return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
     err_str = traceback.format_exc()
     _logging.getLogger("qto").error("GLOBAL EXCEPTION: %s", err_str)
-    return JSONResponse(status_code=500, content={"detail": str(exc), "traceback": err_str})
+    if os.environ.get("QTO_DEBUG") == "1":
+        return JSONResponse(status_code=500, content={"detail": str(exc), "traceback": err_str})
+    return JSONResponse(status_code=500, content={"detail": "Internal server error."})
 
 @app.get("/test-health")
 def test_health():
@@ -165,26 +167,73 @@ def test_health():
 
 
 
-# Enable CORS for the React frontend.
-# Supports qshub.online, huggingface.co, render.com, localhost and all subdomains seamlessly.
-_cors_env = os.environ.get("CORS_ALLOW_ORIGINS", "*")
-ALLOWED_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip()]
-if "*" in ALLOWED_ORIGINS or not ALLOWED_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origin_regex=r".*",
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-else:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=ALLOWED_ORIGINS,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# Enable CORS for the React frontend (explicit allowlist; never wildcard regex with credentials).
+_DEFAULT_ALLOWED_ORIGINS = [
+    "https://qshub.online",
+    "https://www.qshub.online",
+    "https://villa-qto.onrender.com",
+    "https://basel0-qshub.hf.space",
+    "http://localhost:5173",
+    "http://localhost:8000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:8000",
+]
+_cors_env = os.environ.get("CORS_ALLOW_ORIGINS", "")
+ALLOWED_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip() and o.strip() != "*"]
+if not ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS = _DEFAULT_ALLOWED_ORIGINS
+
+# ── Lightweight in-process rate limiting (per client IP, /api/* only) ──
+# Registered BEFORE CORSMiddleware so Starlette runs CORSMiddleware outermost,
+# ensuring preflight OPTIONS bypasses throttling and 429 responses keep CORS headers.
+import time as _time
+from collections import defaultdict, deque
+
+_RATE_LIMIT = int(os.environ.get("RATE_LIMIT_PER_MIN", "120"))
+_RATE_WINDOW = 60.0
+_rate_hits = defaultdict(deque)
+
+
+def _rate_client_ip(request: Request) -> str:
+    fwd = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for") or request.headers.get("x-real-ip")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    path = request.url.path
+    if request.method == "OPTIONS" or path in ("/api/health", "/test-health") or not path.startswith("/api/"):
+        return await call_next(request)
+
+    ip = _rate_client_ip(request)
+    now = _time.time()
+    cutoff = now - _RATE_WINDOW
+    dq = _rate_hits[ip]
+    while dq and dq[0] < cutoff:
+        dq.popleft()
+    if len(dq) >= _RATE_LIMIT:
+        return JSONResponse(status_code=429, content={"detail": "Too many requests. Please slow down."})
+    dq.append(now)
+
+    # Bound in-memory tracking map under high cardinality traffic
+    if len(_rate_hits) > 5000:
+        stale_ips = [k for k, q in list(_rate_hits.items()) if not q or q[-1] < cutoff]
+        for k in stale_ips:
+            _rate_hits.pop(k, None)
+
+    return await call_next(request)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"^https://([a-z0-9-]+\.)?(qshub\.online|hf\.space)$|^http://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # ------------------------------------------------------------------
@@ -350,9 +399,9 @@ def test_html():
     return "<html><body>Hello HF Space!</body></html>"
 
 @app.get("/api/logs")
-async def get_logs():
+async def get_logs(admin: dict = Depends(verify_admin)):
     try:
-        with open("app.log", "r") as f:
+        with open("app.log", "r", encoding="utf-8", errors="ignore") as f:
             return {"logs": f.readlines()[-50:]}
     except Exception as e:
         return {"error": str(e)}
@@ -379,19 +428,24 @@ if os.path.isdir(_frontend_dist):
             return FileResponse(index_path)
         return {"detail": "Not Found"}
 
+    _dist_real = os.path.realpath(_frontend_dist)
+
     @app.get("/assets/{file_path:path}")
     async def serve_assets(file_path: str):
-        full_path = os.path.join(_frontend_dist, "assets", file_path)
+        assets_root = os.path.realpath(os.path.join(_dist_real, "assets"))
+        full_path = os.path.realpath(os.path.join(assets_root, file_path))
+        if not full_path.startswith(assets_root + os.sep):
+            raise _HTTPException(status_code=400, detail="Invalid asset path.")
         if os.path.isfile(full_path):
             return FileResponse(full_path)
         return {"detail": "Not Found"}
 
     @app.get("/{file_name}")
     async def serve_root_files(file_name: str):
-        full_path = os.path.join(_frontend_dist, file_name)
-        if os.path.isfile(full_path):
+        full_path = os.path.realpath(os.path.join(_dist_real, file_name))
+        if full_path.startswith(_dist_real + os.sep) and os.path.isfile(full_path):
             return FileResponse(full_path)
-        index_path = os.path.join(_frontend_dist, "index.html")
+        index_path = os.path.join(_dist_real, "index.html")
         if os.path.exists(index_path):
             return FileResponse(index_path)
         return {"detail": "Not Found"}

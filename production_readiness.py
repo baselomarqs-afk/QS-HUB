@@ -27,10 +27,13 @@ SECRET_PATTERNS = [
     re.compile(r"AIzaSy[A-Za-z0-9_-]{20,}"),
     re.compile(r"sk_live_[A-Za-z0-9_]+"),
     re.compile(r"pdl_live_[A-Za-z0-9_]+"),
+    re.compile(r"rnd_[A-Za-z0-9]{20,}"),
+    re.compile(r"hf_[A-Za-z0-9]{20,}"),
+    re.compile(r"whsec_[A-Za-z0-9]{16,}"),
     re.compile(r"SQUBg|Nodnod|gateway01"),
 ]
 
-SKIP_DIRS = {".git", "scratch", "_dev_scripts", "__pycache__", ".pytest_cache", ".qto_cache", ".gemini_cache", "tmp"}
+SKIP_DIRS = {".git", "scratch", "_dev_scripts", "__pycache__", ".pytest_cache", ".qto_cache", ".gemini_cache", "tmp", "test_env", "venv", ".venv", "node_modules"}
 SKIP_FILES = {"production_readiness.py", "ci.yml"}
 
 

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, Loader, HelpCircle, RefreshCw } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Send, Bot, User, Loader } from 'lucide-react';
 
 export default function QsAssistant({ token, isArabic }) {
   const [messages, setMessages] = useState([]);
@@ -7,47 +7,49 @@ export default function QsAssistant({ token, isArabic }) {
   const [loading, setLoading] = useState(false);
   const chatEndRef = useRef(null);
 
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   useEffect(() => {
-    fetchHistory();
-  }, []);
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/agents/history?role=qs', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!active) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (!active) return;
+          if (data.length > 0) {
+            const formatted = data.map(m => ({
+              role: m.sender === 'user' ? 'user' : 'assistant',
+              content: m.message
+            }));
+            setMessages(formatted);
+          } else {
+            // Welcome message
+            setMessages([
+              {
+                role: 'assistant',
+                content: isArabic
+                  ? 'مرحباً بك! أنا مساعد حصر الكميات الذكي (QS Assistant).\nيمكنك سؤالي عن معادلات الحصر وصيغ الكميات، أو طلب تحديث أسعار مواد البناء بالامارات.'
+                  : 'Welcome! I am your AI QS Assistant.\nYou can ask me about takeoff formulas or request UAE market price updates.'
+              }
+            ]);
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+    return () => { active = false; };
+  }, [token, isArabic]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  const fetchHistory = async () => {
-    try {
-      const res = await fetch('/api/agents/history?role=qs', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.length > 0) {
-          const formatted = data.map(m => ({
-            role: m.sender === 'user' ? 'user' : 'assistant',
-            content: m.message
-          }));
-          setMessages(formatted);
-        } else {
-          // Welcome message
-          setMessages([
-            {
-              role: 'assistant',
-              content: isArabic
-                ? 'مرحباً بك! أنا مساعد حصر الكميات الذكي (QS Assistant).\nيمكنك سؤالي عن معادلات الحصر وصيغ الكميات، أو طلب تحديث أسعار مواد البناء بالامارات.'
-                : 'Welcome! I am your AI QS Assistant.\nYou can ask me about takeoff formulas or request UAE market price updates.'
-            }
-          ]);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   const handleSend = async (textToSend) => {
     const prompt = textToSend || input;
@@ -72,7 +74,7 @@ export default function QsAssistant({ token, isArabic }) {
       } else {
         setMessages(prev => [...prev, { role: 'assistant', content: isArabic ? 'عذراً، واجهت مشكلة في معالجة طلبك.' : 'Error generating response.' }]);
       }
-    } catch (err) {
+    } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: isArabic ? 'فشل الاتصال بالخادم.' : 'Connection failed.' }]);
     } finally {
       setLoading(false);

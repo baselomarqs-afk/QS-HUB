@@ -1,4 +1,3 @@
-import React from 'react';
 import { Upload, Info } from 'lucide-react';
 
 export default function UploadStep({

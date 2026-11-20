@@ -1,39 +1,36 @@
 // سجل المشاريع — Saved-project history for a module tool (programme / cashflow).
 // Lists the user's saved projects and loads one back into the tool on click.
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { History, Trash2, Loader2, Download } from 'lucide-react';
 
-export default function ModuleHistory({ feature, token, isArabic, onLoad, refreshKey, onExport }) {
+export default function ModuleHistory({ feature, token, isArabic, refreshKey, onExport }) {
   const t = (en, ar) => (isArabic ? ar : en);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [localRefresh, setLocalRefresh] = useState(0);
 
-  const fetchList = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/modules/${feature}`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setItems(await res.json());
-    } catch { /* ignore */ } finally { setLoading(false); }
-  };
-
-  useEffect(() => { fetchList(); /* eslint-disable-next-line */ }, [feature, token, refreshKey]);
-
-  const load = async (id) => {
-    try {
-      const res = await fetch(`/api/modules/${feature}/item/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) {
-        const data = await res.json();
-        onLoad({ id: data.id, config: data.config });
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      await Promise.resolve();
+      if (!active) return;
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/modules/${feature}`, { headers: { Authorization: `Bearer ${token}` } });
+        if (active && res.ok) setItems(await res.json());
+      } catch { /* ignore */ } finally {
+        if (active) setLoading(false);
       }
-    } catch { /* ignore */ }
-  };
+    })();
+    return () => { active = false; };
+  }, [feature, token, refreshKey, localRefresh]);
 
   const remove = async (id, e) => {
     e.stopPropagation();
     try {
       await fetch(`/api/modules/${feature}/item/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-      fetchList();
+      setLocalRefresh((n) => n + 1);
     } catch { /* ignore */ }
   };
 

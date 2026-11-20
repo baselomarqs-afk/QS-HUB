@@ -1,5 +1,9 @@
 """
-يجمع كل النتائج في جدول BOQ نهائي محدد بـ 64 بنداً بالترتيب والمسميات القياسية
+[LEGACY / REFERENCE MODULE]
+يجمع كل النتائج في جدول BOQ نهائي محدد بـ 64 بنداً بالترتيب والمسميات القياسية.
+Note: The live React + FastAPI production pipeline uses
+`engine/project_boq_bridge.py` (`build_boq_dataframe_from_project`). This module
+is retained only for legacy Streamlit/reference compatibility.
 """
 import pandas as pd
 from typing import Dict, Any
