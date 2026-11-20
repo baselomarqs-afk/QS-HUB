@@ -874,22 +874,6 @@ export default function VerifyStep({
 
             <div>
               <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>
-                {isArabic ? 'درجة الخرسانة الهيكلية' : 'Structural Concrete Grade'}
-              </label>
-              <select 
-                className="form-input"
-                value={calcParams.concrete_grade || 'C30/37'}
-                onChange={(e) => setCalcParams({ ...calcParams, concrete_grade: e.target.value })}
-              >
-                <option value="C20/25">C20/25</option>
-                <option value="C30/37">C30/37</option>
-                <option value="C35/45">C35/45</option>
-                <option value="C40/50">C40/50</option>
-              </select>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 600 }}>
                 {isArabic ? 'سماكة البلوك المصمت (تحت الأرض)' : 'Substructure Solid Block'}
               </label>
               <select 

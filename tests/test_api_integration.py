@@ -88,16 +88,15 @@ def test_calculate_endpoint(client, monkeypatch):
     assert "boq_items" in data
     assert "boq_meta" in data
     
-    # Verify concrete grade and block thickness details were appended
+    # Verify structural concrete descriptions are clean (no hardcoded concrete grade label)
     boq_items = data["boq_items"]
-    # Check structural concrete description contains the custom grade
-    found_grade = False
+    found_foundation = False
     for item in boq_items:
         desc = item.get("Description (English)", "")
-        if "Foundation Concrete" in desc and "Grade C35/45" in desc:
-            found_grade = True
-            break
-    assert found_grade is True
+        assert "(Grade " not in desc
+        if "Foundation Concrete" in desc:
+            found_foundation = True
+    assert found_foundation is True
 
 
 def test_export_blocked_by_critical_validation(client, monkeypatch):
@@ -139,7 +138,7 @@ def test_export_excel_success(client, monkeypatch):
             "ext_perimeter": 54.0,
         },
         "boq_items": [
-            {"#": "D.3", "Description (English)": "Foundation Concrete (Grade C30/37)", "البيان": "خرسانة", "Unit": "m³", "Quantity": 15.0, "Unit Price": 350.0, "Total": 5250.0},
+            {"#": "D.3", "Description (English)": "Foundation Concrete", "البيان": "خرسانة", "Unit": "m³", "Quantity": 15.0, "Unit Price": 350.0, "Total": 5250.0},
             {"#": "E.2.1", "Description (English)": "Thermal Block External (GF) (200mm Thickness)", "البيان": "طابوق", "Unit": "m²", "Quantity": 120.0, "Unit Price": 42.5, "Total": 5100.0}
         ],
         "boq_meta": {"needs_input": [], "estimates": []}

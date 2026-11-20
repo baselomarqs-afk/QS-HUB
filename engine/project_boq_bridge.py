@@ -777,6 +777,11 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
             if (floors[fk]["int_walls_length"] or 0.0) > _cap:
                 floors[fk]["int_walls_length"] = round(_cap, 2)
 
+    # Keep base["roof_slab_area"] synchronized with floors["roof"]["slab_area"] so
+    # Roof Slab Concrete, Roof Formwork, and Roof Waterproofing always use the exact same roof area.
+    if "roof" in floors and safe_float(floors["roof"].get("slab_area")) > 0:
+        base["roof_slab_area"] = round(safe_float(floors["roof"]["slab_area"]), 2)
+
     meta = {"needs_input": needs_input, "estimates": estimates}
     return base, floors, meta
 
@@ -1006,16 +1011,6 @@ def build_boq_dataframe_from_project(project: dict) -> tuple[pd.DataFrame, dict]
 
             en_name = item["name_en"]
             ar_name = item["name_ar"]
-            if (
-                ("concrete" in item["key"] or "concrete" in en_name.lower())
-                and "pcc" not in item["key"]
-                and "blinding" not in item["key"]
-                and "rebar" not in item["key"]
-                and "formwork" not in item["key"]
-            ):
-                grade = project.get("concrete_grade") or "C30/37"
-                en_name += f" (Grade {grade})"
-                ar_name += f" (درجة {grade})"
             if "block" in item["key"]:
                 t = "200mm"
                 if "solid" in item["key"]:
