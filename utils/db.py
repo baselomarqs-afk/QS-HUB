@@ -409,6 +409,21 @@ def initialize_sqlite_db(conn):
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
+
+    # 18. qto_boq_revisions (BOQ Versioning: Rev 0, Rev 1, Rev 2...)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS qto_boq_revisions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        rev_no INTEGER NOT NULL DEFAULT 0,
+        label TEXT DEFAULT 'Calculation',
+        item_count INTEGER DEFAULT 0,
+        grand_total REAL DEFAULT 0,
+        boq_json TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
     
     # Seed admin user if none exists
     cur.execute("SELECT COUNT(*) FROM qto_users")

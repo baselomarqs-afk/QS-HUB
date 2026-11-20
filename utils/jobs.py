@@ -47,6 +47,22 @@ def mark_job_started(job_id: int) -> None:
     safe_execute("UPDATE qto_background_jobs SET status='running', started_at=NOW() WHERE id=%s", (job_id,))
 
 
+def update_job_progress(job_id: int, progress: int, status_text: str) -> None:
+    """Persist live progress snapshot inside `result` while status is running."""
+    payload = json.dumps({"progress": int(progress), "status_text": str(status_text)}, ensure_ascii=False)
+    safe_execute(
+        "UPDATE qto_background_jobs SET result=%s WHERE id=%s AND status IN ('queued', 'running')",
+        (payload, job_id),
+    )
+
+
+def get_job(job_id: int) -> dict | None:
+    df = safe_query("SELECT * FROM qto_background_jobs WHERE id=%s LIMIT 1", (job_id,))
+    if df.empty:
+        return None
+    return df.to_dict("records")[0]
+
+
 def mark_job_done(job_id: int, result: dict[str, Any] | None = None) -> None:
     safe_execute(
         "UPDATE qto_background_jobs SET status='done', result=%s, finished_at=NOW() WHERE id=%s",

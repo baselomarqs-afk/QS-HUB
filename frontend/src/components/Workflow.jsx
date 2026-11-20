@@ -432,16 +432,183 @@ export default function Workflow({ token, project, isArabic, onNavigate, onProje
   };
 
   const [extractionProgress, setExtractionProgress] = useState(null);
+  const [boqRevisions, setBoqRevisions] = useState([]);
 
-  // Step 3: Run AI Extraction
+  const fetchBoqRevisions = async (pid = project?.id) => {
+    if (!pid || !token) return;
+    try {
+      const res = await fetch(`${API_URL}/boq/revisions?project_id=${pid}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const list = await res.json();
+        setBoqRevisions(Array.isArray(list) ? list : []);
+      }
+    } catch {
+      // non-fatal
+    }
+  };
+
+  const handleRestoreRevision = async (revId) => {
+    if (!project?.id) return;
+    setLoading(true);
+    setLoadingText(isArabic ? 'جاري استعادة النسخة...' : 'Restoring BOQ Revision...');
+    try {
+      const res = await fetch(`${API_URL}/boq/revisions/${revId}/restore?project_id=${project.id}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed to restore revision.');
+      const pricedItems = (data.boq_items || []).map(item => {
+        if (item._is_header) return item;
+        return {
+          ...item,
+          "Unit Price": item["Unit Price"] !== undefined ? parseFloat(item["Unit Price"]) : 0.0,
+          "Total": item["Total"] !== undefined ? parseFloat(item["Total"]) : 0.0,
+        };
+      });
+      setBoqItems(pricedItems);
+      setMessage(isArabic ? `تمت استعادة النسخة بنجاح (Rev ${data.rev_no}).` : (data.message || 'Revision restored.'));
+      await fetchBoqRevisions(project.id);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const applyExtractionComplete = async (data) => {
+    setExtractionResults(data.extraction_results);
+
+    let confirmedObj;
+    if (data.confirmed_auto_data && Object.keys(data.confirmed_auto_data).length > 0) {
+      confirmedObj = {
+        ...confirmedData,
+        ...data.confirmed_auto_data,
+        floors: { ...(confirmedData.floors || {}), ...(data.confirmed_auto_data.floors || {}) },
+        walls: { ...(confirmedData.walls || {}), ...(data.confirmed_auto_data.walls || {}) },
+        schedules: { ...(confirmedData.schedules || {}), ...(data.confirmed_auto_data.schedules || {}) },
+        openings: data.confirmed_auto_data.openings || confirmedData.openings || {},
+      };
+      const totals = confirmedObj.openings?.totals || {};
+      if (totals.door_count !== undefined) confirmedObj.total_doors_count = totals.door_count;
+      if (totals.window_area !== undefined) confirmedObj.total_windows_area = totals.window_area;
+    } else {
+      confirmedObj = {
+        ...confirmedData,
+        floors: { ...(confirmedData.floors || {}) },
+        walls: { ...(confirmedData.walls || {}) },
+        schedules: { ...(confirmedData.schedules || {}) },
+        openings: { ...(confirmedData.openings || {}) }
+      };
+
+      const floorMap = {
+        "ground_floor_plan": "gf",
+        "first_floor_plan": "1f",
+        "second_floor_plan": "2f",
+        "roof_floor_plan": "roof"
+      };
+
+      confirmedObj.total_doors_count = 0;
+      confirmedObj.total_windows_area = 0;
+
+      Object.values(data.extraction_results || {}).forEach(page => {
+        if (!page._ok) return;
+        const dtype = page.drawing_type || page.detected_type;
+        if (page.longest_length) confirmedObj.longest_length = page.longest_length;
+        if (page.longest_width) confirmedObj.longest_width = page.longest_width;
+        if (page.plot_area) confirmedObj.plot_area = page.plot_area;
+        if (page.compound_length) confirmedObj.compound_length = page.compound_length;
+        if (page.total_villa_height) confirmedObj.total_villa_height = page.total_villa_height;
+
+        if (dtype === "ground_floor_plan") {
+          if (page.total_floor_area) confirmedObj.gf_area = page.total_floor_area;
+          if (page.ext_perimeter) confirmedObj.ext_perimeter = page.ext_perimeter;
+          if (page.int_walls_length) confirmedObj.int_walls_length = page.int_walls_length;
+          if (page.int_walls_10cm_m !== undefined) confirmedObj.int_walls_10cm_m = page.int_walls_10cm_m;
+          if (page.int_walls_20cm_m !== undefined) confirmedObj.int_walls_20cm_m = page.int_walls_20cm_m;
+        }
+
+        if (["ground_floor_plan", "first_floor_plan", "second_floor_plan", "roof_floor_plan"].includes(dtype)) {
+          if (page.total_doors_count !== undefined) {
+            confirmedObj.total_doors_count = (confirmedObj.total_doors_count || 0) + page.total_doors_count;
+          }
+          if (page.total_windows_area !== undefined) {
+            confirmedObj.total_windows_area = (confirmedObj.total_windows_area || 0) + page.total_windows_area;
+          }
+        }
+
+        if (dtype === "roof_floor_plan" || dtype === "roof_slab") {
+          if (page.roof_perimeter) confirmedObj.roof_perimeter = page.roof_perimeter;
+          if (page.slab_area) confirmedObj.roof_slab_area = page.slab_area;
+        }
+
+        if (floorMap[dtype]) {
+          const fk = floorMap[dtype];
+          confirmedObj.floors[fk] = {
+            area: page.total_floor_area || page.floor_area || 0.0,
+            ext_perimeter: page.ext_perimeter || 0.0,
+            wet_area: page.wet_area || 0.0,
+            wet_perimeter: page.wet_perimeter || 0.0,
+            dry_perimeter: page.dry_perimeter || 0.0,
+            balcony_area: page.balcony_area || page.balcony_terrace_area_m2 || 0.0,
+            height: page.floor_height || 4.0
+          };
+          confirmedObj.walls[fk] = {
+            internal_total_m: page.int_walls_length || 0.0,
+            internal_10cm_m: page.int_walls_10cm_m || 0.0,
+            internal_20cm_m: page.int_walls_20cm_m || 0.0
+          };
+        }
+
+        if (page.footings) confirmedObj.schedules.foundation = { footings: page.footings };
+        if (page.beams) confirmedObj.schedules[dtype] = { beams: page.beams };
+        if (page.columns) confirmedObj.schedules.column_schedule = { columns: page.columns };
+        if (page.doors || page.windows) {
+          if (page.doors) confirmedObj.openings.doors = page.doors;
+          if (page.windows) confirmedObj.openings.windows = page.windows;
+        }
+      });
+    }
+
+    setConfirmedData(confirmedObj);
+    setSanityWarnings(data.sanity_warnings || []);
+    {
+      const ftypes = confirmedObj.floor_types || {};
+      const fls = confirmedObj.floors || {};
+      const detectedLevels = fls['2f'] ? 3 : (fls['1f'] ? 2 : (confirmedObj.structural_levels || calcParams.num_floors || 2));
+      const topFk = detectedLevels >= 3 ? '2f' : '1f';
+      const topIsStair = ftypes[topFk] === 'stair_room';
+      const topFloor = fls[topFk] || {};
+      const extGfH = Number(confirmedObj.gf_height || fls.gf?.height || 0);
+      const extF1H = Number(confirmedObj.f1_height || fls['1f']?.height || 0);
+      const extF2H = Number(confirmedObj.f2_height || fls['2f']?.height || 0);
+      setCalcParams(prev => ({
+        ...prev,
+        num_floors: detectedLevels,
+        gf_height: (extGfH >= 2.5 && extGfH <= 6.5) ? extGfH : prev.gf_height,
+        f1_height: (extF1H >= 2.5 && extF1H <= 6.5) ? extF1H : prev.f1_height,
+        f2_height: (extF2H >= 2.5 && extF2H <= 6.5) ? extF2H : prev.f2_height,
+        top_floor_is_stair_room: topIsStair,
+        stair_room_area: (topIsStair && topFloor.is_stair_room) ? (topFloor.area ?? '') : prev.stair_room_area,
+        stair_room_perimeter: (topIsStair && topFloor.is_stair_room) ? (topFloor.ext_perimeter ?? '') : prev.stair_room_perimeter,
+      }));
+    }
+    setCurrentStep(4);
+    await saveActiveState(4, { extraction_results: data.extraction_results, confirmed_auto_data: confirmedObj });
+  };
+
+  // Step 3: Run AI Extraction via non-blocking background worker + polling
+  // (prevents Render HTTP timeouts and keeps the server responsive for all users).
   const handleRunExtraction = async () => {
     setLoading(true);
-    setExtractionProgress(0);
+    setExtractionProgress(2);
     setLoadingText(isArabic ? 'جاري الاستخراج بالذكاء الاصطناعي...' : 'AI Extraction in Progress...');
-    setLoadingSubtext(isArabic ? 'هذه العملية قد تستغرق دقيقة. جاري استخراج الجداول والأبعاد...' : 'This might take a minute. Extracting schedules and dimensions...');
+    setLoadingSubtext(isArabic ? 'هذه العملية تعمل في الخلفية بأمان. جاري استخراج الجداول والأبعاد...' : 'Running safely in background worker. Extracting schedules and dimensions...');
     setMessage('');
     try {
-      const res = await fetch(`${API_URL}/extract`, {
+      const startRes = await fetch(`${API_URL}/extract/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -449,192 +616,68 @@ export default function Workflow({ token, project, isArabic, onNavigate, onProje
         },
         body: JSON.stringify({ project_id: project.id })
       });
-      
-      if (!res.ok) {
-        let errorMsg = 'AI extraction failed.';
+
+      const startText = await startRes.text();
+      let startJson = {};
+      try { startJson = startText ? JSON.parse(startText) : {}; } catch { /* ignore */ }
+      if (!startRes.ok) {
+        throw new Error(startJson.detail || `Server Error (HTTP ${startRes.status})`);
+      }
+
+      const jobId = startJson.job_id;
+      if (!jobId) {
+        throw new Error(isArabic ? 'تعذّر بدء مهمة الاستخراج في الخلفية.' : 'Failed to start background extraction job.');
+      }
+
+      let consecutiveErrors = 0;
+      const maxWaitMs = 15 * 60 * 1000; // 15 min ceiling for very large multi-PDF sets
+      const startedAt = Date.now();
+
+      while (Date.now() - startedAt < maxWaitMs) {
+        await new Promise((r) => setTimeout(r, 2000));
         try {
-          const text = await res.text();
-          if (text) {
-            const errJson = JSON.parse(text);
-            errorMsg = errJson.detail || errorMsg;
-          }
-        } catch {
-          errorMsg = res.status === 504 ? (isArabic ? 'انتهت مهلة خادم الاستخراج (504). يرجى المحاولة مجدداً.' : 'Extraction request timed out (504). Please try again.') : `Server Error (HTTP ${res.status})`;
-        }
-        throw new Error(errorMsg);
-      }
-      
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let isStreamDone = false;
-      let buffer = '';
-
-      while (!isStreamDone) {
-        const { value, done } = await reader.read();
-        isStreamDone = done;
-        if (value) {
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop(); // keep the last incomplete chunk in buffer
-          
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.substring(6));
-                
-                if (data.progress !== undefined) {
-                  setExtractionProgress(data.progress);
-                }
-                if (data.status) {
-                  setLoadingSubtext(data.status);
-                }
-                if (data.done) {
-                  setExtractionResults(data.extraction_results);
-
-                  // Prefer the backend-healed confirmed_auto_data (includes geometric fallbacks,
-                  // CV heuristics, and all reconstruct_project_inputs healing). Fall back to
-                  // parsing raw extraction_results only if the backend didn't return healed data.
-                  let confirmedObj;
-                  if (data.confirmed_auto_data && Object.keys(data.confirmed_auto_data).length > 0) {
-                    confirmedObj = {
-                      ...confirmedData,
-                      ...data.confirmed_auto_data,
-                      floors: { ...(confirmedData.floors || {}), ...(data.confirmed_auto_data.floors || {}) },
-                      walls: { ...(confirmedData.walls || {}), ...(data.confirmed_auto_data.walls || {}) },
-                      schedules: { ...(confirmedData.schedules || {}), ...(data.confirmed_auto_data.schedules || {}) },
-                      openings: data.confirmed_auto_data.openings || confirmedData.openings || {},
-                    };
-                    // Map openings totals to flat fields expected by VerifyStep
-                    const totals = confirmedObj.openings?.totals || {};
-                    if (totals.door_count !== undefined) confirmedObj.total_doors_count = totals.door_count;
-                    if (totals.window_area !== undefined) confirmedObj.total_windows_area = totals.window_area;
-                  } else {
-                    // Fallback: parse raw extraction results manually
-                    confirmedObj = {
-                      ...confirmedData,
-                      floors: { ...(confirmedData.floors || {}) },
-                      walls: { ...(confirmedData.walls || {}) },
-                      schedules: { ...(confirmedData.schedules || {}) },
-                      openings: { ...(confirmedData.openings || {}) }
-                    };
-
-                    const floorMap = {
-                      "ground_floor_plan": "gf",
-                      "first_floor_plan": "1f",
-                      "second_floor_plan": "2f",
-                      "roof_floor_plan": "roof"
-                    };
-
-                    confirmedObj.total_doors_count = 0;
-                    confirmedObj.total_windows_area = 0;
-
-                    Object.values(data.extraction_results).forEach(page => {
-                      if (!page._ok) return;
-
-                      const dtype = page.drawing_type || page.detected_type;
-
-                      if (page.longest_length) confirmedObj.longest_length = page.longest_length;
-                      if (page.longest_width) confirmedObj.longest_width = page.longest_width;
-                      if (page.plot_area) confirmedObj.plot_area = page.plot_area;
-                      if (page.compound_length) confirmedObj.compound_length = page.compound_length;
-                      if (page.total_villa_height) confirmedObj.total_villa_height = page.total_villa_height;
-
-                      if (dtype === "ground_floor_plan") {
-                        if (page.total_floor_area) confirmedObj.gf_area = page.total_floor_area;
-                        if (page.ext_perimeter) confirmedObj.ext_perimeter = page.ext_perimeter;
-                        if (page.int_walls_length) confirmedObj.int_walls_length = page.int_walls_length;
-                        if (page.int_walls_10cm_m !== undefined) confirmedObj.int_walls_10cm_m = page.int_walls_10cm_m;
-                        if (page.int_walls_20cm_m !== undefined) confirmedObj.int_walls_20cm_m = page.int_walls_20cm_m;
-                      }
-
-                      if (["ground_floor_plan", "first_floor_plan", "second_floor_plan", "roof_floor_plan"].includes(dtype)) {
-                        if (page.total_doors_count !== undefined) {
-                          confirmedObj.total_doors_count = (confirmedObj.total_doors_count || 0) + page.total_doors_count;
-                        }
-                        if (page.total_windows_area !== undefined) {
-                          confirmedObj.total_windows_area = (confirmedObj.total_windows_area || 0) + page.total_windows_area;
-                        }
-                      }
-
-                      if (dtype === "roof_floor_plan" || dtype === "roof_slab") {
-                        if (page.roof_perimeter) confirmedObj.roof_perimeter = page.roof_perimeter;
-                        if (page.slab_area) confirmedObj.roof_slab_area = page.slab_area;
-                      }
-
-                      if (floorMap[dtype]) {
-                        const fk = floorMap[dtype];
-                        confirmedObj.floors[fk] = {
-                          area: page.total_floor_area || page.floor_area || 0.0,
-                          ext_perimeter: page.ext_perimeter || 0.0,
-                          wet_area: page.wet_area || 0.0,
-                          wet_perimeter: page.wet_perimeter || 0.0,
-                          dry_perimeter: page.dry_perimeter || 0.0,
-                          balcony_area: page.balcony_area || page.balcony_terrace_area_m2 || 0.0,
-                          height: page.floor_height || 4.0
-                        };
-
-                        confirmedObj.walls[fk] = {
-                          internal_total_m: page.int_walls_length || 0.0,
-                          internal_10cm_m: page.int_walls_10cm_m || 0.0,
-                          internal_20cm_m: page.int_walls_20cm_m || 0.0
-                        };
-                      }
-
-                      if (page.footings) {
-                        confirmedObj.schedules.foundation = { footings: page.footings };
-                      }
-                      if (page.beams) {
-                        confirmedObj.schedules[dtype] = { beams: page.beams };
-                      }
-                      if (page.columns) {
-                        confirmedObj.schedules.column_schedule = { columns: page.columns };
-                      }
-                      if (page.doors || page.windows) {
-                        if (page.doors) confirmedObj.openings.doors = page.doors;
-                        if (page.windows) confirmedObj.openings.windows = page.windows;
-                      }
-                    });
-                  }
-
-                  setConfirmedData(confirmedObj);
-                  setSanityWarnings(data.sanity_warnings || []);
-                  // Pre-fill auto-detected floor heights, floor count, and roof stair-room flag
-                  {
-                    const ftypes = confirmedObj.floor_types || {};
-                    const fls = confirmedObj.floors || {};
-                    const detectedLevels = fls['2f'] ? 3 : (fls['1f'] ? 2 : (confirmedObj.structural_levels || calcParams.num_floors || 2));
-                    const topFk = detectedLevels >= 3 ? '2f' : '1f';
-                    const topIsStair = ftypes[topFk] === 'stair_room';
-                    const topFloor = fls[topFk] || {};
-                    const extGfH = Number(confirmedObj.gf_height || fls.gf?.height || 0);
-                    const extF1H = Number(confirmedObj.f1_height || fls['1f']?.height || 0);
-                    const extF2H = Number(confirmedObj.f2_height || fls['2f']?.height || 0);
-                    setCalcParams(prev => ({
-                      ...prev,
-                      num_floors: detectedLevels,
-                      gf_height: (extGfH >= 2.5 && extGfH <= 6.5) ? extGfH : prev.gf_height,
-                      f1_height: (extF1H >= 2.5 && extF1H <= 6.5) ? extF1H : prev.f1_height,
-                      f2_height: (extF2H >= 2.5 && extF2H <= 6.5) ? extF2H : prev.f2_height,
-                      top_floor_is_stair_room: topIsStair,
-                      stair_room_area: (topIsStair && topFloor.is_stair_room) ? (topFloor.area ?? '') : prev.stair_room_area,
-                      stair_room_perimeter: (topIsStair && topFloor.is_stair_room) ? (topFloor.ext_perimeter ?? '') : prev.stair_room_perimeter,
-                    }));
-                  }
-                  setCurrentStep(4);
-                  await saveActiveState(4, { extraction_results: data.extraction_results, confirmed_auto_data: confirmedObj });
-                  
-                  setLoading(false);
-                  setExtractionProgress(null);
-                  isStreamDone = true; // explicitly break
-                }
-              } catch (e) {
-                console.error("Error parsing SSE chunk:", e, line);
-              }
+          const stRes = await fetch(`${API_URL}/extract/status/${jobId}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          if (!stRes.ok) {
+            consecutiveErrors += 1;
+            if (stRes.status === 404 || consecutiveErrors >= 6) {
+              throw new Error(isArabic
+                ? 'انقطع الاتصال بمهمة الاستخراج. يرجى الضغط على إعادة الاستخراج.'
+                : 'Connection to the extraction worker was interrupted. Please click Run Extraction again.');
             }
+            continue;
+          }
+          consecutiveErrors = 0;
+          const info = await stRes.json();
+          if (info.progress !== undefined) setExtractionProgress(info.progress);
+          if (info.status_text) setLoadingSubtext(info.status_text);
+
+          if (info.status === 'done' && info.result) {
+            await applyExtractionComplete(info.result);
+            setLoading(false);
+            setExtractionProgress(null);
+            return;
+          }
+          if (info.status === 'failed') {
+            throw new Error(info.error || (isArabic ? 'فشلت مهمة الاستخراج.' : 'Extraction job failed.'));
+          }
+        } catch (pollErr) {
+          if (pollErr.message && (pollErr.message.includes('interrupted') || pollErr.message.includes('انقطع') || pollErr.message.includes('failed') || pollErr.message.includes('فشلت'))) {
+            throw pollErr;
+          }
+          consecutiveErrors += 1;
+          if (consecutiveErrors >= 6) {
+            throw new Error(
+              isArabic
+                ? 'فُقد الاتصال بالسيرفر أثناء الاستخراج. يرجى المحاولة مجدداً.'
+                : 'Lost connection to server during extraction. Please try again.',
+              { cause: pollErr }
+            );
           }
         }
       }
+      throw new Error(isArabic ? 'استغرق الاستخراج وقتاً طويلاً جداً. يرجى المحاولة مرة أخرى.' : 'Extraction took too long. Please try again.');
     } catch (err) {
       setMessage(`Error: ${err.message}`);
       setLoading(false);
@@ -716,6 +759,7 @@ export default function Workflow({ token, project, isArabic, onNavigate, onProje
       setBoqMeta(data.boq_meta);
       setCurrentStep(6);
       await saveActiveState(6, { boq_items: pricedItems, boq_meta: data.boq_meta });
+      await fetchBoqRevisions(project.id);
     } catch (err) {
       alert(err.message);
     } finally {
@@ -952,6 +996,8 @@ export default function Workflow({ token, project, isArabic, onNavigate, onProje
             currentStep={effectiveStep}
             boqMeta={boqMeta}
             boqItems={boqItems}
+            boqRevisions={boqRevisions}
+            onRestoreRevision={handleRestoreRevision}
             handlePriceChange={handlePriceChange}
             handleQtyChange={handleQtyChange}
             handleSaveReview={handleSaveReview}

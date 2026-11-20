@@ -15,6 +15,97 @@ from api.routers.data_review import reconstruct_project_inputs
 
 router = APIRouter()
 
+
+def _ensure_boq_revisions_table() -> None:
+    """Ensure qto_boq_revisions exists on both SQLite and MySQL."""
+    try:
+        from utils.db import is_sqlite
+        if is_sqlite():
+            safe_execute(
+                """
+                CREATE TABLE IF NOT EXISTS qto_boq_revisions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    project_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    rev_no INTEGER NOT NULL DEFAULT 0,
+                    label TEXT DEFAULT 'Calculation',
+                    item_count INTEGER DEFAULT 0,
+                    grand_total REAL DEFAULT 0,
+                    boq_json TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+        else:
+            safe_execute(
+                """
+                CREATE TABLE IF NOT EXISTS qto_boq_revisions (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    project_id INT NOT NULL,
+                    user_id INT NOT NULL,
+                    rev_no INT NOT NULL DEFAULT 0,
+                    label VARCHAR(160) DEFAULT 'Calculation',
+                    item_count INT DEFAULT 0,
+                    grand_total DOUBLE DEFAULT 0,
+                    boq_json LONGTEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+    except Exception:
+        pass
+
+
+def _compute_boq_stats(boq_items: List[Dict[str, Any]]) -> tuple[int, float]:
+    count = 0
+    grand = 0.0
+    for it in boq_items or []:
+        if not isinstance(it, dict) or it.get("_is_header"):
+            continue
+        count += 1
+        try:
+            tot = it.get("Total")
+            if tot is None:
+                tot = float(it.get("Quantity") or 0) * float(it.get("Unit Price") or 0)
+            grand += float(tot or 0)
+        except (TypeError, ValueError):
+            pass
+    return count, round(grand, 2)
+
+
+def _save_boq_revision(project_id: int, user_id: int, boq_items: List[Dict[str, Any]], label: str) -> int:
+    """Snapshot the current BOQ as the next revision (Rev 0, Rev 1, Rev 2...)."""
+    try:
+        _ensure_boq_revisions_table()
+        df_max = safe_query(
+            "SELECT MAX(rev_no) as max_rev FROM qto_boq_revisions WHERE project_id=%s AND user_id=%s",
+            (project_id, user_id),
+        )
+        next_rev = 0
+        if not df_max.empty and "max_rev" in df_max.columns:
+            raw_max = df_max.iloc[0]["max_rev"]
+            if raw_max is not None and str(raw_max).lower() != "nan":
+                next_rev = int(raw_max) + 1
+        item_count, grand_total = _compute_boq_stats(boq_items)
+        safe_execute(
+            """
+            INSERT INTO qto_boq_revisions (project_id, user_id, rev_no, label, item_count, grand_total, boq_json)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                project_id,
+                user_id,
+                next_rev,
+                label[:150],
+                item_count,
+                grand_total,
+                json.dumps(boq_items or [], ensure_ascii=False, default=str),
+            ),
+        )
+        return next_rev
+    except Exception:
+        return 0
+
 class RunCalculationReq(BaseModel):
     project_id: int
     num_floors: int = 2
@@ -165,11 +256,14 @@ async def calculate_boq(req: RunCalculationReq, current_user: dict = Depends(get
         "UPDATE qto_active_projects SET state_data=%s WHERE user_id=%s AND project_id=%s",
         (state_json, current_user["id"], req.project_id)
     )
+
+    rev_no = _save_boq_revision(req.project_id, current_user["id"], boq_items, "Engineering Calculation")
     
     return {
         "boq_items": boq_items,
         "boq_meta": meta,
         "project_id": pid,
+        "rev_no": rev_no,
         "next_step": 6
     }
 
@@ -194,8 +288,86 @@ async def save_review(req: SaveReviewReq, current_user: dict = Depends(get_curre
     p_name = state_data.get("project_name", "Villa Project")
     boq_payload = {"items": [item for item in req.boq_items if not item.get("_is_header")]}
     save_project(p_name, boq_payload, current_user["id"], state_data, 8, state_data.get("project_id"))
+
+    rev_no = _save_boq_revision(req.project_id, current_user["id"], req.boq_items, "Reviewed & Confirmed")
     
-    return {"message": "Review quantities saved successfully."}
+    return {"message": "Review quantities saved successfully.", "rev_no": rev_no}
+
+
+@router.get("/boq/revisions")
+async def list_boq_revisions(project_id: int, current_user: dict = Depends(get_current_user)):
+    """List saved BOQ revisions (Rev 0, Rev 1, Rev 2...) for a user's project."""
+    _ensure_boq_revisions_table()
+    df = safe_query(
+        """
+        SELECT id, rev_no, label, item_count, grand_total, created_at
+        FROM qto_boq_revisions
+        WHERE project_id=%s AND user_id=%s
+        ORDER BY rev_no DESC, id DESC
+        """,
+        (project_id, current_user["id"]),
+    )
+    if df.empty:
+        return []
+    out = []
+    for row in df.to_dict("records"):
+        out.append({
+            "id": int(row["id"]),
+            "rev_no": int(row["rev_no"]),
+            "label": str(row.get("label") or f"Rev {row['rev_no']}"),
+            "item_count": int(row.get("item_count") or 0),
+            "grand_total": round(float(row.get("grand_total") or 0.0), 2),
+            "created_at": str(row.get("created_at") or ""),
+        })
+    return out
+
+
+@router.post("/boq/revisions/{rev_id}/restore")
+async def restore_boq_revision(rev_id: int, project_id: int, current_user: dict = Depends(get_current_user)):
+    """Restore a saved BOQ revision into the active project and record it as the next Rev."""
+    _ensure_boq_revisions_table()
+    df_rev = safe_query(
+        "SELECT id, rev_no, boq_json FROM qto_boq_revisions WHERE id=%s AND project_id=%s AND user_id=%s",
+        (rev_id, project_id, current_user["id"]),
+    )
+    if df_rev.empty:
+        raise HTTPException(status_code=404, detail="BOQ revision not found.")
+
+    row = df_rev.iloc[0]
+    src_rev_no = int(row["rev_no"])
+    restored_items = json.loads(row["boq_json"] or "[]")
+
+    df_state = safe_query(
+        "SELECT state_data FROM qto_active_projects WHERE user_id=%s AND project_id=%s",
+        (current_user["id"], project_id),
+    )
+    if not df_state.empty:
+        state_data = json.loads(df_state.iloc[0]["state_data"] or "{}")
+        state_data["boq_items"] = restored_items
+        safe_execute(
+            "UPDATE qto_active_projects SET state_data=%s WHERE user_id=%s AND project_id=%s",
+            (json.dumps(state_data, ensure_ascii=False, default=str), current_user["id"], project_id),
+        )
+        try:
+            from engine.project_history import save_project
+            boq_payload = {"items": [it for it in restored_items if not it.get("_is_header")]}
+            save_project(
+                state_data.get("project_name", "Villa Project"),
+                boq_payload,
+                current_user["id"],
+                state_data,
+                int(state_data.get("current_step") or 6),
+                state_data.get("project_id"),
+            )
+        except Exception:
+            pass
+
+    new_rev = _save_boq_revision(project_id, current_user["id"], restored_items, f"Restored from Rev {src_rev_no}")
+    return {
+        "message": f"Restored Rev {src_rev_no} as Rev {new_rev}.",
+        "boq_items": restored_items,
+        "rev_no": new_rev,
+    }
 
 def validate_critical_inputs_for_export(state_data: dict):
     confirmed = state_data.get("confirmed_auto_data") or {}

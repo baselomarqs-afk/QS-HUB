@@ -120,6 +120,44 @@ def _ensure_feedback_tables():
         )
         """
     )
+    safe_execute(
+        """
+        CREATE TABLE IF NOT EXISTS qto_boq_revisions (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            project_id INT NOT NULL,
+            user_id INT NOT NULL,
+            rev_no INT NOT NULL DEFAULT 0,
+            label VARCHAR(160) DEFAULT 'Calculation',
+            item_count INT DEFAULT 0,
+            grand_total DOUBLE DEFAULT 0,
+            boq_json LONGTEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_boq_rev_proj_user (project_id, user_id)
+        )
+        """
+    )
+    safe_execute(
+        """
+        CREATE TABLE IF NOT EXISTS qto_background_jobs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NULL,
+            project_id INT NULL,
+            job_type VARCHAR(100) NOT NULL,
+            status VARCHAR(32) DEFAULT 'queued',
+            payload LONGTEXT,
+            result LONGTEXT,
+            error TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            started_at TIMESTAMP NULL,
+            finished_at TIMESTAMP NULL
+        )
+        """
+    )
+    # Backward compatibility: mark all pre-existing users (registered before email verification)
+    # as verified so no existing customer or admin is ever locked out.
+    safe_execute(
+        "UPDATE qto_users SET email_verified=1 WHERE (email_verified=0 OR email_verified IS NULL) AND (verification_token_hash IS NULL OR verification_token_hash='')"
+    )
     try:
         from utils.db import seed_mockup_reviews
         seed_mockup_reviews()
@@ -194,11 +232,53 @@ _RATE_WINDOW = 60.0
 _rate_hits = defaultdict(deque)
 
 
+import ipaddress as _ipaddress
+
+
+def _is_trusted_proxy_peer(host: str | None) -> bool:
+    """Return True if the immediate TCP peer is a loopback/private reverse proxy."""
+    if not host:
+        return False
+    if host in ("127.0.0.1", "::1", "localhost"):
+        return True
+    try:
+        ip_obj = _ipaddress.ip_address(host)
+        return ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local
+    except ValueError:
+        return False
+
+
 def _rate_client_ip(request: Request) -> str:
-    fwd = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for") or request.headers.get("x-real-ip")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    """Extract real client IP resistant to X-Forwarded-For spoofing.
+
+    An attacker can forge arbitrary values on the LEFT of X-Forwarded-For, while
+    a trusted reverse proxy (Render / Cloudflare / HF) appends the real peer IP
+    on the RIGHT. We therefore ONLY read proxy headers when running behind a
+    trusted proxy (RENDER / SPACE_ID / TRUST_PROXY_HEADERS=1 with a private peer),
+    and we pick from the RIGHT (`-hops`), never index 0.
+    """
+    peer = request.client.host if request.client else "unknown"
+    behind_proxy = (
+        os.environ.get("RENDER") in ("true", "1")
+        or bool(os.environ.get("SPACE_ID"))
+        or os.environ.get("TRUST_PROXY_HEADERS") == "1"
+    )
+    if behind_proxy and _is_trusted_proxy_peer(peer):
+        # Cloudflare / Render single-value edge headers set by the proxy itself
+        cf_ip = (request.headers.get("cf-connecting-ip") or request.headers.get("true-client-ip") or "").strip()
+        if cf_ip:
+            return cf_ip
+        xff = request.headers.get("x-forwarded-for", "")
+        if xff:
+            hops = max(1, int(os.environ.get("TRUSTED_PROXY_HOPS", "1")))
+            parts = [p.strip() for p in xff.split(",") if p.strip()]
+            if parts:
+                idx = max(0, len(parts) - hops)
+                return parts[idx]
+        real_ip = (request.headers.get("x-real-ip") or "").strip()
+        if real_ip:
+            return real_ip
+    return peer
 
 
 @app.middleware("http")
@@ -251,12 +331,7 @@ async def track_visitors_middleware(request: Request, call_next):
         skip_extensions = (".js", ".css", ".png", ".jpg", ".jpeg", ".svg", ".ico", ".woff", ".woff2", ".ttf")
 
         if not path.startswith(skip_prefixes) and not any(path.endswith(ext) for ext in skip_extensions):
-            client_ip = (
-                request.headers.get("cf-connecting-ip")
-                or request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-                or request.headers.get("x-real-ip")
-                or (request.client.host if request.client else "127.0.0.1")
-            )
+            client_ip = _rate_client_ip(request) or "127.0.0.1"
             user_agent = request.headers.get("user-agent", "")
             referer = request.headers.get("referer", "")
             try:
@@ -327,13 +402,10 @@ def serve_cache(file_path: str, request: Request):
 
     now = _time.time()
 
-    # Token from ?token= / ?Authorization= (img tags can't set headers) or header.
-    token = request.query_params.get("token") or request.query_params.get("Authorization")
-    if not token:
-        auth = request.headers.get("authorization", "")
-        token = auth
-    if token and token.startswith("Bearer "):
-        token = token.split(" ", 1)[1]
+    # SECURITY: Authenticate strictly via Authorization Bearer header (never URL query params).
+    # Frontend drawing previews fetch /cache/* with Bearer header and render via Blob URLs.
+    auth = request.headers.get("authorization", "")
+    token = auth.split(" ", 1)[1].strip() if auth.startswith("Bearer ") else ""
     if not token:
         raise _HTTPException(status_code=401, detail="Authentication required.")
 

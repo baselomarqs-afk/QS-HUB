@@ -409,17 +409,40 @@ def _calc_doors(i):
     return float(sum(int(d.get("count") or 0) for d in _lst(i, "doors_schedule")))
 
 
+def _opening_dim_m(val) -> float:
+    """Convert a single window/opening dimension safely to metres (values > 100 are millimetres)."""
+    try:
+        v = float(val or 0)
+    except (TypeError, ValueError):
+        return 0.0
+    if v <= 0:
+        return 0.0
+    return v / 1000.0 if v > 100.0 else v
+
+
 def _calc_windows(i):
     """
     Spec: sum(width * height * count)
     Accepts both normalized (width_m/height_m) and legacy (width_mm/width/length) keys.
+    Safely converts millimetre inputs (e.g. 1500 x 2400 mm -> 1.5 x 2.4 m = 3.6 m²)
+    while preserving explicit total-area overrides (e.g. 75.0 m²).
     """
-    return round(sum(
-        float(w.get("width_m")  or w.get("width_mm", 0) / 1000 or w.get("width")  or 0)
-        * float(w.get("height_m") or w.get("height_mm", 0) / 1000 or w.get("height") or w.get("length") or 0)
-        * float(w.get("count")  or 0)
-        for w in _lst(i, "windows_schedule")
-    ), 2)
+    total = 0.0
+    for w in _lst(i, "windows_schedule"):
+        if w.get("_is_area_override"):
+            total += float(w.get("width_m") or 1.0) * float(w.get("height_m") or 0.0) * float(w.get("count") or 1)
+            continue
+        if w.get("width_mm"):
+            wm = float(w.get("width_mm") or 0) / 1000.0
+        else:
+            wm = _opening_dim_m(w.get("width_m") or w.get("width") or 0)
+        if w.get("height_mm"):
+            hm = float(w.get("height_mm") or 0) / 1000.0
+        else:
+            hm = _opening_dim_m(w.get("height_m") or w.get("height") or w.get("length") or 0)
+        cnt = float(w.get("count") or 0)
+        total += wm * hm * cnt
+    return round(total, 2)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

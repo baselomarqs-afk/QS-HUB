@@ -208,7 +208,20 @@ def reconstruct_project_inputs(state_data: dict):
         if merged_doors:
             openings["doors"] = merged_doors
 
-        v_area = round(sum(float(r.get("width_m") or 0) * float(r.get("height_m") or 0) * int(r.get("count") or 0) for r in merged_windows), 2)
+        def _norm_open_m(val) -> float:
+            try:
+                v = float(val or 0)
+            except (TypeError, ValueError):
+                return 0.0
+            return round(v / 1000.0, 4) if v > 100.0 else v
+
+        for r in merged_windows:
+            if r.get("width_m") is not None:
+                r["width_m"] = _norm_open_m(r["width_m"])
+            if r.get("height_m") is not None:
+                r["height_m"] = _norm_open_m(r["height_m"])
+
+        v_area = round(sum(_norm_open_m(r.get("width_m")) * _norm_open_m(r.get("height_m")) * int(r.get("count") or 0) for r in merged_windows), 2)
         v_doors = sum(int(r.get("count") or 0) for r in merged_doors)
         if v_area > 0:
             openings["totals"]["window_area"] = v_area

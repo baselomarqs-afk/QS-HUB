@@ -1,38 +1,5 @@
-import { useState } from 'react';
 import { ZoomIn, ZoomOut, Plus, Trash2, Info } from 'lucide-react';
-import { cacheUrl } from '../../cacheUrl';
-
-const ImageWithRetryInner = ({ src, alt, style, isArabic }) => {
-  const [retryKey, setRetryKey] = useState(0);
-  const [loading, setLoading] = useState(true);
-
-  return (
-    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
-      {loading && (
-        <div style={{ position: 'absolute', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-          <div className="spinner" style={{ width: '30px', height: '30px', border: '3px solid rgba(59, 130, 246, 0.3)', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-          <span>{isArabic ? 'جاري تجهيز الصورة...' : 'Processing image...'}</span>
-          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-        </div>
-      )}
-      <img 
-        key={`${src}-${retryKey}`}
-        src={src ? `${src}${src.includes('?') ? '&' : '?'}retry=${retryKey}` : ''}
-        alt={alt}
-        style={{ ...style, display: loading ? 'none' : 'block' }}
-        onLoad={() => setLoading(false)}
-        onError={() => {
-          setLoading(true);
-          // If image 404s (background task still running), retry after 1.5s
-          setTimeout(() => setRetryKey(prev => prev + 1), 1500);
-        }}
-      />
-    </div>
-  );
-};
-
-const ImageWithRetry = (props) => <ImageWithRetryInner key={props.src} {...props} />;
-
+import AuthImage from '../AuthImage';
 
 export default function ClassifyStep({
   classifiedPages,
@@ -98,8 +65,8 @@ export default function ClassifyStep({
         </div>
         <div style={{ flex: 1, overflow: 'auto', backgroundColor: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '15px' }}>
           {classifiedPages[selectedPageIndex] && (
-            <ImageWithRetry 
-              src={cacheUrl(classifiedPages[selectedPageIndex].image_url)}
+            <AuthImage
+              src={classifiedPages[selectedPageIndex].image_url}
               alt="Page preview"
               isArabic={isArabic}
               style={{ transform: `scale(${zoom})`, transformOrigin: 'center center', maxWidth: '100%', height: 'auto', transition: 'transform 0.1s ease', borderRadius: '4px' }}

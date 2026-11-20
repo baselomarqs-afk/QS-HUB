@@ -5,10 +5,12 @@ import logo from '../assets/logo.png';
 export default function Auth({ onLoginSuccess, isArabic }) {
   const [isLogin, setIsLogin] = useState(true);
   const [isForgot, setIsForgot] = useState(false);
+  const [isVerify, setIsVerify] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [token, setToken] = useState('');
+  const [verifyCode, setVerifyCode] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,6 +18,49 @@ export default function Auth({ onLoginSuccess, isArabic }) {
   const [showPassword, setShowPassword] = useState(false);
 
   const API_URL = "/api/auth";
+
+  const handleVerifyEmail = async (e) => {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/verify-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: verifyCode.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || (isArabic ? 'رمز التأكيد غير صحيح أو منتهي الصلاحية.' : 'Invalid or expired verification code.'));
+      localStorage.setItem('qto_token', data.token);
+      localStorage.setItem('qto_user', JSON.stringify(data.user));
+      onLoginSuccess(data.token, data.user);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setError('');
+    setMessage('');
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || (isArabic ? 'تعذّر إعادة إرسال الرمز.' : 'Could not resend code.'));
+      setMessage(isArabic ? 'تم إرسال رمز تأكيد جديد (6 أرقام) إلى بريدك الإلكتروني.' : (data.message || 'A new 6-digit verification code was sent to your email.'));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -45,7 +90,16 @@ export default function Auth({ onLoginSuccess, isArabic }) {
           body: JSON.stringify({ email, password }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Login failed.');
+        if (!res.ok) {
+          if (res.status === 403 && String(data.detail || '').includes('EMAIL_NOT_VERIFIED')) {
+            setIsVerify(true);
+            setMessage(isArabic
+              ? 'يرجى تأكيد بريدك الإلكتروني أولاً عبر الرمز المكوّن من 6 أرقام المرسل إلى بريدك.'
+              : 'Please verify your email first using the 6-digit code sent to your inbox.');
+            return;
+          }
+          throw new Error(data.detail || 'Login failed.');
+        }
         
         localStorage.setItem('qto_token', data.token);
         localStorage.setItem('qto_user', JSON.stringify(data.user));
@@ -60,8 +114,16 @@ export default function Auth({ onLoginSuccess, isArabic }) {
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Registration failed.');
         
-        setMessage(isArabic ? 'تم التسجيل بنجاح! يمكنك الآن تسجيل الدخول.' : 'Registration successful! You can now log in.');
-        setIsLogin(true);
+        if (data.requires_verification) {
+          setIsVerify(true);
+          setVerifyCode('');
+          setMessage(isArabic
+            ? 'تم إنشاء الحساب! أدخل رمز التأكيد المكوّن من 6 أرقام المرسل إلى بريدك الإلكتروني لتفعيله.'
+            : 'Account created! Enter the 6-digit verification code sent to your email to activate.');
+        } else {
+          setMessage(isArabic ? 'تم التسجيل بنجاح! يمكنك الآن تسجيل الدخول.' : 'Registration successful! You can now log in.');
+          setIsLogin(true);
+        }
       }
     } catch (err) {
       setError(err.message);
@@ -116,7 +178,8 @@ export default function Auth({ onLoginSuccess, isArabic }) {
         </div>
 
         <h3 style={{ marginBottom: '20px', fontSize: '1.3rem', fontWeight: 700 }}>
-          {isForgot ? (isArabic ? 'استعادة كلمة المرور' : 'Forgot Password') :
+          {isVerify ? (isArabic ? 'تأكيد البريد الإلكتروني' : 'Verify Your Email') :
+           isForgot ? (isArabic ? 'استعادة كلمة المرور' : 'Forgot Password') :
            isLogin ? (isArabic ? 'تسجيل الدخول للمنصة' : 'Sign In to Platform') :
            (isArabic ? 'إنشاء حساب جديد' : 'Create New Account')}
         </h3>
@@ -143,7 +206,45 @@ export default function Auth({ onLoginSuccess, isArabic }) {
           borderRight: isArabic ? '4px solid var(--success)' : 'none',
         }}>{message}</div>}
 
-        {!isForgot ? (
+        {isVerify ? (
+          <form onSubmit={handleVerifyEmail} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 500 }}>
+                {isArabic ? 'البريد الإلكتروني' : 'Email Address'}
+              </label>
+              <input
+                type="email"
+                className="form-input"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@company.com"
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', fontWeight: 500 }}>
+                {isArabic ? 'رمز التأكيد (6 أرقام)' : '6-Digit Verification Code'}
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                className="form-input"
+                required
+                value={verifyCode}
+                onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="123456"
+                style={{ letterSpacing: '6px', textAlign: 'center', fontSize: '1.25rem', fontWeight: 700 }}
+              />
+            </div>
+            <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading || verifyCode.length < 6}>
+              {loading ? (isArabic ? 'جاري التحقق...' : 'Verifying...') : (isArabic ? 'تأكيد وتفعيل الحساب' : 'Verify & Activate Account')}
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={handleResendCode} disabled={loading} style={{ width: '100%' }}>
+              {isArabic ? 'إعادة إرسال الرمز' : 'Resend Verification Code'}
+            </button>
+          </form>
+        ) : !isForgot ? (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             {!isLogin && (
               <div>
@@ -293,7 +394,11 @@ export default function Auth({ onLoginSuccess, isArabic }) {
         )}
 
         <div style={{ marginTop: '25px', textAlign: 'center', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-          {isForgot ? (
+          {isVerify ? (
+            <span onClick={() => { setIsVerify(false); setIsLogin(true); setError(''); setMessage(''); }} style={{ color: 'var(--primary)', cursor: 'pointer', fontWeight: 600 }}>
+              {isArabic ? 'العودة لتسجيل الدخول' : 'Back to Sign In'}
+            </span>
+          ) : isForgot ? (
             <span onClick={() => { setIsForgot(false); setRequestSent(false); setError(''); setMessage(''); }} style={{ color: 'var(--primary)', cursor: 'pointer' }}>
               {isArabic ? 'العودة لتسجيل الدخول' : 'Back to Login'}
             </span>
@@ -314,7 +419,7 @@ export default function Auth({ onLoginSuccess, isArabic }) {
           )}
         </div>
 
-        {!isForgot && (
+        {!isForgot && !isVerify && (
           <div style={{ marginTop: '30px' }}>
             <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0' }}>
               <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }}></div>

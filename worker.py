@@ -5,15 +5,30 @@ request/response cycle so the API never blocks on long-running AI calls.
 """
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 import json
 import logging
+import threading
 import time
 import traceback
 
-from utils.jobs import mark_job_done, mark_job_failed, mark_job_started, next_job
+from utils.jobs import (
+    get_job,
+    mark_job_done,
+    mark_job_failed,
+    mark_job_started,
+    next_job,
+    update_job_progress,
+)
 
 _log = logging.getLogger("qto.worker")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
+
+# Dedicated bounded background pool (max 2 concurrent jobs protects 512MB RAM hosts
+# while keeping FastAPI's HTTP event loop 100% responsive for all other users).
+_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="qto-worker")
+_PROGRESS_LOCK = threading.Lock()
+_LIVE_PROGRESS: dict[int, dict] = {}
 
 
 # ── Job Processors ────────────────────────────────────────────────
@@ -216,16 +231,25 @@ def _process_full_pipeline(payload: dict) -> dict:
     return {"extraction_results": results}
 
 
+def _process_project_extraction(payload: dict, progress_cb=None) -> dict:
+    """Run full Step 3 AI + OpenCV + vector extraction for an active project."""
+    from api.routers.extraction import execute_project_extraction
+    project_id = int(payload["project_id"])
+    user_id = int(payload["user_id"])
+    return execute_project_extraction(project_id, user_id, progress_cb=progress_cb)
+
+
 # ── Dispatcher ────────────────────────────────────────────────────
 
 _PROCESSORS = {
     "pdf_extraction": _process_pdf_extraction,
     "ai_extraction": _process_ai_extraction,
     "full_pipeline": _process_full_pipeline,
+    "project_extraction": _process_project_extraction,
 }
 
 
-def process_job(job: dict) -> dict:
+def process_job(job: dict, progress_cb=None) -> dict:
     job_type = job["job_type"]
     processor = _PROCESSORS.get(job_type)
     if not processor:
@@ -237,9 +261,106 @@ def process_job(job: dict) -> dict:
     payload = payload or {}
 
     _log.info("Processing job #%s type=%s", job["id"], job_type)
-    result = processor(payload)
+    if job_type == "project_extraction":
+        result = processor(payload, progress_cb=progress_cb)
+    else:
+        result = processor(payload)
     _log.info("Completed job #%s type=%s", job["id"], job_type)
     return result
+
+
+def _run_job_by_id(job_id: int) -> None:
+    """Execute a queued job inside the background thread pool without blocking HTTP."""
+    job = get_job(job_id)
+    if not job:
+        _log.warning("Background job #%d not found", job_id)
+        return
+    mark_job_started(job_id)
+
+    def _on_progress(progress: int, status_text: str) -> None:
+        with _PROGRESS_LOCK:
+            _LIVE_PROGRESS[job_id] = {
+                "progress": int(progress),
+                "status_text": str(status_text),
+            }
+        try:
+            update_job_progress(job_id, int(progress), str(status_text))
+        except Exception:
+            pass
+
+    _on_progress(5, "Starting background extraction worker...")
+    try:
+        result = process_job(job, progress_cb=_on_progress)
+        mark_job_done(job_id, result)
+        with _PROGRESS_LOCK:
+            _LIVE_PROGRESS[job_id] = {"progress": 100, "status_text": "Completed"}
+    except Exception as exc:
+        _log.exception("Background job #%d failed", job_id)
+        err_msg = str(exc) or traceback.format_exc()
+        mark_job_failed(job_id, err_msg)
+        with _PROGRESS_LOCK:
+            _LIVE_PROGRESS.pop(job_id, None)
+
+
+def submit_background_job(job_id: int) -> None:
+    """Dispatch an already-enqueued job to the worker thread pool immediately."""
+    with _PROGRESS_LOCK:
+        _LIVE_PROGRESS[job_id] = {"progress": 2, "status_text": "Queued for extraction worker..."}
+    _EXECUTOR.submit(_run_job_by_id, int(job_id))
+
+
+def get_job_status(job_id: int, user_id: int, role: str = "user") -> dict | None:
+    """Return ownership-verified job status, live progress, and final result."""
+    job = get_job(job_id)
+    if not job:
+        return None
+    if role != "admin" and int(job.get("user_id") or 0) != int(user_id):
+        return {"_forbidden": True}
+
+    status = str(job.get("status") or "queued")
+    raw_res = job.get("result")
+    parsed_res = None
+    if raw_res:
+        try:
+            parsed_res = json.loads(raw_res) if isinstance(raw_res, str) else raw_res
+        except Exception:
+            parsed_res = None
+
+    with _PROGRESS_LOCK:
+        live = _LIVE_PROGRESS.get(job_id)
+
+    if status == "done":
+        return {
+            "job_id": int(job_id),
+            "status": "done",
+            "progress": 100,
+            "status_text": "Completed",
+            "result": parsed_res or {},
+            "error": None,
+        }
+    if status == "failed":
+        return {
+            "job_id": int(job_id),
+            "status": "failed",
+            "progress": 0,
+            "status_text": "Extraction failed",
+            "result": None,
+            "error": str(job.get("error") or "Extraction job failed."),
+        }
+
+    # Queued or running
+    prog = live["progress"] if live else (parsed_res.get("progress", 5) if isinstance(parsed_res, dict) else 5)
+    st_txt = live["status_text"] if live else (
+        parsed_res.get("status_text", "Working in background...") if isinstance(parsed_res, dict) else "Working in background..."
+    )
+    return {
+        "job_id": int(job_id),
+        "status": status,
+        "progress": int(prog),
+        "status_text": str(st_txt),
+        "result": None,
+        "error": None,
+    }
 
 
 def run_forever(poll_seconds: int = 5) -> None:
@@ -250,13 +371,7 @@ def run_forever(poll_seconds: int = 5) -> None:
             time.sleep(poll_seconds)
             continue
         job_id = int(job["id"])
-        mark_job_started(job_id)
-        try:
-            result = process_job(job)
-            mark_job_done(job_id, result)
-        except Exception:
-            _log.exception("Job #%d failed", job_id)
-            mark_job_failed(job_id, traceback.format_exc())
+        _run_job_by_id(job_id)
 
 
 if __name__ == "__main__":

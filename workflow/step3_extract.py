@@ -460,11 +460,11 @@ def _normalize_units(data: dict) -> dict:
             # New _mm-suffixed fields (from updated SCHEDULE_PROMPT) — convert to metres safely
             for kk_mm, kk_m in (("width_mm", "width_m"), ("height_mm", "height_m")):
                 if o.get(kk_mm) is not None:
-                    o[kk_m] = _to_m(o[kk_mm], 10)
-            # Legacy metre fields (safety net: if value looks like mm, convert)
-            for kk in ("width", "height", "length"):
+                    o[kk_m] = _to_m(o[kk_mm], 25)
+            # Legacy or metre-labelled fields (safety net: if value looks like mm > 25, convert)
+            for kk in ("width_m", "height_m", "width", "height", "length"):
                 if o.get(kk) is not None:
-                    o[kk] = _to_m(o[kk], 10)
+                    o[kk] = _to_m(o[kk], 25)
     return data
 
 

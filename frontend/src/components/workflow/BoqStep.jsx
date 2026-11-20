@@ -1,9 +1,12 @@
-import { AlertTriangle, FileSpreadsheet, FileText } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, FileSpreadsheet, FileText, History, RotateCcw } from 'lucide-react';
 
 export default function BoqStep({
   currentStep,
   boqMeta,
   boqItems,
+  boqRevisions = [],
+  onRestoreRevision,
   handlePriceChange,
   handleQtyChange,
   handleSaveReview,
@@ -13,6 +16,8 @@ export default function BoqStep({
   onNavigate,
   isArabic
 }) {
+  const [showRevisions, setShowRevisions] = useState(false);
+
   if (currentStep === 6) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -47,11 +52,53 @@ export default function BoqStep({
 
         {/* BOQ Table Sheet */}
         <div className="glass-panel" style={{ padding: '25px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>
               {isArabic ? '6. مراجعة وتعديل الكميات (كل القيم قابلة للتعديل اليدوي)' : '6. Review & Edit Quantities (every value is editable)'}
             </h3>
+            {boqRevisions.length > 0 && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowRevisions(prev => !prev)}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', fontSize: '0.85rem' }}
+              >
+                <History size={15} />
+                {isArabic ? `إصدارات جدول الكميات (${boqRevisions.length})` : `BOQ Revisions (${boqRevisions.length})`}
+              </button>
+            )}
           </div>
+
+          {showRevisions && boqRevisions.length > 0 && (
+            <div style={{ marginBottom: '18px', padding: '14px', borderRadius: '10px', backgroundColor: 'rgba(59,130,246,0.06)', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: '10px', color: 'var(--text-primary)' }}>
+                {isArabic ? 'سجل نسخ جدول الكميات (Rev 0, Rev 1...)' : 'Saved BOQ Revisions History'}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+                {boqRevisions.map((rev) => (
+                  <div key={rev.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '8px 12px', borderRadius: '8px', background: 'var(--bg-primary)', border: '1px solid var(--border-color)', fontSize: '0.84rem' }}>
+                    <div>
+                      <strong>Rev {rev.rev_no}</strong> — {rev.label}{' '}
+                      <span style={{ color: 'var(--text-muted)' }}>
+                        ({rev.item_count} {isArabic ? 'بند' : 'items'} • AED {Number(rev.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                      </span>
+                    </div>
+                    {onRestoreRevision && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => onRestoreRevision(rev.id)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', fontSize: '0.8rem' }}
+                      >
+                        <RotateCcw size={13} />
+                        {isArabic ? 'استعادة' : 'Restore'}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="premium-table-container" style={{ maxHeight: '550px', overflowY: 'auto' }}>
             <table className="premium-table">

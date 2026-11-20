@@ -389,6 +389,16 @@ def _doors(project: dict) -> list[dict]:
     return []
 
 
+def _opening_dim_to_m(val) -> float:
+    """Coerce an opening dimension (width/height) safely to metres.
+    UAE CAD/PDF schedules often provide mm (e.g., 1500 x 2400 mm = 1.5 x 2.4 m).
+    Any single window dimension > 100.0 is treated as millimetres and divided by 1000."""
+    v = safe_float(val)
+    if v <= 0:
+        return 0.0
+    return round(v / 1000.0, 4) if v > 100.0 else v
+
+
 def _windows(project: dict) -> list[dict]:
     """
     Prefer explicit user override, then window schedule, else floor plan AI area.
@@ -396,20 +406,28 @@ def _windows(project: dict) -> list[dict]:
     openings = project.get("openings", {})
     if openings.get("user_override_window_area") is not None:
         override_area = safe_float(openings.get("user_override_window_area"))
-        return [{"width_m": 1.0, "height_m": override_area, "count": 1}] if override_area > 0 else []
+        return [{"width_m": 1.0, "height_m": override_area, "count": 1, "_is_area_override": True}] if override_area > 0 else []
 
     wins = openings.get("windows") or openings.get("windows_schedule") or []
     
     out = []
     for w in wins:
+        if w.get("_is_area_override"):
+            out.append({
+                "width_m": safe_float(w.get("width_m") or 1.0),
+                "height_m": safe_float(w.get("height_m") or 0.0),
+                "count": safe_int(w.get("count") or 1),
+                "_is_area_override": True,
+            })
+            continue
         if w.get("width_mm"):
             width_m  = safe_float(w["width_mm"]) / 1000.0
         else:
-            width_m  = safe_float(w.get("width_m") or w.get("width"))
+            width_m  = _opening_dim_to_m(w.get("width_m") or w.get("width"))
         if w.get("height_mm"):
             height_m = safe_float(w["height_mm"]) / 1000.0
         else:
-            height_m = safe_float(w.get("height_m") or w.get("height") or w.get("length"))
+            height_m = _opening_dim_to_m(w.get("height_m") or w.get("height") or w.get("length"))
         
         # Guard against swapping: if height is huge and width is small
         if width_m < 0.1 and height_m > 0.1: 
@@ -426,7 +444,7 @@ def _windows(project: dict) -> list[dict]:
         
     plan_area = float(openings.get("totals", {}).get("window_area") or 0)
     if plan_area > 0:
-        return [{"width_m": 1.0, "height_m": plan_area, "count": 1}]
+        return [{"width_m": 1.0, "height_m": plan_area, "count": 1, "_is_area_override": True}]
     return []
 
 

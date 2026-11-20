@@ -1,6 +1,6 @@
 import React from 'react';
 import { Trash2, Plus, Info } from 'lucide-react';
-import { cacheUrl } from '../../cacheUrl';
+import AuthImage from '../AuthImage';
 
 const _toMeters = (row, meterKeys, mmKeys) => {
   for (const k of meterKeys) {
@@ -268,7 +268,7 @@ export default function VerifyStep({
                     return (
                       <div key={idx} style={{ border: '2px solid #333', borderRadius: '8px', padding: '10px', background: '#222' }}>
                         <h4 style={{ color: '#60a5fa', margin: '0 0 10px 0' }}>{res.detected_type || 'Markup'}</h4>
-                        <img src={cacheUrl(imgUrl)} alt="Takeoff Markup" style={{ maxWidth: '100%', objectFit: 'contain' }} />
+                        <AuthImage src={imgUrl} alt="Takeoff Markup" isArabic={isArabic} style={{ maxWidth: '100%', objectFit: 'contain' }} />
                       </div>
                     );
                   })

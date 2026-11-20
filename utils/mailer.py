@@ -114,3 +114,30 @@ def send_custom_email(subject: str, body_html: str, to_email: str) -> bool:
     except Exception as e:
         print(f"Failed to send custom email: {e}")
         return False
+
+
+def send_verification_email(to_email: str, code: str, name: str | None = None) -> bool:
+    """Send a bilingual 6-digit email verification code to newly registered users."""
+    import html as _html
+    safe_name = _html.escape((name or "").strip())
+    greeting_en = f"Hi {safe_name}," if safe_name else "Hi,"
+    greeting_ar = f"مرحباً {safe_name}،" if safe_name else "مرحباً،"
+    safe_code = _html.escape(str(code))
+    body_html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px;">
+        <h2 style="color: #2563eb; margin-top: 0;">THE QS HUB — Verify Your Email | تأكيد البريد الإلكتروني</h2>
+        <p>{greeting_en}</p>
+        <p>Welcome to <strong>THE QS HUB</strong>! Enter this 6-digit verification code to activate your account and unlock your free trial project in each tool:</p>
+        <div style="background: #f1f5f9; border: 2px dashed #3b82f6; padding: 18px; text-align: center; font-size: 30px; font-weight: 800; letter-spacing: 8px; color: #0f172a; border-radius: 10px; margin: 20px 0;">
+            {safe_code}
+        </div>
+        <p style="color: #64748b; font-size: 13px;">This code expires in 30 minutes.</p>
+        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;"/>
+        <div dir="rtl" style="text-align: right;">
+            <p>{greeting_ar}</p>
+            <p>أهلاً بك في منصة <strong>THE QS HUB</strong>! يرجى إدخال رمز التأكيد المكوّن من 6 أرقام أعلاه لتفعيل حسابك والبدء فوراً في مشروعك المجاني.</p>
+            <p style="color: #64748b; font-size: 13px;">صلاحية الرمز 30 دقيقة. إذا لم تقم بالتسجيل يمكنك تجاهل هذه الرسالة.</p>
+        </div>
+    </div>
+    """
+    return send_custom_email("THE QS HUB — Email Verification Code | رمز تأكيد الحساب", body_html, to_email)

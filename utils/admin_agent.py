@@ -567,6 +567,21 @@ def execute_admin_action(admin_id: int, action: dict) -> dict:
                 "message": f"Email sent to {to_email}." if sent else f"SMTP is not configured on the server — email to {to_email} was NOT sent.",
             }
 
+        elif action_type == "verify_user_email":
+            target_email = (action.get("email") or "").strip().lower()
+            if not target_email:
+                return {"success": False, "message": "Missing email parameter."}
+            ok, err = safe_execute(
+                "UPDATE qto_users SET email_verified=1, verification_token_hash=NULL WHERE email=%s",
+                (target_email,),
+            )
+            if ok:
+                audit_log("admin_verify_email", admin_id, "user", target_email)
+            return {
+                "success": bool(ok),
+                "message": f"Email verified manually for {target_email}." if ok else f"Failed to verify email: {err}",
+            }
+
         elif action_type == "issue_refund":
             target_email = (action.get("email") or "").strip()
             if not target_email:
@@ -620,7 +635,7 @@ PRIVILEGED / DESTRUCTIVE TOOLS (MUST ask founder to confirm first; include `"con
 - `grant_subscription` — {{"type":"grant_subscription", "email":"...", "feature":"qto|programme|cashflow", "planTier":2, "days":30, "confirm":true}}
 - `grant_extra_credits` — {{"type":"grant_extra_credits", "email":"...", "feature":"qto|programme|cashflow", "credits":1, "confirm":true}}
 - `cancel_subscription` — {{"type":"cancel_subscription", "email":"...", "feature":"qto|programme|cashflow", "confirm":true}}
-- `block_user` / `unblock_user` / `update_user_role` / `delete_user`
+- `block_user` / `unblock_user` / `verify_user_email` / `update_user_role` / `delete_user`
 - `delete_project` — {{"type":"delete_project", "projectId": 10, "feature":"qto|programme|cashflow", "confirm":true}}
 - `run_safe_maintenance` — {{"type":"run_safe_maintenance", "confirm":true}}
 - `send_user_email` — {{"type":"send_user_email", "email":"...", "subject":"...", "body":"...", "confirm":true}}

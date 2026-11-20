@@ -1,15 +1,45 @@
-from fastapi import APIRouter, HTTPException, Depends, Header, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Header, Request
 from pydantic import BaseModel, EmailStr
 import hashlib
 import hmac
 import json
 import os
+import secrets
 import time
 from typing import Optional
 from utils.db import safe_query, safe_execute
 from utils.security import password_hash, password_ok, login_rate_limited, touch_login
 
 router = APIRouter()
+
+# Per-email resend cooldown (seconds) to prevent email bombing
+_RESEND_COOLDOWN: dict[str, float] = {}
+_VERIFICATION_TTL_SECONDS = 30 * 60  # 30 minutes
+
+
+def _make_verification_code() -> tuple[str, str]:
+    """Return (6-digit plain code, 'sha256_hash:expiry_unix_ts') for storage."""
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    digest = hashlib.sha256(code.encode("utf-8")).hexdigest()
+    expires = int(time.time()) + _VERIFICATION_TTL_SECONDS
+    return code, f"{digest}:{expires}"
+
+
+def _verify_stored_code(stored: str | None, code: str) -> tuple[bool, str]:
+    """Validate a submitted 6-digit code against 'sha256:expiry'."""
+    if not stored or ":" not in str(stored):
+        return False, "No active verification code found. Please request a new code."
+    expected_hash, exp_str = str(stored).split(":", 1)
+    try:
+        expires = int(exp_str)
+    except ValueError:
+        return False, "Invalid verification token."
+    if time.time() > expires:
+        return False, "Verification code has expired. Please request a new code."
+    submitted_hash = hashlib.sha256((code or "").strip().encode("utf-8")).hexdigest()
+    if not hmac.compare_digest(submitted_hash, expected_hash):
+        return False, "Invalid verification code."
+    return True, "OK"
 
 # Session-signing secret. MUST come from env in production — no hardcoded fallback
 # (a known constant would let anyone forge valid session tokens).
@@ -36,6 +66,13 @@ class ResetPasswordReq(BaseModel):
 class UpdatePasswordReq(BaseModel):
     token: str
     password: str
+
+class VerifyEmailReq(BaseModel):
+    email: EmailStr
+    code: str
+
+class ResendVerificationReq(BaseModel):
+    email: EmailStr
 
 def generate_session_token(user_id: int, role: str, token_version: int = 0) -> str:
     expiry = int(time.time()) + 8 * 3600  # 8 hours session
@@ -78,26 +115,24 @@ def verify_session_token(token: str) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 def get_current_user(request: Request, authorization: Optional[str] = Header(None)) -> dict:
-    if not authorization:
-        authorization = request.query_params.get("Authorization")
+    # SECURITY: Accept Bearer tokens ONLY via the Authorization header (never URL query params,
+    # which leak into browser history, Referer headers, and proxy/server access logs).
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
-    token = authorization.split(" ")[1]
+    token = authorization.split(" ", 1)[1].strip()
     return verify_session_token(token)
 
 def get_optional_current_user(request: Request, authorization: Optional[str] = Header(None)) -> Optional[dict]:
-    if not authorization:
-        authorization = request.query_params.get("Authorization")
     if not authorization or not authorization.startswith("Bearer "):
         return None
     try:
-        token = authorization.split(" ")[1]
+        token = authorization.split(" ", 1)[1].strip()
         return verify_session_token(token)
     except Exception:
         return None
 
 @router.post("/register")
-async def register(req: UserRegister):
+async def register(req: UserRegister, background_tasks: BackgroundTasks):
     email = req.email.strip().lower()
     if len(req.password) < 6:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
@@ -109,7 +144,6 @@ async def register(req: UserRegister):
         
     # Check if account was deleted in the last 90 days
     import pandas as pd
-    from datetime import datetime, timedelta
     df_del = safe_query("SELECT deleted_at FROM qto_deleted_accounts WHERE email=%s ORDER BY id DESC LIMIT 1", (email,))
     if not df_del.empty:
         deleted_at = df_del.iloc[0]["deleted_at"]
@@ -121,18 +155,105 @@ async def register(req: UserRegister):
                     raise HTTPException(status_code=400, detail="This email is restricted from registering for 90 days after account deletion.")
             except HTTPException:
                 raise
-            except Exception as e:
+            except Exception:
                 pass
     
     hashed = password_hash(req.password)
+    code, stored_hash = _make_verification_code()
     success, err = safe_execute(
-        "INSERT INTO qto_users (email, password_hash, role, extra_projects_allowance, name) VALUES (%s, %s, %s, %s, %s)",
-        (email, hashed, "user", 0, req.name)
+        "INSERT INTO qto_users (email, password_hash, role, extra_projects_allowance, name, email_verified, verification_token_hash) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+        (email, hashed, "user", 0, req.name, 0, stored_hash)
     )
     if not success:
         raise HTTPException(status_code=500, detail=f"Database insertion failed: {err}")
+
+    from utils.mailer import send_verification_email
+    background_tasks.add_task(send_verification_email, email, code, req.name)
     
-    return {"message": "User registered successfully."}
+    return {
+        "message": "Verification code sent to your email. Please verify to activate your account.",
+        "requires_verification": True,
+        "email": email,
+    }
+
+
+@router.post("/verify-email")
+async def verify_email(req: VerifyEmailReq):
+    email = req.email.strip().lower()
+    if login_rate_limited(f"verify:{email}"):
+        raise HTTPException(status_code=429, detail="Too many failed verification attempts. Please wait 15 minutes.")
+
+    df = safe_query(
+        "SELECT id, email, role, COALESCE(email_verified, 0) as email_verified, verification_token_hash, COALESCE(token_version, 0) as tv FROM qto_users WHERE email=%s",
+        (email,),
+    )
+    if df.empty:
+        raise HTTPException(status_code=400, detail="Invalid email or verification code.")
+
+    user = df.iloc[0]
+    if user["role"] == "blocked":
+        raise HTTPException(status_code=403, detail="Your account has been suspended.")
+
+    if int(user["email_verified"] or 0) == 1 and not user.get("verification_token_hash"):
+        token = generate_session_token(int(user["id"]), user["role"], int(user["tv"] or 0))
+        return {
+            "message": "Email already verified.",
+            "token": token,
+            "user": {"id": int(user["id"]), "email": user["email"], "role": user["role"]},
+        }
+
+    ok, err_msg = _verify_stored_code(user.get("verification_token_hash"), req.code)
+    if not ok:
+        safe_execute(
+            "INSERT INTO qto_usage_logs (event_type, metadata) VALUES (%s, %s)",
+            ("login_failed", json.dumps({"email": f"verify:{email}"})),
+        )
+        raise HTTPException(status_code=400, detail=err_msg)
+
+    safe_execute(
+        "UPDATE qto_users SET email_verified=1, verification_token_hash=NULL WHERE id=%s",
+        (int(user["id"]),),
+    )
+    touch_login(int(user["id"]))
+    token = generate_session_token(int(user["id"]), user["role"], int(user["tv"] or 0))
+    return {
+        "message": "Email verified successfully! Welcome to THE QS HUB.",
+        "token": token,
+        "user": {"id": int(user["id"]), "email": user["email"], "role": user["role"]},
+    }
+
+
+@router.post("/resend-verification")
+async def resend_verification(req: ResendVerificationReq, background_tasks: BackgroundTasks):
+    email = req.email.strip().lower()
+    now = time.time()
+    last = _RESEND_COOLDOWN.get(email, 0.0)
+    if now - last < 45:
+        wait = int(45 - (now - last))
+        raise HTTPException(status_code=429, detail=f"Please wait {wait} seconds before requesting another code.")
+
+    df = safe_query(
+        "SELECT id, name, COALESCE(email_verified, 0) as email_verified, verification_token_hash FROM qto_users WHERE email=%s",
+        (email,),
+    )
+    if df.empty:
+        # Generic response to avoid account enumeration
+        return {"message": "If an unverified account exists for this email, a new verification code has been sent."}
+
+    user = df.iloc[0]
+    if int(user["email_verified"] or 0) == 1 and not user.get("verification_token_hash"):
+        return {"message": "This email is already verified. You can sign in directly."}
+
+    code, stored_hash = _make_verification_code()
+    safe_execute(
+        "UPDATE qto_users SET verification_token_hash=%s, email_verified=0 WHERE id=%s",
+        (stored_hash, int(user["id"])),
+    )
+    _RESEND_COOLDOWN[email] = now
+    from utils.mailer import send_verification_email
+    background_tasks.add_task(send_verification_email, email, code, user.get("name"))
+    return {"message": "A new 6-digit verification code has been sent to your email."}
+
 
 @router.post("/login")
 async def login(req: UserLogin):
@@ -141,7 +262,10 @@ async def login(req: UserLogin):
     if login_rate_limited(email):
         raise HTTPException(status_code=429, detail="Too many failed login attempts. Please try again in 15 minutes.")
         
-    df = safe_query("SELECT id, email, password_hash, role FROM qto_users WHERE email=%s", (email,))
+    df = safe_query(
+        "SELECT id, email, password_hash, role, COALESCE(email_verified, 1) as email_verified, verification_token_hash FROM qto_users WHERE email=%s",
+        (email,),
+    )
     if df.empty:
         # Log failed attempt
         safe_execute(
@@ -160,6 +284,16 @@ async def login(req: UserLogin):
         
     if user["role"] == "blocked":
         raise HTTPException(status_code=403, detail="Your account has been suspended.")
+
+    # Block ONLY newly-registered accounts that have a pending verification code.
+    # Pre-existing accounts (verification_token_hash IS NULL) and admins are NEVER locked out.
+    pending_verif = user.get("verification_token_hash")
+    has_pending = pending_verif is not None and str(pending_verif).strip() not in ("", "nan", "None")
+    if user["role"] != "admin" and int(user["email_verified"] or 0) == 0 and has_pending:
+        raise HTTPException(
+            status_code=403,
+            detail="EMAIL_NOT_VERIFIED: Please enter the 6-digit verification code sent to your email.",
+        )
         
     touch_login(user["id"])
     # Read token_version for revocation support
