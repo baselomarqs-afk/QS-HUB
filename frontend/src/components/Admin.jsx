@@ -20,8 +20,8 @@ export default function Admin({ token, isArabic }) {
     {
       role: 'assistant',
       content: isArabic
-        ? 'أهلاً بك يا منشئ المنصة! 👑\n\nأنا المدير التنفيذي ومساعدك الذكي لإدارة المنصة بالكامل (AI Manager). يمكنني مساعدتك في صيانة النظام والاستعلام عن الأداء.'
-        : 'Welcome Founder! 👑\n\nI am the AI Manager. I can help you monitor stats, trigger database updates, and perform system operations.'
+        ? 'أهلاً بك يا منشئ المنصة! 👑\n\nأنا **المدير التنفيذي ومشرف العمليات (AI Operations Director)** للمنصة بالكامل. أملك صلاحية مباشرة على قاعدة البيانات والمبيعات والدعم الفني وأسعار السوق — اختر أمراً سريعاً أدناه أو اكتب ما تريد تنفيذه.'
+        : 'Welcome Founder! 👑\n\nI am the **AI Operations Director & Platform Supervisor**. I have live operational tools over users, real MRR revenue, per-tool subscriptions & credits, complaints, feedback, live UAE market prices, and system health. Pick a quick command below or ask directly.'
     }
   ]);
   const [chatLoading, setChatLoading] = useState(false);
@@ -215,13 +215,13 @@ export default function Admin({ token, isArabic }) {
   };
 
 
-  const handleSendChat = async (e) => {
-    e.preventDefault();
-    if (!chatInput.trim()) return;
+  const sendAdminPrompt = async (promptText) => {
+    const clean = (promptText ?? chatInput).trim();
+    if (!clean || chatLoading) return;
 
-    const userMsg = { role: 'user', content: chatInput };
+    const userMsg = { role: 'user', content: clean };
     setChatHistory(prev => [...prev, userMsg]);
-    setChatInput('');
+    if (promptText === undefined) setChatInput('');
     setChatLoading(true);
 
     try {
@@ -231,19 +231,24 @@ export default function Admin({ token, isArabic }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ prompt: userMsg.content })
+        body: JSON.stringify({ prompt: clean })
       });
       const data = await res.json();
       if (res.ok) {
         setChatHistory(prev => [...prev, { role: 'assistant', content: data.reply, action_result: data.action_result }]);
       } else {
-        setChatHistory(prev => [...prev, { role: 'assistant', content: 'Error communicating with AI manager.' }]);
+        setChatHistory(prev => [...prev, { role: 'assistant', content: data.detail || 'Error communicating with AI Operations Director.' }]);
       }
     } catch {
       setChatHistory(prev => [...prev, { role: 'assistant', content: 'Connection failed.' }]);
     } finally {
       setChatLoading(false);
     }
+  };
+
+  const handleSendChat = async (e) => {
+    e.preventDefault();
+    await sendAdminPrompt();
   };
 
   return (
@@ -558,41 +563,75 @@ export default function Admin({ token, isArabic }) {
               </div>
             )}
 
-            {/* 4. AI MANAGER CHAT TAB */}
+            {/* 4. AI OPERATIONS DIRECTOR CHAT TAB */}
             {activeTab === 'chat' && (
-              <div style={{ height: '500px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div style={{ height: '580px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                  {(isArabic ? [
+                    { label: '📊 التقرير التنفيذي والإيرادات الحقيقية', q: 'أعطني التقرير التنفيذي الكامل والإيرادات الشهرية الحقيقية لكل أداة وحركة الزوار.' },
+                    { label: '🚨 شكاوى الدعم المفتوحة', q: 'اعرض لي جميع شكاوى وتذاكر خدمة العملاء المفتوحة حالياً.' },
+                    { label: '⭐ تقييمات الأدوات الـ 3', q: 'اعرض ملخص تقييمات المستخدمين لأدوات المنصة الثلاث.' },
+                    { label: '📈 تحديث أسعار السوق الحي الآن', q: 'قم بتحديث أسعار السوق الإماراتي الآن عبر البحث الحي.' },
+                    { label: '⚙️ فحص صحة النظام ومفاتيح API', q: 'افحص صحة السيرفر وقاعدة البيانات وحالة جميع مفاتيح Gemini الـ 20.' },
+                    { label: '📁 أحدث مشاريع المنصة', q: 'اعرض أحدث المشاريع المنجزة عبر الأدوات الثلاث.' },
+                  ] : [
+                    { label: '📊 Executive Briefing & Real MRR', q: 'Give me the live executive dashboard with real MRR breakdown per tool, users, projects & visitors.' },
+                    { label: '🚨 Open Support Tickets', q: 'List all open customer support complaints right now.' },
+                    { label: '⭐ Tool Feedback Summary', q: 'Show me the tool feedback ratings and recent user comments.' },
+                    { label: '📈 Sync Live UAE Market Prices', q: 'Trigger a live Google Search sync of UAE market prices now.' },
+                    { label: '⚙️ System & 20-Key Pool Health', q: 'Run a live system health check including database, cache, and all 20 Gemini API keys.' },
+                    { label: '📁 Recent Projects (All 3 Tools)', q: 'List the latest projects across QTO, Work Programme, and Cash Flow.' },
+                  ]).map((cmd, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      disabled={chatLoading}
+                      onClick={() => sendAdminPrompt(cmd.q)}
+                      style={{
+                        padding: '6px 12px', fontSize: '0.78rem', borderRadius: '18px',
+                        border: '1px solid var(--border-color)', background: 'var(--bg-primary)',
+                        color: 'var(--text-primary)', cursor: 'pointer',
+                      }}
+                    >
+                      {cmd.label}
+                    </button>
+                  ))}
+                </div>
                 <div style={{ overflowY: 'auto', flex: 1, padding: '10px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
                   {chatHistory.map((msg, idx) => (
                     <div key={idx} style={{
                       alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                      maxWidth: '80%',
+                      maxWidth: '88%',
                       background: msg.role === 'user' ? 'var(--primary-glow)' : 'var(--bg-secondary)',
                       color: msg.role === 'user' ? 'var(--primary)' : 'var(--text-primary)',
                       padding: '12px 18px',
                       borderRadius: '12px',
                       border: '1px solid var(--border-color)',
-                      whiteSpace: 'pre-line',
-                      textAlign: 'left'
+                      whiteSpace: 'pre-wrap',
+                      textAlign: isArabic ? 'right' : 'left',
+                      direction: isArabic ? 'rtl' : 'ltr',
                     }}>
                       <div style={{ fontWeight: 700, fontSize: '0.75rem', marginBottom: '4px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                        {msg.role === 'user' ? 'Founder' : 'AI Supervisor'}
+                        {msg.role === 'user' ? (isArabic ? 'المؤسس' : 'Founder') : (isArabic ? 'المدير التنفيذي الذكي' : 'AI Operations Director')}
                       </div>
                       {msg.content}
                       {msg.action_result && (
                         <div style={{
                           marginTop: '10px',
-                          padding: '8px 12px',
-                          background: 'rgba(0,0,0,0.2)',
-                          borderRadius: '6px',
+                          padding: '10px 12px',
+                          background: 'rgba(0,0,0,0.22)',
+                          borderRadius: '8px',
                           fontSize: '0.82rem',
+                          direction: 'ltr',
+                          textAlign: 'left',
                           borderLeft: msg.action_result.success ? '3px solid var(--success)' : '3px solid var(--error)'
                         }}>
                           <strong style={{ display: 'block', color: msg.action_result.success ? 'var(--success)' : 'var(--error)' }}>
-                            {msg.action_result.success ? 'Execution Success:' : 'Execution Failure:'}
+                            {msg.action_result.success ? '✓ Live Operation Executed:' : '⚠️ Operation Notice:'}
                           </strong>
-                          {msg.action_result.message}
+                          <span>{msg.action_result.message}</span>
                           {msg.action_result.data && (
-                            <pre style={{ overflowX: 'auto', marginTop: '5px', fontSize: '0.75rem', color: '#64748b' }}>
+                            <pre style={{ overflowX: 'auto', maxHeight: '240px', marginTop: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                               {JSON.stringify(msg.action_result.data, null, 2)}
                             </pre>
                           )}
@@ -603,22 +642,24 @@ export default function Admin({ token, isArabic }) {
                   {chatLoading && (
                     <div style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 18px', background: 'var(--bg-secondary)', borderRadius: '12px' }}>
                       <Loader size={16} className="spin-anim" />
-                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>AI executing admin script...</span>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        {isArabic ? 'المدير التنفيذي ينفّذ الأمر على النظام...' : 'AI Operations Director executing live operation...'}
+                      </span>
                     </div>
                   )}
                 </div>
-                
-                <form onSubmit={handleSendChat} style={{ display: 'flex', gap: '10px', marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
+
+                <form onSubmit={handleSendChat} style={{ display: 'flex', gap: '10px', marginTop: '14px', borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder={isArabic ? 'اكتب أمر الصيانة أو السؤال هنا...' : 'Enter command for the AI manager...'}
+                    placeholder={isArabic ? 'اطلب تقريراً، إدارة مستخدم، منح اشتراك/رصيد، تحديث أسعار السوق، فحص النظام...' : 'Request executive report, manage users/subs/credits, sync market prices, resolve tickets...'}
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     style={{ flex: 1 }}
                     disabled={chatLoading}
                   />
-                  <button type="submit" className="btn btn-primary" style={{ padding: '10px 20px', gap: '8px' }} disabled={chatLoading}>
+                  <button type="submit" className="btn btn-primary" style={{ padding: '10px 20px', gap: '8px' }} disabled={chatLoading || !chatInput.trim()}>
                     <Send size={16} />
                   </button>
                 </form>

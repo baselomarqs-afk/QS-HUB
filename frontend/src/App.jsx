@@ -647,7 +647,7 @@ export default function App() {
             onClearInitialLoadData={() => setPageParams(null)}
           />
         )}
-        {page === 'market' && <MarketPrices token={token} isArabic={isArabic} />}
+        {page === 'market' && <MarketPrices token={token} isArabic={isArabic} user={user} />}
         {page === 'compare' && <PlanComparison token={token} isArabic={isArabic} />}
         {page === 'billing' && <Billing token={token} isArabic={isArabic} user={user} onLogout={handleLogout} paymentSuccess={paymentSuccess} onPaymentSuccessHandled={() => setPaymentSuccess(false)} />}
         {page === 'qs_assistant' && <QsAssistant token={token} isArabic={isArabic} />}
@@ -657,7 +657,7 @@ export default function App() {
 
       </main>
 
-      {/* Floating Sarah Chat Widget */}
+      {/* Floating Customer Support Widget */}
       <SarahChat token={token} isArabic={isArabic} />
     </div>
   );

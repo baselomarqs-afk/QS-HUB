@@ -352,48 +352,43 @@ async def get_feedback(admin: dict = Depends(verify_admin)):
     }
 
 @router.post("/chat")
-def chat_with_manager(req: AdminChatReq, admin: dict = Depends(verify_admin)):
-    # AI Manager chat interface
+async def chat_with_manager(req: AdminChatReq, admin: dict = Depends(verify_admin)):
+    # AI Operations Director & Supervisor chat interface
+    import asyncio
     from utils.admin_agent import process_admin_message
-    
-    # Fetch admin name
+
     admin_name = admin.get("email", "Admin").split("@")[0]
     admin_id = admin.get("id", 1)
-    
-    # Simply pass empty history or query log for previous chats
+
     df_history = safe_query(
-        "SELECT sender, message FROM qto_agent_conversations WHERE user_id=%s AND agent_role='mgr' ORDER BY id DESC LIMIT 10",
-        (admin_id,)
+        "SELECT sender, message FROM qto_agent_conversations WHERE user_id=%s AND agent_role='mgr' ORDER BY id DESC LIMIT 12",
+        (admin_id,),
     )
     history = []
     if not df_history.empty:
-        # Re-arrange back to ASC order for context
         df_history = df_history.iloc[::-1]
-        for idx, row in df_history.iterrows():
+        for _, row in df_history.iterrows():
             role_map = "user" if row["sender"] == "user" else "assistant"
             history.append({"role": role_map, "content": row["message"]})
-            
-    # Add new user message to local history for process_admin_message context
-    history_ctx = list(history)
-    
-    reply, action_result = process_admin_message(
+
+    reply, action_result = await asyncio.to_thread(
+        process_admin_message,
         req.prompt,
-        history_ctx,
+        list(history),
         admin_name,
-        admin_id
+        admin_id,
     )
-    
-    # Log conversation in database
+
     safe_execute(
         "INSERT INTO qto_agent_conversations (user_id, agent_role, sender, message) VALUES (%s, %s, %s, %s)",
-        (admin_id, "mgr", "user", req.prompt)
+        (admin_id, "mgr", "user", req.prompt),
     )
     safe_execute(
         "INSERT INTO qto_agent_conversations (user_id, agent_role, sender, message) VALUES (%s, %s, %s, %s)",
-        (admin_id, "mgr", "system" if action_result else "assistant", reply)
+        (admin_id, "mgr", "system" if action_result else "assistant", reply),
     )
-    
+
     return {
         "reply": reply,
-        "action_result": action_result
+        "action_result": action_result,
     }
