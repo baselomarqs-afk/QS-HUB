@@ -155,7 +155,9 @@ export default function ClassifyStep({
                   <option value="foundations">{isArabic ? 'جدول القواعد (Foundations)' : 'Foundations Schedule'}</option>
                   <option value="tie_beam">{isArabic ? 'الميدات وبلاطة الأرضي (Tie Beams & S.O.G)' : 'Tie Beams & Slab on Grade'}</option>
                   <option value="upper_columns">{isArabic ? 'جدول الأعمدة (Columns Schedule)' : 'Columns Schedule'}</option>
-                  <option value="neck_columns">{isArabic ? 'أعمدة الرقاب/القبو (Neck Columns)' : 'Neck Columns'}</option>
+                  <option value="column_layout">{isArabic ? 'مخطط محاور الأعمدة (Column Layout)' : 'Column Layout'}</option>
+                  <option value="neck_columns">{isArabic ? 'أعمدة الرقاب (Neck Columns)' : 'Neck Columns'}</option>
+                  <option value="ground_columns">{isArabic ? 'أعمدة الأرضي (Ground Floor Columns)' : 'Ground Floor Columns'}</option>
                   <option value="columns_1f">{isArabic ? 'أعمدة الأول (1st Floor Columns)' : '1st Floor Columns'}</option>
                   <option value="columns_2f">{isArabic ? 'أعمدة الثاني (2nd Floor Columns)' : '2nd Floor Columns'}</option>
                   <option value="columns_roof">{isArabic ? 'أعمدة السطح (Roof Columns)' : 'Roof Columns'}</option>
@@ -167,6 +169,7 @@ export default function ClassifyStep({
                   <option value="first_floor_plan">{isArabic ? 'معماري الأول (First Floor Plan)' : 'First Floor Plan'}</option>
                   <option value="second_floor_plan">{isArabic ? 'معماري الثاني (Second Floor Plan)' : 'Second Floor Plan'}</option>
                   <option value="roof_floor_plan">{isArabic ? 'معماري السطح (Roof Floor Plan)' : 'Roof Floor Plan'}</option>
+                  <option value="schedules">{isArabic ? 'جدول الأبواب والنوافذ (Doors & Windows Schedule)' : 'Doors & Windows Schedule'}</option>
                   <option value="arch_doors">{isArabic ? 'جدول الأبواب (Doors Schedule)' : 'Doors Schedule'}</option>
                   <option value="arch_windows">{isArabic ? 'جدول النوافذ (Windows Schedule)' : 'Windows Schedule'}</option>
                   <option value="sections">{isArabic ? 'مقاطع (Sections)' : 'Sections'}</option>

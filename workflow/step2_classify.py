@@ -24,7 +24,7 @@ from workflow.workflow_state import mark_step_done
 # Candidate types per PDF kind — used by the AI-vision refiner
 _STRUCT_TYPES = [
     "foundations", "tie_beam", "column_layout", "upper_columns", "neck_columns",
-    "columns_1f", "columns_2f", "columns_roof",
+    "ground_columns", "columns_1f", "columns_2f", "columns_roof",
     "slab_1st", "slab_2nd", "roof_slab", "unknown",
 ]
 _ARCH_TYPES = [
@@ -182,14 +182,22 @@ def _classify_structural(raw_text: str, clean_text: str) -> dict:
     )
 
     if is_col_title or is_col_sched:
-        # Distinguish specific floor column layouts first
-        if _has_kw(up, r"\b(?:UP\s*TO\s+TIE\s+BEAM|FOUNDATION\s+TO\s+TIE\s+BEAM|NECK\s+COL|GROUND\s+FLOOR\s+COL|G\.?F\.?\s+COL)\b"):
+        # Map structural level ranges accurately for UAE G / G+1 / G+2 villas:
+        # - UPTO TIE BEAM / FOUNDATION TO TIE BEAM -> neck_columns (below tie beam)
+        # - TIE BEAM TO F.FLOOR / TIE BEAM TO 1ST / GROUND FLOOR COL -> ground_columns (GF -> 1st)
+        # - F.FLOOR TO ROOF / 1ST SLAB TO ROOF / 1ST TO 2ND / 1ST FLOOR COL -> columns_1f (1st -> 2nd/Roof)
+        # - 2ND FLOOR COL / 2ND TO ROOF -> columns_2f (2nd -> Roof)
+        # - ROOF FLOOR COL / PENTHOUSE COL / UPPER ROOF COL -> columns_roof (columns ON roof slab)
+        # - TIE BEAM TO ROOF (single combined sheet for both GF & 1F) -> column_layout
+        if _has_kw(up, r"\b(?:UP\s*TO\s+TIE\s+BEAM|FOUNDATION\s+TO\s+TIE\s+BEAM|NECK\s+COL\w*)\b"):
             best = "neck_columns"
-        elif _has_kw(up, r"\b(?:TIE\s+BEAM\s+TO\s+(?:F\.?\s*FLOOR|FIRST|1ST)|(?:FIRST|1ST|FISRT)\s+FLOOR\s+COL)\b"):
-            best = "columns_1f"
-        elif _has_kw(up, r"\b(?:(?:F\.?\s*FLOOR|FIRST|1ST)\s*(?:SLAB|FLOOR)?\s*TO\s+(?:2ND|SECOND)|(?:2ND|SECOND)\s+FLOOR\s+COL)\b"):
+        elif _has_kw(up, r"\b(?:TIE\s+BEAM\s+TO\s+(?:F\.?\s*FLOOR|FIRST|1ST)|GROUND\s+FLOOR\s+COL\w*|G\.?F\.?\s+COL\w*)\b"):
+            best = "ground_columns"
+        elif _has_kw(up, r"\b(?:(?:2ND|SECOND)\s*(?:SLAB|FLOOR)?\s*TO\s+ROOF|(?:2ND|SECOND)\s+FLOOR\s+COL\w*)\b"):
             best = "columns_2f"
-        elif _has_kw(up, r"\b(?:(?:F\.?\s*FLOOR|FIRST|1ST|2ND|SECOND)\s*(?:SLAB|FLOOR)?\s*TO\s+ROOF|ROOF\s+(?:FLOOR\s+)?COL)\b"):
+        elif _has_kw(up, r"\b(?:(?:F\.?\s*FLOOR|FIRST|1ST)\s*(?:SLAB|FLOOR)?\s*TO\s+(?:ROOF|2ND|SECOND)|(?:FIRST|1ST|FISRT)\s+FLOOR\s+COL\w*)\b"):
+            best = "columns_1f"
+        elif _has_kw(up, r"\b(?:ROOF\s+FLOOR\s+COL\w*|PENTHOUSE\s+COL\w*|UPPER\s+ROOF\s+COL\w*|ROOF\s+TO\s+UPPER)\b"):
             best = "columns_roof"
         elif is_col_sched:
             best = "upper_columns"
@@ -478,10 +486,11 @@ def _ai_classify(img_input, pdf_type: str, text_hint: str = ""):
                 "- tie_beam: Villa Tie Beam / Ground Beam / Plinth Beam Layout Plan or Tie Beam Schedule\n"
                 "- column_layout: General Column Axis Layout Plan\n"
                 "- upper_columns: Combined Column Schedule / Column Reinforcement Details table\n"
-                "- neck_columns: Foundation-to-Tie-Beam / Ground / Neck Column Layout\n"
-                "- columns_1f: Tie-Beam-to-First-Floor / First Floor Column Layout\n"
-                "- columns_2f: First-to-Second-Floor / Second Floor Column Layout\n"
-                "- columns_roof: First/Second-Floor-to-Roof / Roof Column Layout\n"
+                "- neck_columns: Foundation-to-Tie-Beam / Up-to-Tie-Beam Neck Column Layout\n"
+                "- ground_columns: Tie-Beam-to-First-Floor / Ground Floor Column Layout\n"
+                "- columns_1f: First-Floor-to-Roof (or 1st-to-2nd) / First Floor Column Layout\n"
+                "- columns_2f: Second-Floor-to-Roof / Second Floor Column Layout\n"
+                "- columns_roof: Roof-Level / Penthouse Column Layout (columns standing ON the roof slab)\n"
                 "- slab_1st: First Floor Slab & Beam Framing Layout (or Ground Floor Covering Slab)\n"
                 "- slab_2nd: Second Floor Slab & Beam Framing Layout\n"
                 "- roof_slab: Roof Slab & Beam Framing Layout\n"

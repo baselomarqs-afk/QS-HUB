@@ -33,13 +33,52 @@ def reconstruct_project_inputs(state_data: dict):
             existing = (schedules.get("foundation") or {}).get("footings") or []
             if (new_footings and len(new_footings) >= len(existing)) or "foundation" not in schedules:
                 schedules["foundation"] = {"footings": new_footings}
-        elif dtype in ("column_schedule", "upper_columns", "neck_columns") or dtype.startswith("columns"):
-            # The classifier also emits per-floor column types (columns_gf/1f/2f/roof);
-            # accept them all and keep the page with the most columns.
+        elif dtype in ("column_schedule", "upper_columns", "neck_columns", "ground_columns", "column_layout") or dtype.startswith("columns"):
+            # Merge per-floor column pages cleanly by mark into ONE unified schedule
+            # carrying explicit count_neck / count_gf / count_1f / count_2f / count_roof
+            # so each structural floor keeps its own true count (and G+1 villas do NOT
+            # duplicate columns onto a non-existent roof floor).
             new_cols = page.get("columns") or []
-            existing = (schedules.get("column_schedule") or {}).get("columns") or []
-            if (new_cols and len(new_cols) >= len(existing)) or "column_schedule" not in schedules:
-                schedules["column_schedule"] = {"columns": new_cols}
+            if new_cols:
+                _floor_field_map = {
+                    "neck_columns": ("count_neck",),
+                    "ground_columns": ("count_gf",),
+                    "columns_1f": ("count_1f",),
+                    "columns_2f": ("count_2f",),
+                    "columns_roof": ("count_roof",),
+                    "column_layout": ("count_gf", "count_1f"),
+                }
+                target_fields = _floor_field_map.get(dtype)
+                merged_map = {}
+                for ec in ((schedules.get("column_schedule") or {}).get("columns") or []):
+                    emk = str(ec.get("mark") or "").strip().upper()
+                    if emk:
+                        merged_map[emk] = dict(ec)
+                for nc in new_cols:
+                    mk = str(nc.get("mark") or "").strip().upper()
+                    if not mk:
+                        continue
+                    cur = merged_map.get(mk, {"mark": mk})
+                    # Preserve/update cross-section dimensions
+                    for dk in ("width_m", "length_m", "width", "length", "width_mm", "depth_mm"):
+                        if nc.get(dk) and not cur.get(dk):
+                            cur[dk] = nc[dk]
+                    if target_fields:
+                        cnt_val = int(nc.get("count") or 0)
+                        for tf in target_fields:
+                            # Dedicated per-floor sheets override combined column_layout counts
+                            if dtype != "column_layout" or not cur.get(tf):
+                                if cnt_val > 0:
+                                    cur[tf] = cnt_val
+                    else:
+                        # Combined column_schedule / upper_columns table
+                        for fk_c in ("count_neck", "count_gf", "count_1f", "count_2f", "count_roof", "count"):
+                            if nc.get(fk_c) is not None and int(nc.get(fk_c) or 0) > 0:
+                                if not cur.get(fk_c):
+                                    cur[fk_c] = int(nc.get(fk_c) or 0)
+                    merged_map[mk] = cur
+                if merged_map:
+                    schedules["column_schedule"] = {"columns": list(merged_map.values())}
         elif dtype == "tie_beam":
             # Tie beam extraction → pick up tb dimensions into schedule
             tb_entry = schedules.get("tie_beam", {})

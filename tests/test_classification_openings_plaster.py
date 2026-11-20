@@ -35,8 +35,9 @@ def test_classify_rejects_regulations_notes_and_boundary_wall():
 
 def test_classify_structural_distinguishes_columns_tie_beam_footings_slabs():
     assert _classify_single("%%UCOLUMN AXIS LAYOUT UPTO TIE BEAM COLUMN LAYOUT", "structural")["detected_type"] == "neck_columns"
-    assert _classify_single("%%UCOLUMN AXIS LAYOUT TIE BEAM TO F.FLOOR COLUMN LAYOUT", "structural")["detected_type"] == "columns_1f"
-    assert _classify_single("%%UCOLUMN AXIS LAYOUT F.FLOOR TO ROOF SLAB COLUMN LAYOUT", "structural")["detected_type"] == "columns_roof"
+    assert _classify_single("%%UCOLUMN AXIS LAYOUT TIE BEAM TO F.FLOOR COLUMN LAYOUT", "structural")["detected_type"] == "ground_columns"
+    assert _classify_single("%%UCOLUMN AXIS LAYOUT F.FLOOR TO ROOF SLAB COLUMN LAYOUT", "structural")["detected_type"] == "columns_1f"
+    assert _classify_single("%%UCOLUMN AXIS LAYOUT ROOF FLOOR COLUMNS", "structural")["detected_type"] == "columns_roof"
     assert _classify_single("%%UFOOTING AXIS LAYOUT FOOTING AS PER SCHEDULE COLUMN", "structural")["detected_type"] == "foundations"
     assert _classify_single("TIE BEAM COLUMN LAYOUT %%UTIE BEAM LAYOUT FOOTING AS PER SCHEDULE", "structural")["detected_type"] == "tie_beam"
     assert _classify_single("F.FLOOR SLAB LAYOUT SCHEDULE FOR SLAB SCHEDULE FOR SIMPLE AND CONTIONOUS BEAMS", "structural")["detected_type"] == "slab_1st"
@@ -164,3 +165,88 @@ def test_internal_plaster_equals_thermal_plus_2x_internal_block_and_never_below_
     tiles_b = calculate_item("wall_tiles_gf", inp_under_walls)
     plaster_b = calculate_item("int_plaster_gf", inp_under_walls)
     assert plaster_b >= round(paint_b + tiles_b, 2)
+
+
+# ── 4. Centimetre (cm) structural unit & per-floor column tests ──────────────
+
+def test_structural_cm_mm_and_misdivided_column_units_normalize_accurately():
+    from workflow.step3_extract import _normalize_units
+    from engine.project_boq_bridge import compute_all_quantities
+    from api.routers.data_review import reconstruct_project_inputs
+
+    # Simulate Kayan-style cm drawings: raw cm (20x60), AI-mis-divided cm/1000 (0.02x0.06), and mm (300x500)
+    raw_cm = _normalize_units({
+        "columns": [
+            {"mark": "C1", "width_m": 20, "length_m": 60, "count": 16},
+            {"mark": "C2", "width_m": 0.02, "length_m": 0.09, "count": 6},
+            {"mark": "C3", "width_m": 300, "length_m": 500, "count": 3},
+        ],
+        "footings": [
+            {"mark": "F1", "width": 160, "length": 180, "depth": 40, "count": 4},
+            {"mark": "F2", "width": 0.20, "length": 0.22, "depth": 0.04, "count": 6},
+        ],
+        "slab_thickness": 24,
+        "tb_width": 20,
+        "tb_depth": 60,
+    })
+    assert raw_cm["columns"][0]["width_m"] == 0.20 and raw_cm["columns"][0]["length_m"] == 0.60
+    assert raw_cm["columns"][1]["width_m"] == 0.20 and raw_cm["columns"][1]["length_m"] == 0.90
+    assert raw_cm["columns"][2]["width_m"] == 0.30 and raw_cm["columns"][2]["length_m"] == 0.50
+    assert raw_cm["footings"][0]["width"] == 1.60 and raw_cm["footings"][0]["length"] == 1.80 and raw_cm["footings"][0]["depth"] == 0.40
+    assert raw_cm["footings"][1]["width"] == 2.00 and raw_cm["footings"][1]["length"] == 2.20 and raw_cm["footings"][1]["depth"] == 0.40
+    assert raw_cm["slab_thickness"] == 0.24
+    assert raw_cm["tb_width"] == 0.20 and raw_cm["tb_depth"] == 0.60
+
+    # Verify per-floor merging: neck (P02) -> D.4, ground (P03) -> D.7.1, 1F (P04) -> D.7.2, Roof -> 0.0 on G+1
+    state = {
+        "extraction_results": {
+            "str_p2_neck": {
+                "_ok": True, "drawing_type": "neck_columns",
+                "columns": [
+                    {"mark": "Cn", "width_m": 0.20, "length_m": 0.30, "count": 10},
+                    {"mark": "C1", "width_m": 0.20, "length_m": 0.60, "count": 14},
+                    {"mark": "C2", "width_m": 0.20, "length_m": 0.90, "count": 6},
+                    {"mark": "C3", "width_m": 0.30, "length_m": 0.50, "count": 3},
+                ],
+            },
+            "str_p3_gf": {
+                "_ok": True, "drawing_type": "ground_columns",
+                "columns": [
+                    {"mark": "C1", "width_m": 0.02, "length_m": 0.06, "count": 16},
+                    {"mark": "C2", "width_m": 0.02, "length_m": 0.09, "count": 6},
+                    {"mark": "C3", "width_m": 0.03, "length_m": 0.05, "count": 3},
+                ],
+            },
+            "str_p4_1f": {
+                "_ok": True, "drawing_type": "columns_1f",
+                "columns": [
+                    {"mark": "C1", "width_m": 0.20, "length_m": 0.60, "count": 14},
+                    {"mark": "C2", "width_m": 0.20, "length_m": 0.90, "count": 5},
+                    {"mark": "C3", "width_m": 0.30, "length_m": 0.50, "count": 4},
+                ],
+            },
+        },
+        "confirmed_auto_data": {
+            "gf_area": 203.0,
+            "gf_height": 4.48,
+            "f1_height": 4.48,
+            "floors": {"gf": {"area": 203.0, "height": 4.48}, "1f": {"area": 203.0, "height": 4.48}},
+        },
+    }
+    reconstruct_project_inputs(state)
+    cad = state["confirmed_auto_data"]
+    project = {
+        "gf_area": 203.0,
+        "gf_height": 4.48,
+        "f1_height": 4.48,
+        "neck_column_height": 1.0,
+        "schedules": cad["schedules"],
+        "floors": cad["floors"],
+    }
+    results, _ = compute_all_quantities(project)
+    # Neck = 3.81 m3, GF->1st = 15.46 m3, 1st->Roof = 14.25 m3 (total 29.71 m3 vs 30 m3 ref BOQ!), Roof = 0.0 m3
+    assert abs(results["neck_column_concrete"] - 3.81) < 0.05
+    assert abs(results["col_gf_to_1st"] - 15.46) < 0.05
+    assert abs(results["col_1st_to_2nd"] - 14.25) < 0.05
+    assert results["col_roof"] == 0.0
+

@@ -66,9 +66,9 @@ def _footings(project: dict) -> list[dict]:
             depth_val = (f.get("depth_mm") or 0) / 1000
             
         out.append({
-            "length_m": safe_float(length_val),
-            "width_m":  safe_float(width_val),
-            "depth_m":  safe_float(depth_val),
+            "length_m": _norm_footing_plan_m(length_val),
+            "width_m":  _norm_footing_plan_m(width_val),
+            "depth_m":  _norm_footing_depth_m(depth_val),
             "count":    safe_int(f.get("count")),
         })
     return out
@@ -79,12 +79,61 @@ _NECK_TYPICAL_L = 0.40   # m
 _TYPICAL_BEAM_SPAN_M = 4.5   # m — typical villa structural bay (column-to-column)
 
 
+def _norm_struct_section_m(val: float, default: float = 0.0) -> float:
+    """Normalize a concrete column/beam cross-section side to metres.
+    Handles m (0.20..2.5), cm (15..150 -> /100), mm (>150 -> /1000),
+    and AI-mis-divided cm/1000 (0.01..0.119 -> *10)."""
+    v = safe_float(val)
+    if v <= 0:
+        return default
+    if 0.01 <= v < 0.12:
+        return round(v * 10.0, 4)
+    if v > 150.0:
+        return round(v / 1000.0, 4)
+    if v >= 10.0:
+        return round(v / 100.0, 4)
+    return round(v, 4)
+
+
+def _norm_footing_plan_m(val: float) -> float:
+    """Normalize footing plan dimension (width/length) to metres (handles cm/mm/m & cm/1000)."""
+    v = safe_float(val)
+    if v <= 0:
+        return 0.0
+    if 0.05 <= v < 0.55:
+        return round(v * 10.0, 4)
+    if v > 600.0:
+        return round(v / 1000.0, 4)
+    if v >= 60.0:
+        return round(v / 100.0, 4)
+    return round(v, 4)
+
+
+def _norm_footing_depth_m(val: float) -> float:
+    """Normalize footing depth (thickness) to metres (handles cm/mm/m & cm/1000)."""
+    v = safe_float(val)
+    if v <= 0:
+        return 0.0
+    if 0.015 <= v < 0.15:
+        return round(v * 10.0, 4)
+    if v > 150.0:
+        return round(v / 1000.0, 4)
+    if v >= 15.0:
+        return round(v / 100.0, 4)
+    return round(v, 4)
+
+
 def _neck_columns(project: dict) -> tuple[list[dict], bool]:
     """
     Neck columns sit between footing and tie beam.
-    If ground floor columns are known, we use their exact sizes.
-    Otherwise we fall back to footing count × typical section.
+    1. Prefer dedicated neck-column schedule (`count_neck` from UPTO TIE BEAM sheet).
+    2. Else fall back to ground-floor columns (`count_gf`).
+    3. Else fall back to footing count × typical section.
     """
+    neck_cols = _columns_for_floor(project, "neck")
+    if neck_cols:
+        return neck_cols, False
+
     gf_cols = _columns_for_floor(project, "gf")
     if gf_cols:
         return gf_cols, False
@@ -160,7 +209,7 @@ def _tie_beam_dims(project: dict) -> tuple[float, float, float, bool]:
             total_len = round(ext + intl, 2)
             estimated = True
 
-    return round(safe_float(w), 4), round(safe_float(d), 4), safe_float(total_len), estimated
+    return _norm_struct_section_m(w, 0.30), _norm_struct_section_m(d, 0.60), safe_float(total_len), estimated
 
 
 def _slab_beams(project: dict, slab_key: str, floor_area: float) -> tuple[list[dict], bool]:
@@ -202,8 +251,8 @@ def _slab_beams(project: dict, slab_key: str, floor_area: float) -> tuple[list[d
             
         out.append({
             "length_m": safe_float(total_len),
-            "width_m":  safe_float(width_val),
-            "depth_m":  safe_float(depth_val),
+            "width_m":  _norm_struct_section_m(width_val),
+            "depth_m":  _norm_struct_section_m(depth_val),
             "count":    1,        # length is already the total → no multiplier
         })
     return out, estimated
@@ -218,10 +267,19 @@ def _columns_for_floor(project: dict, floor_key: str) -> list[dict]:
     if not cols:
         cols = scheds.get("superstructure", {}).get("columns", [])
                    
-    # Check if schedule exists but has NO counts at all
+    # Check if schedule uses explicit per-floor column counts vs a single generic 'count'
+    has_per_floor = any(
+        c.get(k) is not None
+        for c in cols
+        for k in ("count_neck", "count_gf", "count_1f", "count_2f", "count_roof")
+    )
     total_counts_in_schedule = 0
     for c in cols:
-        total_counts_in_schedule += safe_int(c.get("count_gf")) + safe_int(c.get("count_1f")) + safe_int(c.get("count_2f")) + safe_int(c.get("count_roof")) + safe_int(c.get("count"))
+        total_counts_in_schedule += (
+            safe_int(c.get("count_neck")) + safe_int(c.get("count_gf"))
+            + safe_int(c.get("count_1f")) + safe_int(c.get("count_2f"))
+            + safe_int(c.get("count_roof")) + safe_int(c.get("count"))
+        )
         
     fallback_count_per_col = 0
     if total_counts_in_schedule == 0 and len(cols) > 0:
@@ -233,6 +291,9 @@ def _columns_for_floor(project: dict, floor_key: str) -> list[dict]:
     default_wid = safe_float(project.get("default_col_width")) or 0.20
     
     if len(cols) == 0:
+        # Never invent synthetic columns for a non-existent roof level or neck lookup
+        if floor_key in ("neck", "roof"):
+            return []
         gf_area = safe_float(project.get("gf_area")) or 250.0
         total_needed = max(1, int(gf_area / 16))
         return [{
@@ -243,12 +304,24 @@ def _columns_for_floor(project: dict, floor_key: str) -> list[dict]:
 
     out = []
     for c in cols:
-        n = c.get(f"count_{floor_key}")
-        if not n:
-            n = c.get("count", 0)
+        if has_per_floor:
+            n = safe_int(c.get(f"count_{floor_key}"))
+            # If only count_neck was extracted (no superstructure sheets), fall back to count_neck for GF/1F
+            if n == 0 and floor_key in ("gf", "1f"):
+                has_super = any(
+                    safe_int(x.get("count_gf")) > 0 or safe_int(x.get("count_1f")) > 0
+                    for x in cols
+                )
+                if not has_super:
+                    n = safe_int(c.get("count_neck"))
+        else:
+            n = safe_int(c.get(f"count_{floor_key}")) or safe_int(c.get("count"))
+            # A generic column schedule without explicit count_roof must NOT invent full-floor roof columns
+            if floor_key == "roof" and c.get("count_roof") is None:
+                n = 0
             
         if total_counts_in_schedule == 0:
-            n = fallback_count_per_col
+            n = 0 if floor_key in ("neck", "roof") else fallback_count_per_col
             
         length_val = c.get("length_m") or c.get("length")
         if length_val is None:
@@ -258,7 +331,7 @@ def _columns_for_floor(project: dict, floor_key: str) -> list[dict]:
         if width_val is None:
             width_val = (c.get("width_mm") or c.get("short_mm") or 0) / 1000
             
-        # If dimensions are provided as strings like "200x600" or "0.2x0.6"
+        # If dimensions are provided as strings like "200x600", "20x60", or "0.2x0.6"
         def parse_dim(v):
             if isinstance(v, str) and "x" in v.lower():
                 parts = v.lower().split("x")
@@ -269,36 +342,21 @@ def _columns_for_floor(project: dict, floor_key: str) -> list[dict]:
         l_x, w_x = parse_dim(length_val)
         if l_x is not None:
             length_val, width_val = max(l_x, w_x), min(l_x, w_x)
-            if length_val > 50: # Probably mm
-                length_val /= 1000.0
-                width_val /= 1000.0
                 
         l_x, w_x = parse_dim(width_val)
         if l_x is not None:
             length_val, width_val = max(l_x, w_x), min(l_x, w_x)
-            if length_val > 50:
-                length_val /= 1000.0
-                width_val /= 1000.0
 
-        length_f = safe_float(length_val)
-        width_f = safe_float(width_val)
-        
-        # If still 0, check if mm conversion is needed
-        if length_f > 50: length_f /= 1000.0
-        if width_f > 50: width_f /= 1000.0
-
-        if length_f == 0: length_f = default_len
-        if width_f == 0: width_f = default_wid
+        length_f = _norm_struct_section_m(length_val, default_len)
+        width_f  = _norm_struct_section_m(width_val, default_wid)
             
-        # Ensure n is at least 1 if we are assuming fallback
         n_int = safe_int(n)
-        if total_counts_in_schedule == 0 and n_int == 0:
-            n_int = fallback_count_per_col
-            
+        if n_int <= 0:
+            continue
         out.append({
             "length_m": length_f,
             "width_m":  width_f,
-            "count":    max(1, n_int) if fallback_count_per_col > 0 and n_int == 0 else n_int,
+            "count":    n_int,
         })
     return out
 
@@ -645,7 +703,10 @@ def build_inputs(project: dict) -> tuple[dict, dict, dict]:
         _col_xsec = sum(safe_float(c.get("length_m")) * safe_float(c.get("width_m"))
                         * safe_float(c.get("count")) for c in _cols)
         _col_vol = _col_xsec * _fh_col
-        _col_cap = (_footprint or 0.0) * 0.06
+        # Scale column cap by floor height (0.025 m3/m2 per metre of height -> ~0.10-0.11 m3/m2
+        # on 4.0-4.5 m Dubai villas) so tall villas with dense columns are never truncated while
+        # extreme multi-fold hallucinations are still bounded.
+        _col_cap = (_footprint or 0.0) * 0.025 * max(_fh_col, 3.0)
         if _col_cap > 0 and _col_vol > _col_cap and _col_xsec > 0:
             _sc = _col_cap / _col_vol
             for c in _cols:

@@ -53,13 +53,22 @@ PAGE_ITEMS_MAP = {
     },
     "neck_columns": {
         "drawing_keywords": [
-            "neck column", "ground column", "gf column", "ground floor column",
-            "أعمدة الرقبة", "أعمدة الأرضي", "NECK COL", "NECK COLUMN SCHEDULE",
-            "GROUND FLOOR COLUMNS", "GF COLUMNS", "NECK COLUMNS", "NECK COLUMN PLAN"
+            "neck column", "upto tie beam", "foundation to tie beam",
+            "أعمدة الرقبة", "NECK COL", "NECK COLUMN SCHEDULE",
+            "NECK COLUMNS", "NECK COLUMN PLAN"
         ],
         "pdf_type": "structural",
-        "extract_items": ["neck_column_concrete", "neck_column_bitumen", "col_gf_to_1st"],
-        "ai_prompt_focus": "Extract ground-floor / neck columns: each mark with width, length, count.",
+        "extract_items": ["neck_column_concrete", "neck_column_bitumen"],
+        "ai_prompt_focus": "Extract neck columns (foundation to tie beam): each mark with width, length, count.",
+    },
+    "ground_columns": {
+        "drawing_keywords": [
+            "ground column", "gf column", "ground floor column", "tie beam to first",
+            "tie beam to f.floor", "أعمدة الأرضي", "GROUND FLOOR COLUMNS", "GF COLUMNS"
+        ],
+        "pdf_type": "structural",
+        "extract_items": ["col_gf_to_1st"],
+        "ai_prompt_focus": "Extract ground-floor columns (tie beam to 1st floor): each mark with width, length, count.",
     },
     "columns_1f": {
         "drawing_keywords": ["1st floor column", "first floor column", "1st flr col", "أعمدة الأول", "1ST FLOOR COLUMNS", "FIRST FLOOR COLUMNS"],

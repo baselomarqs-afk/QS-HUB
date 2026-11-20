@@ -275,19 +275,70 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
                                     item["count_source"] = "floor_plans_fitz"
 
         # ── CROSS-CHECK: Columns PyMuPDF (fitz) exact match counting ──
-        # Extract column counts from the column layout plan to override hallucinations
-        col_layout_pages = []
-        for p in ready:
-            if p["pdf"] == "structural" and p["detected_type"] == "column_layout":
-                col_layout_pages.append(p)
-                
+        # 1) On dedicated per-floor column layout pages (neck_columns, ground_columns,
+        #    columns_1f, columns_2f, columns_roof, column_layout), count each extracted
+        #    column mark directly from the plan region of that page (excluding the bottom
+        #    legend strip where each mark appears once as a title).
+        _PERFLOOR_COL_DTYPES = {
+            "neck_columns", "ground_columns", "columns_1f",
+            "columns_2f", "columns_roof", "column_layout",
+        }
+        try:
+            import fitz as _fitz
+            for k, data in results.items():
+                dtype = data.get("drawing_type") or data.get("detected_type")
+                if dtype not in _PERFLOOR_COL_DTYPES:
+                    continue
+                cols = data.get("columns") or []
+                if not cols:
+                    continue
+                pdf_idx = data.get("page_index")
+                if pdf_idx is None:
+                    continue
+                str_pdf_path, internal_idx = _resolve_pdf_page("str", int(pdf_idx))
+                if not (str_pdf_path and os.path.exists(str_pdf_path)):
+                    continue
+                known_marks = {str(c.get("mark", "")).strip().upper(): c for c in cols if c.get("mark")}
+                if not known_marks:
+                    continue
+                with _fitz.open(str_pdf_path) as _doc:
+                    if internal_idx >= len(_doc):
+                        continue
+                    _pg = _doc[internal_idx]
+                    _ph = _pg.rect.height
+                    plan_counts = {}
+                    total_counts = {}
+                    for _w in _pg.get_text("words"):
+                        tok = _w[4].strip().rstrip("*#").upper()
+                        if tok in known_marks:
+                            total_counts[tok] = total_counts.get(tok, 0) + 1
+                            yc = (_w[1] + _w[3]) / 2.0
+                            if yc < _ph * 0.74:
+                                plan_counts[tok] = plan_counts.get(tok, 0) + 1
+                    # Prefer upper-plan counts (excludes bottom schedule legend); if a drawing
+                    # places the plan near the bottom too, use total - 1 when legend repeated it.
+                    use_counts = plan_counts if sum(plan_counts.values()) >= 3 else {
+                        mk: max(1, cnt - 1) if cnt > 1 else cnt for mk, cnt in total_counts.items()
+                    }
+                    if sum(use_counts.values()) >= 3:
+                        for mk, c_obj in known_marks.items():
+                            if mk in use_counts and use_counts[mk] > 0:
+                                c_obj["count"] = use_counts[mk]
+                                c_obj["count_source"] = "column_layout_fitz"
+        except Exception as _ce:
+            print(f"Error counting per-floor columns with PyMuPDF: {_ce}")
+
+        # 2) Combined schedule (upper_columns) paired with a separate column_layout page
+        col_layout_pages = [
+            p for p in ready
+            if p["pdf"] == "structural" and p["detected_type"] == "column_layout"
+        ]
         if col_layout_pages:
             from _pdf_utils import count_token_in_page
             for k, data in results.items():
                 if data.get("drawing_type") == "upper_columns":
                     all_marks = [str(c.get("mark", "")).strip().upper() for c in data.get("columns", []) if c.get("mark")]
                     if all_marks:
-                        # Iterate through each column layout page and sum the counts
                         for lp in col_layout_pages:
                             pdf_idx = lp["page_index"]
                             str_pdf_path, internal_idx = _resolve_pdf_page("str", pdf_idx)
@@ -297,12 +348,9 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
                                     for c in data.get("columns", []):
                                         m = str(c.get("mark", "")).strip().upper()
                                         if m in counts and counts[m] > 0:
-                                            # Column layouts are typically the Ground Floor / Neck columns view.
-                                            # We map these exact counts to gf, 1f, 2f.
                                             c["count_gf"] = c.get("count_gf", 0) + counts[m]
                                             c["count_1f"] = c.get("count_1f", 0) + counts[m]
                                             if state_data.get("current_step") and state_data.get("confirmed_auto_data"):
-                                                # check if 2f exists
                                                 if "2f" in state_data.get("confirmed_auto_data", {}).get("floors", {}):
                                                     c["count_2f"] = c.get("count_2f", 0) + counts[m]
                                             c["count_source"] = "column_layout_fitz"

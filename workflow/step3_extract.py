@@ -22,36 +22,41 @@ from workflow.workflow_state import mark_step_done
 
 
 # Combined column SCHEDULE page → per-floor counts in one table
-COLUMN_TYPES  = {"upper_columns", "column_schedule", "ground_columns"}
+COLUMN_TYPES  = {"upper_columns", "column_schedule"}
 COLUMN_PROMPT = """You are reading a STRUCTURAL COLUMN SCHEDULE for a UAE villa.
 
-For EACH column mark in the table, extract:
-- "mark": the column label (e.g. C1, C2)
-- "width_m":  the smaller plan dimension, in METRES
-- "length_m": the larger plan dimension, in METRES
+For EACH column mark in the table (including C1, C2, C3, Cn, etc.), extract:
+- "mark": the column label (e.g. C1, C2, Cn)
+- "width_m":  the smaller plan dimension, in METRES (e.g. 20 cm = 0.20, 30 cm = 0.30, 200 mm = 0.20 — NEVER 0.02!)
+- "length_m": the larger plan dimension, in METRES (e.g. 60 cm = 0.60, 90 cm = 0.90, 600 mm = 0.60 — NEVER 0.06!)
 - "count_gf": number of columns of this mark on the Ground Floor (or "count" if the table has only one general count column)
 - "count_1f": number of columns on the First Floor
 - "count_2f": number of columns on the Second Floor
 - "count_roof": number of columns on the Roof Floor
 
 Return ONLY this JSON (no extra text):
-{"columns": [{"mark":"C1","width_m":0.20,"length_m":0.60,"count_gf":12,"count_1f":12,"count_2f":0,"count_roof":8}],
+{"columns": [{"mark":"C1","width_m":0.20,"length_m":0.60,"count_gf":12,"count_1f":12,"count_2f":0,"count_roof":0}],
  "confidence":"high|medium|low", "notes":""}"""
 
 # Dedicated PER-FLOOR column pages → single count for that one floor
 PERFLOOR_COLUMN_TYPES = {
-    "neck_columns": "gf", "columns_1f": "1f", "columns_2f": "2f", "columns_roof": "roof",
+    "neck_columns": "neck",
+    "ground_columns": "gf",
+    "columns_1f": "1f",
+    "columns_2f": "2f",
+    "columns_roof": "roof",
+    "column_layout": "gf_and_1f",
 }
-PERFLOOR_COLUMN_PROMPT = """You are reading a STRUCTURAL COLUMN layout/schedule for ONE floor of a UAE villa.
+PERFLOOR_COLUMN_PROMPT = """You are reading a STRUCTURAL COLUMN layout + section legend for ONE level of a UAE villa.
 
-For EACH column mark shown, extract:
-- "mark": the column label (e.g. C1, C2)
-- "width_m":  the smaller plan dimension, in METRES
-- "length_m": the larger plan dimension, in METRES
-- "count": how many of this column on THIS floor
+Read EVERY column type shown in the section table/legend (e.g. Cn, C1, C2, C3, C4...) and count how many times EACH mark appears on the column layout plan:
+- "mark": the column label (e.g. Cn, C1, C2, C3)
+- "width_m":  the smaller plan dimension, in METRES (WARNING: UAE structural drawings often label sections in CENTIMETRES like "20" x "60" or "20" x "90" -> 0.20 and 0.60 m, NOT 0.02 or 0.06 m!)
+- "length_m": the larger plan dimension, in METRES (e.g. 60 cm = 0.60 m, 90 cm = 0.90 m, 50 cm = 0.50 m)
+- "count": exact number of columns of this mark placed on THIS layout plan (do not count the single legend label itself)
 
 Return ONLY this JSON (no extra text):
-{"columns": [{"mark":"C1","width_m":0.30,"length_m":0.60,"count":4}],
+{"columns": [{"mark":"Cn","width_m":0.20,"length_m":0.30,"count":10},{"mark":"C1","width_m":0.20,"length_m":0.60,"count":14}],
  "confidence":"high|medium|low", "notes":""}"""
 
 # ── Foundations / Tie beam / Slab / Schedules — list-based, in METRES ─────────
@@ -181,8 +186,14 @@ Return ONLY this JSON (no markdown):
  "int_walls_10cm_m":0.0,"int_walls_20cm_m":0.0,
  "confidence":"high|medium|low","notes":""}"""
 
-METRES_NOTE = ("\n\nCRITICAL: Return ALL dimensions in METRES (e.g. 6.0, 0.30 — NOT "
-               "6000 or 300). If the drawing labels are in millimetres, divide by 1000.")
+METRES_NOTE = (
+    "\n\nCRITICAL: Return ALL dimensions in METRES (e.g. 0.20, 0.60, 2.20, 0.40, 6.0). "
+    "Check the drawing's unit carefully: UAE structural drawings often label columns, beams, "
+    "footings, and slabs in CENTIMETRES (cm — e.g. '20', '60', '90', '200cm', '40cm', '24cm', "
+    "'SIZE (cm)'), in which case divide by 100 (20cm -> 0.20, 60cm -> 0.60, 200cm -> 2.00, 40cm -> 0.40). "
+    "If labels are in MILLIMETRES (mm — e.g. '200', '600', '2000mm', '400mm'), divide by 1000. "
+    "NEVER divide centimetre dimensions by 1000 (a concrete column can NEVER be 0.02m or 0.06m!)."
+)
 
 
 def _to_m(v, mm_above):
@@ -192,6 +203,74 @@ def _to_m(v, mm_above):
     except (TypeError, ValueError):
         return v
     return round(v / 1000.0, 4) if v > mm_above else v
+
+
+def _to_section_m(v):
+    """Convert column/beam cross-section width/depth (m, cm, mm, or mis-divided cm/1000) to metres."""
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return v
+    if v <= 0:
+        return v
+    if 0.01 <= v < 0.12:
+        return round(v * 10.0, 4)  # fixes 20cm/1000 = 0.02 -> 0.20m
+    if v > 150.0:
+        return round(v / 1000.0, 4)  # mm (e.g. 200, 300, 600)
+    if v >= 10.0:
+        return round(v / 100.0, 4)  # cm (e.g. 20, 30, 60, 90)
+    return round(v, 4)
+
+
+def _to_slab_thk_m(v):
+    """Convert slab thickness (m, cm, mm, or mis-divided cm/1000) to metres."""
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return v
+    if v <= 0:
+        return v
+    if 0.01 <= v < 0.08:
+        return round(v * 10.0, 4)  # fixes 24cm/1000 = 0.024 -> 0.24m
+    if v > 50.0:
+        return round(v / 1000.0, 4)  # mm (e.g. 200, 240, 250)
+    if v >= 8.0:
+        return round(v / 100.0, 4)  # cm (e.g. 20, 23, 24, 25)
+    return round(v, 4)
+
+
+def _to_footing_plan_m(v):
+    """Convert footing width/length (m, cm, mm, or mis-divided cm/1000) to metres."""
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return v
+    if v <= 0:
+        return v
+    if 0.05 <= v < 0.55:
+        return round(v * 10.0, 4)  # fixes 200cm/1000 = 0.20 -> 2.00m
+    if v > 600.0:
+        return round(v / 1000.0, 4)  # mm (e.g. 1500, 2200, 3300)
+    if v >= 60.0:
+        return round(v / 100.0, 4)  # cm (e.g. 110, 160, 200, 330, 480)
+    return round(v, 4)
+
+
+def _to_footing_depth_m(v):
+    """Convert footing depth (m, cm, mm, or mis-divided cm/1000) to metres."""
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return v
+    if v <= 0:
+        return v
+    if 0.015 <= v < 0.15:
+        return round(v * 10.0, 4)  # fixes 40cm/1000 = 0.04 -> 0.40m
+    if v > 150.0:
+        return round(v / 1000.0, 4)  # mm (e.g. 400, 500, 600)
+    if v >= 15.0:
+        return round(v / 100.0, 4)  # cm (e.g. 35, 40, 45, 50)
+    return round(v, 4)
 
 
 def _finishes_from_rooms(data: dict) -> dict:
@@ -338,9 +417,14 @@ def parse_json(raw_str: str) -> dict:
     return {}
 
 def _normalize_units(data: dict) -> dict:
-    """Safety net: coerce any millimetre values the model slipped through to metres."""
-    for k, thr in (("tb_width", 5), ("tb_depth", 5), ("slab_thickness", 5),
-                   ("longest_length", 100), ("longest_width", 100), ("ext_perimeter", 100),
+    """Safety net: coerce centimetre (cm), millimetre (mm), and mis-divided cm/1000
+    structural dimensions safely to metres."""
+    for k in ("tb_width", "tb_depth"):
+        if data.get(k) is not None:
+            data[k] = _to_section_m(data[k])
+    if data.get("slab_thickness") is not None:
+        data["slab_thickness"] = _to_slab_thk_m(data["slab_thickness"])
+    for k, thr in (("longest_length", 100), ("longest_width", 100), ("ext_perimeter", 100),
                    ("tb_total_length", 500), ("wet_perimeter", 500), ("dry_perimeter", 500),
                    ("int_walls_length", 500)):
         if data.get(k) is not None:
@@ -358,19 +442,19 @@ def _normalize_units(data: dict) -> dict:
                 pass
                 
     for f in data.get("footings", []) or []:
-        f["width"]  = _to_m(f.get("width"),  20)
-        f["length"] = _to_m(f.get("length"), 20)
-        f["depth"]  = _to_m(f.get("depth"),  5)
+        f["width"]  = _to_footing_plan_m(f.get("width"))
+        f["length"] = _to_footing_plan_m(f.get("length"))
+        f["depth"]  = _to_footing_depth_m(f.get("depth"))
         if not f.get("depth"):          # missing footing depth → typical 0.40 m
             f["depth"] = 0.40
     for b in data.get("beams", []) or []:
-        b["width"]  = _to_m(b.get("width"),  5)
-        b["depth"]  = _to_m(b.get("depth"),  5)
+        b["width"]  = _to_section_m(b.get("width"))
+        b["depth"]  = _to_section_m(b.get("depth"))
         b["length"] = _to_m(b.get("length"), 500)
     for c in data.get("columns", []) or []:
         for kk in ("width_m", "length_m", "width", "length"):
             if c.get(kk) is not None:
-                c[kk] = _to_m(c[kk], 5)
+                c[kk] = _to_section_m(c[kk])
     for lst in ("doors", "windows"):
         for o in data.get(lst, []) or []:
             # New _mm-suffixed fields (from updated SCHEDULE_PROMPT) — convert to metres safely
