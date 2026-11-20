@@ -122,26 +122,64 @@ def reconstruct_project_inputs(state_data: dict):
                     try: openings["totals"]["window_area"] += float(windows)
                     except: pass
                 
-    # ── Deterministic vector take-off OVERRIDE ────────────────────────────────
-    # When the architectural PDF has a usable text layer, openings_counter reads
-    # door/window marks straight off the plans+schedule (100% deterministic) and
-    # supersedes the AI estimate — this is what fixes silent "windows = 0".
+    # ── Deterministic vector take-off OVERRIDE (merged with AI schedule sizes) ─
+    # openings_counter reads real opening marks straight off confirmed floor plans
+    # (100% deterministic counts) and reads schedule dimensions via text + Vision.
+    # If any mark still lacks a size in `vec`, fill its width/height from the AI
+    # schedule extraction in `openings` so we combine exact counts with full sizes.
     vec = state_data.get("_vector_openings")
     if vec and vec.get("_ok"):
-        v_area = float(vec.get("totals", {}).get("window_area", 0) or 0)
-        v_doors = int(vec.get("totals", {}).get("door_count", 0) or 0)
-        # Trust the deterministic count whenever it found anything.
-        if vec.get("windows"):
-            openings["windows"] = vec["windows"]
-        if vec.get("doors"):
-            openings["doors"] = vec["doors"]
+        ai_win_sizes = {}
+        for aw in (openings.get("windows") or []):
+            mk = str(aw.get("mark") or "").strip().upper().replace("-", "").replace(" ", "")
+            w_m = float(aw.get("width_m") or aw.get("width") or (float(aw.get("width_mm") or 0) / 1000.0) or 0)
+            h_m = float(aw.get("height_m") or aw.get("height") or (float(aw.get("height_mm") or 0) / 1000.0) or 0)
+            if w_m > 20: w_m /= 1000.0
+            if h_m > 20: h_m /= 1000.0
+            if mk and 0.2 <= w_m <= 12.0 and 0.2 <= h_m <= 12.0:
+                ai_win_sizes[mk] = (round(w_m, 2), round(h_m, 2))
+        ai_door_sizes = {}
+        for ad in (openings.get("doors") or []):
+            mk = str(ad.get("mark") or "").strip().upper().replace("-", "").replace(" ", "")
+            w_m = float(ad.get("width_m") or ad.get("width") or (float(ad.get("width_mm") or 0) / 1000.0) or 0)
+            h_m = float(ad.get("height_m") or ad.get("height") or (float(ad.get("height_mm") or 0) / 1000.0) or 0)
+            if w_m > 20: w_m /= 1000.0
+            if h_m > 20: h_m /= 1000.0
+            if mk and 0.2 <= w_m <= 12.0 and 0.2 <= h_m <= 12.0:
+                ai_door_sizes[mk] = (round(w_m, 2), round(h_m, 2))
+
+        merged_windows = []
+        for rec in (vec.get("windows") or []):
+            r = dict(rec)
+            if (not r.get("width_m") or not r.get("height_m")) and r.get("mark") in ai_win_sizes:
+                r["width_m"], r["height_m"] = ai_win_sizes[r["mark"]]
+                r["size_source"] = "ai_schedule"
+            merged_windows.append(r)
+
+        merged_doors = []
+        for rec in (vec.get("doors") or []):
+            r = dict(rec)
+            if (not r.get("width_m") or not r.get("height_m")) and r.get("mark") in ai_door_sizes:
+                r["width_m"], r["height_m"] = ai_door_sizes[r["mark"]]
+                r["size_source"] = "ai_schedule"
+            merged_doors.append(r)
+
+        if merged_windows:
+            openings["windows"] = merged_windows
+        if merged_doors:
+            openings["doors"] = merged_doors
+
+        v_area = round(sum(float(r.get("width_m") or 0) * float(r.get("height_m") or 0) * int(r.get("count") or 0) for r in merged_windows), 2)
+        v_doors = sum(int(r.get("count") or 0) for r in merged_doors)
         if v_area > 0:
             openings["totals"]["window_area"] = v_area
-            openings["totals"]["window_count"] = int(vec["totals"].get("window_count", 0) or 0)
+            openings["totals"]["window_count"] = sum(int(r.get("count") or 0) for r in merged_windows)
         if v_doors > 0:
             openings["totals"]["door_count"] = v_doors
         openings["_source"] = "vector_text"
-        openings["_needs_size_review"] = bool(vec.get("_needs_size_review"))
+        openings["_needs_size_review"] = any(
+            (not r.get("width_m") or not r.get("height_m")) for r in merged_windows
+        )
 
     # Preserve explicit user overrides in openings.totals so confirm/reload never wipes them
     door_user_edited = (
@@ -357,7 +395,7 @@ def reconstruct_project_inputs(state_data: dict):
     # values from wherever they exist instead of leaving them as 0.
     _ANY_PAGE_FIELDS = (
         "longest_length", "longest_width", "total_villa_height",
-        "gf_area", "ext_perimeter", "gf_height", "f1_height", "parapet_height"
+        "gf_area", "ext_perimeter", "gf_height", "f1_height", "f2_height", "parapet_height"
     )
     # Map: some pages use different key names for the same concept
     _FIELD_ALIASES = {
@@ -365,6 +403,7 @@ def reconstruct_project_inputs(state_data: dict):
         "longest_width": ("overall_width_m", "longest_width"),
         "gf_height": ("gf_height_m", "floor_height_m"),
         "f1_height": ("f1_height_m",),
+        "f2_height": ("f2_height_m",),
         "total_villa_height": ("total_villa_height_m",),
         "parapet_height": ("parapet_height_m",),
         "gf_area": ("gf_area", "total_floor_area", "floor_area"),
@@ -383,6 +422,14 @@ def reconstruct_project_inputs(state_data: dict):
                 if val and float(val) > 0:
                     confirmed[field] = float(val)
                     break
+
+    # Propagate elevation-extracted floor heights into floors[fk]["height"] when floors still carry default 4.0
+    for _fk, _hf in (("gf", "gf_height"), ("1f", "f1_height"), ("2f", "f2_height")):
+        _hv = float(confirmed.get(_hf) or 0.0)
+        if 2.5 <= _hv <= 6.5 and _fk in confirmed.get("floors", {}):
+            _cur_h = float(confirmed["floors"][_fk].get("height") or 0.0)
+            if _cur_h <= 0 or abs(_cur_h - 4.0) < 0.01:
+                confirmed["floors"][_fk]["height"] = _hv
 
     for field in _ANY_PAGE_FIELDS:
         if confirmed.get(field) and field not in sources:

@@ -9,7 +9,7 @@ from PIL import Image
 from api.auth import get_current_user
 from utils.db import safe_query, safe_execute
 from pdf_engine.smart_classifier import PAGE_ITEMS_MAP
-from workflow.step2_classify import _classify_single, _ai_classify
+from workflow.step2_classify import _classify_single, classify_pages_hybrid
 
 router = APIRouter()
 
@@ -93,6 +93,10 @@ async def auto_classify(req: RunExtractionReq, current_user: dict = Depends(get_
             "auto_detected_type": cls_info.get("detected_type"),
             **cls_info,
         })
+
+    # Hybrid refinement: use concurrent AI Vision on any low/medium-confidence pages
+    # (e.g. AutoCAD SHX stroke-font titles that have no selectable title text in PDF).
+    classified = classify_pages_hybrid(classified, project_cache)
 
     state_data["classified_pages"] = classified
     state_data["current_step"] = 2

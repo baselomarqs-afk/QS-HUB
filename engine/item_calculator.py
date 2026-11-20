@@ -456,17 +456,28 @@ def _calc_generic_floor_item(item_key: str, inputs: Dict) -> float:
     da_count = _g(inputs, "doors_deduction_count", 0.0)
     da_deduct = da_count * 2.0  # Assumed standard door area
 
+    thermal_block = max(0.0, (ep * fh) - wa_deduct)
+    internal_block_10 = iwl10 * fh
+    internal_block_20 = max(0.0, (iwl20 * fh) - da_deduct)
+    wall_tiles = wp * max(fh - 0.50, 0)
+    int_paint = max(0.0, (dp * fh) - da_deduct - wa_deduct)
+    # QS Golden Rule: Internal Plaster = Thermal Block (inner face) + 2 × Total Internal Block (both faces).
+    # Engineering floor invariant: internal plaster sits underneath BOTH internal paint AND wet-area wall tiles,
+    # so it must never be less than (int_paint + wall_tiles).
+    int_plaster_blocks = thermal_block + 2.0 * (internal_block_20 + internal_block_10)
+    int_plaster = max(int_plaster_blocks, int_paint + wall_tiles)
+
     mapping = {
         # Finishes
-        "thermal_block_":  max(0.0, (ep * fh) - wa_deduct),                  # ext_perimeter × floor_height - windows
-        "internal_block_10_": iwl10 * fh,                                    # 10 cm partition walls × height
-        "internal_block_": max(0.0, (iwl20 * fh) - da_deduct),               # 20 cm internal walls × height - doors
+        "thermal_block_":  thermal_block,                                    # ext_perimeter × floor_height - windows
+        "internal_block_10_": internal_block_10,                             # 10 cm partition walls × height
+        "internal_block_": internal_block_20,                                # 20 cm internal walls × height - doors
         "dry_floor_":      dry,                                              # total_area - wet_area
         "wet_floor_":      wa,                                               # wet rooms area
-        "wall_tiles_":     wp * max(fh - 0.50, 0),                           # wet_perimeter × (height - 0.50)
+        "wall_tiles_":     wall_tiles,                                       # wet_perimeter × (height - 0.50)
         "skirting_":       max(0.0, dp - da_count),                          # deduct 1m of skirting per door
-        "int_paint_":      max(0.0, (dp * fh) - da_deduct - wa_deduct),      # skirting_length × floor_height - openings
-        "int_plaster_":    max(0.0, (iwl * fh * 2.0) + (ep * fh) - (da_deduct * 2.0) - wa_deduct), # (int_walls×2) + ext_walls - openings
+        "int_paint_":      int_paint,                                        # dry_perimeter × floor_height - openings
+        "int_plaster_":    int_plaster,                                      # max(thermal + 2×internal_block, paint + wall_tiles)
         "dry_ceiling_":    dry,                                              # = dry_floor
         "wet_ceiling_":    wa,                                               # = wet_floor
         "balcony_wp_":     ba,                               # balcony area

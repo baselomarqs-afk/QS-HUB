@@ -151,26 +151,42 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
                         
                 extracted.update(cv_data)
 
-            # OCR fallback for floor heights if missing
+            # Deterministic level-marker fallback for floor heights (supports F.F.L / S.S.L / T.O.S / FFL / LVL)
             if dtype in ["elevations", "ground_floor_plan", "first_floor_plan", "second_floor_plan", "roof_floor_plan"]:
-                if not extracted.get("floor_height") and not extracted.get("floor_to_floor_heights_m"):
-                    import re
-                    # Look for standard level markers like LVL +4.00, FFL +3.80, etc.
-                    matches = re.findall(r'(?:LVL|FFL|SSL|LEVEL)[\s]*[=:]?[\s]*\+?\s*(\d+\.\d{1,2})', page_text, re.IGNORECASE)
-                    if matches:
-                        heights = sorted([float(m) for m in matches])
+                if not extracted.get("floor_height") and not extracted.get("floor_to_floor_heights_m") and not extracted.get("gf_height_m"):
+                    # Match dotted/undotted UAE elevation markers: "F.F.L +5.08", "FFL +4.00", "S.S.L 9.56", "LEVEL +10.76"
+                    raw_matches = re.findall(
+                        r'(?:F\.?F\.?L\.?|S\.?S\.?L\.?|T\.?O\.?S\.?|LVL|LEVEL|PARAPET\s+LEV\w*)[\s.:=]*\+?\s*(\d+\.\d{1,2})',
+                        page_text,
+                        re.IGNORECASE,
+                    )
+                    if raw_matches:
+                        heights = sorted({round(float(m), 2) for m in raw_matches})
                         if len(heights) > 1:
-                            # Differences between consecutive levels are floor heights
-                            diffs = [round(heights[i] - heights[i-1], 2) for i in range(1, len(heights))]
-                            valid_diffs = [d for d in diffs if 2.5 <= d <= 6.0]
-                            if valid_diffs:
-                                # use the mode of the valid differences
-                                mode_h = max(set(valid_diffs), key=valid_diffs.count)
+                            # Filter out tiny plinth steps (<2.5m) when pairing floor-to-floor levels
+                            floor_lvls = [h for h in heights if h >= 0.15]
+                            diffs = []
+                            for a, b in zip(floor_lvls, floor_lvls[1:]):
+                                d = round(b - a, 2)
+                                if 2.5 <= d <= 6.0:
+                                    diffs.append(d)
+                            if diffs:
+                                mode_h = max(set(diffs), key=diffs.count)
                                 extracted["floor_height"] = mode_h
-                                extracted["notes"] = extracted.get("notes", "") + f" [OCR FALLBACK: Floor height derived from level markers as {mode_h}m]"
-                                # Also set the total villa height array if it's an elevation
+                                extracted["notes"] = extracted.get("notes", "") + f" [LEVEL MARKER FALLBACK: Floor height derived as {mode_h}m]"
                                 if dtype == "elevations":
-                                    extracted["floor_to_floor_heights_m"] = valid_diffs
+                                    extracted["floor_to_floor_heights_m"] = diffs
+                                    extracted["gf_height_m"] = diffs[0]
+                                    if len(diffs) >= 2:
+                                        extracted["f1_height_m"] = diffs[1]
+                                    if len(diffs) >= 3:
+                                        extracted["f2_height_m"] = diffs[2]
+                                    # Parapet = last level diff if between 0.6m and 2.2m
+                                    last_diff = round(floor_lvls[-1] - floor_lvls[-2], 2)
+                                    if 0.6 <= last_diff <= 2.2 and not extracted.get("parapet_height_m"):
+                                        extracted["parapet_height_m"] = last_diff
+                                    if not extracted.get("total_villa_height_m"):
+                                        extracted["total_villa_height_m"] = round(sum(diffs), 2)
 
             key = f"{pdf_type}_p{page_num}_{dtype}"
             return key, {**extracted, **page_info}
@@ -302,7 +318,11 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
         # reconstruct_project_inputs (fixes silent windows=0 on any villa).
         try:
             from workflow.openings_counter import extract_openings_for_project
-            vec_openings = extract_openings_for_project(project_cache)
+            vec_openings = extract_openings_for_project(
+                project_cache,
+                classified_pages=ready,
+                arch_boundaries=state_data.get("arch_boundaries") or [],
+            )
             if vec_openings and vec_openings.get("_ok"):
                 state_data["_vector_openings"] = vec_openings
         except Exception as _ve:

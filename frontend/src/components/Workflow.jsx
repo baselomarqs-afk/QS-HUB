@@ -208,13 +208,22 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
           if (state.boq_meta) setBoqMeta(state.boq_meta);
           // Pre-fill the auto-detected roof stair-room flag for the top floor.
           {
-            const ftypes = (state.confirmed_auto_data && state.confirmed_auto_data.floor_types) || state.floor_types || {};
-            const nf = state.num_floors || (state.confirmed_auto_data && state.confirmed_auto_data.structural_levels) || 2;
+            const cad = state.confirmed_auto_data || {};
+            const ftypes = cad.floor_types || state.floor_types || {};
+            const fls = cad.floors || {};
+            const nf = state.num_floors || (fls['2f'] ? 3 : (fls['1f'] ? 2 : (cad.structural_levels || 2)));
             const topFk = nf >= 3 ? '2f' : '1f';
             const topIsStair = ftypes[topFk] === 'stair_room';
-            const topFloor = ((state.confirmed_auto_data && state.confirmed_auto_data.floors) || {})[topFk] || {};
+            const topFloor = fls[topFk] || {};
+            const extGfH = Number(state.gf_height || cad.gf_height || fls.gf?.height || 0);
+            const extF1H = Number(state.f1_height || cad.f1_height || fls['1f']?.height || 0);
+            const extF2H = Number(state.f2_height || cad.f2_height || fls['2f']?.height || 0);
             setCalcParams(prev => ({
               ...prev,
+              num_floors: nf,
+              gf_height: (extGfH >= 2.5 && extGfH <= 6.5) ? extGfH : prev.gf_height,
+              f1_height: (extF1H >= 2.5 && extF1H <= 6.5) ? extF1H : prev.f1_height,
+              f2_height: (extF2H >= 2.5 && extF2H <= 6.5) ? extF2H : prev.f2_height,
               top_floor_is_stair_room: topIsStair,
               stair_room_area: (topIsStair && topFloor.is_stair_room) ? (topFloor.area ?? '') : prev.stair_room_area,
               stair_room_perimeter: (topIsStair && topFloor.is_stair_room) ? (topFloor.ext_perimeter ?? '') : prev.stair_room_perimeter,
@@ -590,15 +599,23 @@ export default function Workflow({ token, project, isArabic, onNavigate }) {
 
                   setConfirmedData(confirmedObj);
                   setSanityWarnings(data.sanity_warnings || []);
-                  // Pre-fill the auto-detected roof stair-room flag for the top floor
+                  // Pre-fill auto-detected floor heights, floor count, and roof stair-room flag
                   {
                     const ftypes = confirmedObj.floor_types || {};
-                    const nf = calcParams.num_floors || confirmedObj.structural_levels || 2;
-                    const topFk = nf >= 3 ? '2f' : '1f';
+                    const fls = confirmedObj.floors || {};
+                    const detectedLevels = fls['2f'] ? 3 : (fls['1f'] ? 2 : (confirmedObj.structural_levels || calcParams.num_floors || 2));
+                    const topFk = detectedLevels >= 3 ? '2f' : '1f';
                     const topIsStair = ftypes[topFk] === 'stair_room';
-                    const topFloor = (confirmedObj.floors || {})[topFk] || {};
+                    const topFloor = fls[topFk] || {};
+                    const extGfH = Number(confirmedObj.gf_height || fls.gf?.height || 0);
+                    const extF1H = Number(confirmedObj.f1_height || fls['1f']?.height || 0);
+                    const extF2H = Number(confirmedObj.f2_height || fls['2f']?.height || 0);
                     setCalcParams(prev => ({
                       ...prev,
+                      num_floors: detectedLevels,
+                      gf_height: (extGfH >= 2.5 && extGfH <= 6.5) ? extGfH : prev.gf_height,
+                      f1_height: (extF1H >= 2.5 && extF1H <= 6.5) ? extF1H : prev.f1_height,
+                      f2_height: (extF2H >= 2.5 && extF2H <= 6.5) ? extF2H : prev.f2_height,
                       top_floor_is_stair_room: topIsStair,
                       stair_room_area: (topIsStair && topFloor.is_stair_room) ? (topFloor.area ?? '') : prev.stair_room_area,
                       stair_room_perimeter: (topIsStair && topFloor.is_stair_room) ? (topFloor.ext_perimeter ?? '') : prev.stair_room_perimeter,
