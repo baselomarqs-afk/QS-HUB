@@ -146,8 +146,28 @@ def _sanitize_prefill(parsed: dict) -> dict:
     return sanitized
 
 
+def _parse_json_object(raw: str) -> dict:
+    """Robustly extract a JSON object from a Gemini response (handles fences & surrounding prose)."""
+    cleaned = re.sub(r"```(?:json)?|```", "", raw or "", flags=re.IGNORECASE).strip()
+    try:
+        obj = json.loads(cleaned)
+        if isinstance(obj, dict):
+            return obj
+    except Exception:
+        pass
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start != -1 and end > start:
+        obj = json.loads(cleaned[start : end + 1])
+        if isinstance(obj, dict):
+            return obj
+    raise ValueError("Model response did not contain a valid JSON object.")
+
+
 async def _run_gemini_json(contents: Any, timeout_s: float = 55.0) -> Tuple[Optional[dict], Optional[str]]:
-    """Run Gemini JSON generation with automatic 2D rotation across all keys & models."""
+    """Run Gemini JSON generation with automatic 2D rotation across all keys & models.
+    Avoids `response_mime_type='application/json'` (which fails with 400 INVALID_ARGUMENT
+    on Gemini API v1 endpoints) and uses robust JSON parsing instead."""
     from utils.key_manager import get_key_manager
     from google import genai
     from google.genai import types
@@ -163,20 +183,18 @@ async def _run_gemini_json(contents: Any, timeout_s: float = 55.0) -> Tuple[Opti
             return None, "No Gemini API key found. Please check Settings."
         try:
             def _call_gemini(key=api_key, mdl=current_model):
-                client = genai.Client(api_key=key, http_options={"timeout": timeout_s})
+                client = genai.Client(api_key=key, http_options={"timeout": timeout_s, "api_version": "v1beta"})
                 return client.models.generate_content(
                     model=mdl,
                     contents=contents,
                     config=types.GenerateContentConfig(
-                        response_mime_type="application/json",
                         temperature=0.0,
                     ),
                 )
 
             response = await asyncio.to_thread(_call_gemini)
-            raw = (response.text or "").strip()
-            raw = re.sub(r"```json|```", "", raw).strip()
-            return json.loads(raw), None
+            parsed = _parse_json_object(response.text or "")
+            return parsed, None
         except Exception as e:
             last_err = str(e)
             err_low = last_err.lower()
@@ -185,7 +203,7 @@ async def _run_gemini_json(contents: Any, timeout_s: float = 55.0) -> Tuple[Opti
                 continue
             is_retryable = any(
                 tok in err_low
-                for tok in ("429", "quota", "resource_exhausted", "503", "unavailable", "timeout", "deadline", "overloaded")
+                for tok in ("429", "quota", "resource_exhausted", "503", "unavailable", "timeout", "deadline", "overloaded", "json")
             )
             if is_retryable:
                 manager.mark_rate_limited(api_key, current_model)
