@@ -8,6 +8,7 @@ const LABEL_KEY = {
   consultantName: ['Consultant Name', 'اسم الاستشاري'],
   contractorName: ['Contractor Name', 'اسم المقاول'],
   villaType: ['Villa Type', 'نوع الفيلا'],
+  foundationType: ['Foundation Type', 'نوع الأساسات'],
   buaPerFloor: ['BUA per Floor', 'مساحة البناء للدور'],
   basementArea: ['Basement Area', 'مساحة القبو'],
   mezzanineArea: ['Mezzanine Area', 'مساحة الميزانين'],
@@ -36,6 +37,10 @@ export default function SpecPrefill({ cfg, setCfg, isArabic, token }) {
   function fmtVal(key, v) {
     if (typeof v === 'boolean') return v ? t('Yes', 'نعم') : t('No', 'لا');
     if (key === 'complexityFactor') return `×${v}`;
+    if (key === 'foundationType') {
+      if (v === 'raft') return t('Raft Foundation', 'لبشة خرسانية');
+      if (v === 'isolated') return t('Isolated Footings & Tie Beams', 'قواعد منفصلة وميدات');
+    }
     if (v === undefined || v === null) return '—';
     return String(v);
   }

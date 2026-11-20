@@ -3,6 +3,7 @@ import { Folder, Calendar, ArrowRight, Trash2, FileSpreadsheet, LayoutList, Chec
 import { buildActivityList } from '../engine/durationEngine';
 import { runScheduler } from '../engine/scheduler';
 import { computeCashFlow } from '../engine/cashflow';
+import { DEFAULT_CONFIG } from '../engine/projectConfig';
 
 export default function Projects({ token, isArabic, onSelectProject, onNavigate, initialTab }) {
   const [activeTab, setActiveTab] = useState(initialTab || 'qto');
@@ -75,18 +76,11 @@ export default function Projects({ token, isArabic, onSelectProject, onNavigate,
 
   const handleExportModuleExcel = async (feature, id, e) => {
     e.stopPropagation();
-    // Default configs for fallback
-    const DEFAULT_CFG = {
-      buaPerFloor: 400, complexityFactor: 1.0, hasPool: false, hasDemolition: false,
-      contractValueAed: 1500000, advancePaymentPct: 10, retentionPct: 10, retentionReleaseAtCompletionPct: 50,
-      vatPct: 5, certificationPeriodDays: 30, paymentPeriodDays: 30, defectsLiabilityMonths: 12, contractorCostRatio: 0.85,
-      startISO: new Date().toISOString().split('T')[0]
-    };
     try {
       const res = await fetch(`/api/modules/${feature}/item/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) {
         const data = await res.json();
-        const cfg = { ...DEFAULT_CFG, ...data.config };
+        const cfg = { ...DEFAULT_CONFIG, ...data.config };
         const acts = buildActivityList(cfg);
         const out = runScheduler(cfg, acts);
         if (feature === 'programme') {

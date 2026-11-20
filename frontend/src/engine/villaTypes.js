@@ -22,9 +22,10 @@ export const BASE_DURATIONS_WEEKS = {
   "B+G": 44, "B+G+1": 52, "B+G+2": 60, "B+G+3": 68,
 };
 
-// Share of contract value earned in each phase (sums to ~1.0).
+// Relative share of contract value earned in each phase.
+// Note: Scheduler.assignValues() always re-normalizes active phases to sum to 1.00 (100% of CV).
 export const PHASE_VALUE_WEIGHTS = {
-  P01: 0.02, P02: 0.01, P03: 0.15, P04: 0.20, P05: 0.08, P06: 0.10,
+  P01: 0.02, P02: 0.01, P03: 0.14, P04: 0.20, P05: 0.08, P06: 0.10,
   P07: 0.03, P08: 0.06, P09: 0.07, P10: 0.02, P11: 0.09, P12: 0.06,
-  P13: 0.05, P14: 0.03, P15: 0.04, P16: 0.00,
+  P13: 0.05, P14: 0.03, P15: 0.03, P16: 0.02,
 };

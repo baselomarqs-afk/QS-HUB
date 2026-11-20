@@ -42,17 +42,19 @@ export const DEFAULT_CONFIG = {
   buaPerFloor: 0,
   basementArea: 0,
   mezzanineArea: 0,
+  foundationType: "auto", // "auto" (isolated for standard, raft for basements) | "isolated" | "raft"
   hasPool: false,
   poolArea: 0,
-  hasBoundaryWall: false,
+  hasBoundaryWall: true,
   boundaryWallLength: 0,
   hasRoofGarden: false,
-  hasExternalLandscape: false,
+  hasExternalLandscape: true,
   hasDemolition: false,
 
   startISO: TODAY_ISO,
   handoverISO: suggestedHandover(TODAY_ISO),
   complexityFactor: 1.0,
+  customDurations: {}, // { [activityId]: durationWeeks } persisted manual overrides
 
   contractValueAed: 0,
 

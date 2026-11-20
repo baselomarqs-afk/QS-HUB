@@ -1,6 +1,7 @@
 // محرك المدد — Duration engine. Filters the master activity DB to the activities
-// applicable to a villa, then calibrates each duration by floor area, floor count
-// and complexity. Ported from villa-qto.
+// applicable to a villa (including Pool, Demolition, Roof Garden, Boundary Wall,
+// External Landscape, and Isolated vs Raft Foundation), then calibrates each
+// duration by floor area, floor count and complexity.
 
 import { deriveVilla } from "./projectConfig";
 import { PHASES } from "./activitiesDb";
@@ -10,18 +11,37 @@ const REFERENCE_BUA = 300.0;
 const AREA_EXPONENT = 0.6;
 const AREA_EXPONENT_FINISHES = 0.7;
 
+/** Resolve effective foundation system ("isolated" | "raft") for a villa config. */
+export function resolveFoundationType(cfg) {
+  const ft = cfg.foundationType || "auto";
+  if (ft === "isolated" || ft === "raft") return ft;
+  const derived = deriveVilla(cfg);
+  return derived.hasBasement ? "raft" : "isolated";
+}
+
 /** Return the activities applicable to this villa configuration. */
 export function getApplicableActivities(cfg) {
   const vt = cfg.villaType;
+  const foundation = resolveFoundationType(cfg);
   const out = [];
   for (const phase of PHASES) {
     for (const act of phase.activities) {
       const at = act.applicableTo;
       const meta = { phaseId: phase.id, phaseName: phase.name, phaseNameAr: phase.nameAr, phaseColor: phase.color };
-      if (at.length === 0) out.push({ ...act, ...meta });
-      else if (at.includes("POOL") && cfg.hasPool) out.push({ ...act, ...meta });
-      else if (at.includes("DEMOLITION_ONLY") && cfg.hasDemolition) out.push({ ...act, ...meta });
-      else if (at.includes(vt)) out.push({ ...act, ...meta });
+      let include = false;
+      if (at.length === 0) include = true;
+      else if (at.includes("POOL") && cfg.hasPool) include = true;
+      else if (at.includes("DEMOLITION_ONLY") && cfg.hasDemolition) include = true;
+      else if (at.includes("ROOF_GARDEN") && cfg.hasRoofGarden) include = true;
+      else if (at.includes("BOUNDARY_WALL") && cfg.hasBoundaryWall) include = true;
+      else if (at.includes("LANDSCAPE") && cfg.hasExternalLandscape) include = true;
+      else if (at.includes(vt)) include = true;
+
+      if (!include) continue;
+
+      const resolvedName = foundation === "isolated" && act.isolatedName ? act.isolatedName : act.name;
+      const resolvedNameAr = foundation === "isolated" && act.isolatedNameAr ? act.isolatedNameAr : act.nameAr;
+      out.push({ ...act, ...meta, name: resolvedName, nameAr: resolvedNameAr });
     }
   }
   return out;
@@ -29,6 +49,7 @@ export function getApplicableActivities(cfg) {
 
 /** Scale a single activity's duration (weeks) by area, floors and complexity. */
 export function scaleDuration(act, cfg) {
+  if (act.fixedDuration) return act.durationBaseWeeks;
   const derived = deriveVilla(cfg);
   let dur = act.durationBaseWeeks;
 
@@ -44,7 +65,7 @@ export function scaleDuration(act, cfg) {
     dur *= 0.5 + 0.5 * totalFloors;
   }
 
-  dur *= cfg.complexityFactor;
+  dur *= cfg.complexityFactor || 1.0;
   dur = Math.round(dur * 2) / 2;
   return Math.max(0.5, Math.min(dur, 16.0));
 }
@@ -63,10 +84,12 @@ export function buildActivityList(cfg) {
       phaseColor: act.phaseColor,
       category: act.category,
       durationWeeks: durWeeks,
-      durationDays: Math.round(durWeeks * 7),
+      durationDays: Math.max(1, Math.round(durWeeks * 7)),
       predecessorId: act.predecessor,
-      lagDays: act.lagDays,
-      startOffsetDays: act.startOffsetDays,
+      extraPredecessors: act.extraPredecessors || [],
+      lagDays: act.lagDays || 0,
+      startOffsetDays: act.startOffsetDays || 0,
+      fixedDuration: Boolean(act.fixedDuration),
     };
   });
 }
@@ -79,6 +102,8 @@ export function autoCalculateTotalWeeks(cfg) {
   if (cfg.hasPool) extra += 4;
   if (cfg.hasRoofGarden) extra += 3;
   if (cfg.hasDemolition) extra += 3;
+  if (cfg.hasBoundaryWall) extra += 1;
+  if (cfg.hasExternalLandscape) extra += 2;
   if (derived.totalBua > 800) extra += Math.floor((derived.totalBua - 800) / 100);
-  return Math.max(24, Math.round((base + extra) * cfg.complexityFactor));
+  return Math.max(24, Math.round((base + extra) * (cfg.complexityFactor || 1.0)));
 }
