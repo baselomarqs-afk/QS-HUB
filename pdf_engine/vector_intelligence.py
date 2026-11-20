@@ -108,20 +108,30 @@ def calibrate_scale_from_dimensions(page) -> Optional[dict]:
         if len(segs) < 8:
             return None
 
+        # Spatial grid bucketing (cell size = search radius 40pt): guarantees the
+        # exact same nearest-segment match as a full scan in O(N) instead of O(N*M).
+        cell_size = 40.0
+        grid = defaultdict(list)
+        for x1, y1, x2, y2, Lpt, _w in segs:
+            if Lpt < 10:
+                continue
+            mx, my = (x1 + x2) / 2.0, (y1 + y2) / 2.0
+            grid[(int(mx // cell_size), int(my // cell_size))].append((mx, my, Lpt))
+
         candidates = []
         for v_m, cx, cy in dims:
             # nearest segment whose drawn length could plausibly equal v_m at a
             # standard scale; require the text to sit close to that segment.
             best = None
-            best_d = 40.0  # points
-            for x1, y1, x2, y2, Lpt, _w in segs:
-                if Lpt < 10:
-                    continue
-                mx, my = (x1 + x2) / 2.0, (y1 + y2) / 2.0
-                d = math.hypot(mx - cx, my - cy)
-                if d < best_d:
-                    best_d = d
-                    best = Lpt
+            best_d = cell_size  # points
+            gx, gy = int(cx // cell_size), int(cy // cell_size)
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    for mx, my, Lpt in grid.get((gx + dx, gy + dy), ()):
+                        d = math.hypot(mx - cx, my - cy)
+                        if d < best_d:
+                            best_d = d
+                            best = Lpt
             if not best:
                 continue
             # ratio implied: v_m metres spread over `best` points

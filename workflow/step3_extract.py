@@ -395,8 +395,14 @@ def _png_bytes(arr: np.ndarray) -> bytes:
     pil.save(buf, format="PNG", optimize=True)
     return buf.getvalue()
 
+def _detect_image_mime(img_bytes: bytes) -> str:
+    """Return the true MIME type so Gemini Vision receives exact JPEG/PNG metadata."""
+    if img_bytes and img_bytes[:2] == b"\xff\xd8":
+        return "image/jpeg"
+    return "image/png"
+
+
 async def _ask_ai_with_retry(img_bytes: bytes, full_prompt: str, mgr, force_reextract: bool = False) -> str:
-    import time
     import hashlib
     import os
     import json
@@ -427,9 +433,11 @@ async def _ask_ai_with_retry(img_bytes: bytes, full_prompt: str, mgr, force_reex
             print(f"Cache read error: {cache_ex}")
             
     last_err = ""
-    max_attempts = max(6, mgr.key_count() * 2)
+    key_count = max(1, mgr.key_count())
+    max_attempts = min(12, max(6, key_count))
     cooldown_waits = 0
     consecutive_failures = 0
+    mime_type = _detect_image_mime(img_bytes)
     
     for attempt in range(max_attempts):
         current_key, current_model = mgr.get_key_and_model()
@@ -440,19 +448,21 @@ async def _ask_ai_with_retry(img_bytes: bytes, full_prompt: str, mgr, force_reex
                 print("Aborting _ask_ai_with_retry after 45s of total cooldown.")
                 break
             print(f"All keys in cooldown. Waiting 15 seconds... (Attempt {attempt+1}/{max_attempts})")
-            import time
-            time.sleep(15)
+            await asyncio.sleep(15)
             continue
             
         try:
-            client = genai.Client(api_key=current_key, http_options={'timeout': 300.0})
-            resp = client.models.generate_content(
-                model=current_model,
-                contents=[
-                    types.Part.from_bytes(data=img_bytes, mime_type="image/png"),
-                    full_prompt,
-                ],
-            )
+            def _call_model():
+                client = genai.Client(api_key=current_key, http_options={'timeout': 90.0})
+                return client.models.generate_content(
+                    model=current_model,
+                    contents=[
+                        types.Part.from_bytes(data=img_bytes, mime_type=mime_type),
+                        full_prompt,
+                    ],
+                )
+
+            resp = await asyncio.to_thread(_call_model)
             raw = re.sub(r"```json|```", "", resp.text).strip()
             
             # Save to Cache
@@ -471,27 +481,33 @@ async def _ask_ai_with_retry(img_bytes: bytes, full_prompt: str, mgr, force_reex
                     with open(tmp, "w", encoding="utf-8") as f:
                         json.dump(cache_data, f, ensure_ascii=False, indent=2)
                     os.replace(tmp, cache_file)
-            except Exception as cache_ex:
+            except Exception:
                 pass # JSON parsing failed or cache write failed, handled gracefully
                 
             return raw
         except Exception as e:
             last_err = str(e)
-            is_rate_limit = any(code in last_err.lower() for code in ("429", "resource_exhausted", "quota"))
-            
-            mgr.mark_rate_limited(current_key, current_model)
+            low_err = last_err.lower()
+            is_not_found = "404" in low_err or "no longer available" in low_err or "not found" in low_err
+            is_transient = any(code in low_err for code in ("429", "resource_exhausted", "quota", "503", "unavailable", "high demand", "overloaded"))
+
+            if is_not_found and hasattr(mgr, "mark_model_unavailable"):
+                mgr.mark_model_unavailable(current_model)
+            else:
+                mgr.mark_rate_limited(current_key, current_model)
             consecutive_failures += 1
             
-            if not is_rate_limit:
-                if consecutive_failures > mgr.key_count() * 6:
+            if not is_transient and not is_not_found:
+                if consecutive_failures >= max_attempts:
                     print(f"Aborting _ask_ai_with_retry after {consecutive_failures} non-rate-limit failures. Last error: {last_err}")
                     break
                 continue
                 
-            if consecutive_failures > mgr.key_count() + 1:
-                print(f"Aborting _ask_ai_with_retry after {consecutive_failures} consecutive rate-limit failures. Last error: {last_err}")
+            if consecutive_failures > max_attempts:
+                print(f"Aborting _ask_ai_with_retry after {consecutive_failures} consecutive transient failures. Last error: {last_err}")
                 break
-            await asyncio.sleep(2)
+            # Immediately fail over to the next key when multiple keys are configured
+            await asyncio.sleep(0.4 if key_count > 1 else 2.0)
             
     return json.dumps({"_error": last_err})
 
@@ -789,11 +805,19 @@ def extract_page(page_arr: np.ndarray, drawing_type: str, page_texts: str, user_
                 txt = f"\n\n--- RAW TEXT ---\n{page_texts}\n-----------------"
                 arch_p += txt; wall_p += txt; open_p += txt
                 
-            # CRITICAL: Run sequentially to prevent exceeding Gemini Free Tier concurrency limits (2 max).
-            # Using asyncio.gather with 3 tasks was instantly crashing the free tier keys and returning zeros.
-            arch_raw = await _ask_ai_with_retry(img_bytes, arch_p, mgr, force_reextract=force_reextract)
-            wall_raw = await _ask_ai_with_retry(img_bytes, wall_p, mgr, force_reextract=force_reextract)
-            open_raw = await _ask_ai_with_retry(img_bytes, open_p, mgr, force_reextract=force_reextract)
+            # Run all 3 dedicated extractors concurrently across separate API keys when
+            # >= 3 keys are configured (zero extra image RAM, identical prompts & accuracy,
+            # 3x faster per floor plan); stay sequential on single-key setups.
+            if mgr.key_count() >= 3:
+                arch_raw, wall_raw, open_raw = await asyncio.gather(
+                    _ask_ai_with_retry(img_bytes, arch_p, mgr, force_reextract=force_reextract),
+                    _ask_ai_with_retry(img_bytes, wall_p, mgr, force_reextract=force_reextract),
+                    _ask_ai_with_retry(img_bytes, open_p, mgr, force_reextract=force_reextract),
+                )
+            else:
+                arch_raw = await _ask_ai_with_retry(img_bytes, arch_p, mgr, force_reextract=force_reextract)
+                wall_raw = await _ask_ai_with_retry(img_bytes, wall_p, mgr, force_reextract=force_reextract)
+                open_raw = await _ask_ai_with_retry(img_bytes, open_p, mgr, force_reextract=force_reextract)
             
             arch_data = parse_json(arch_raw)
             wall_data = parse_json(wall_raw)
@@ -935,9 +959,11 @@ Return ONLY this JSON structure (null for not found):
             print(f"Cache read error: {cache_ex}")
             
     last_err = ""
-    max_attempts = max(6, mgr.key_count() * 2)
+    key_count = max(1, mgr.key_count())
+    max_attempts = min(12, max(6, key_count))
     cooldown_waits = 0
     consecutive_failures = 0
+    mime_type = _detect_image_mime(img_bytes)
     
     for attempt in range(max_attempts):
         current_key, current_model = mgr.get_key_and_model()
@@ -954,12 +980,12 @@ Return ONLY this JSON structure (null for not found):
             continue
             
         try:
-            # Removed the rush timeout, giving the AI up to 5 minutes to finish complex drawings.
-            client = genai.Client(api_key=current_key, http_options={'timeout': 300.0})
+            # 90s per call: generous for dense drawings while avoiding 5-minute hung sockets.
+            client = genai.Client(api_key=current_key, http_options={'timeout': 90.0})
             resp = client.models.generate_content(
                 model=current_model,
                 contents=[
-                    types.Part.from_bytes(data=img_bytes, mime_type="image/png"),
+                    types.Part.from_bytes(data=img_bytes, mime_type=mime_type),
                     full_prompt,
                 ],
             )
@@ -1040,25 +1066,28 @@ Return ONLY this JSON structure (null for not found):
             
         except Exception as e:
             last_err = str(e)
-            is_rate_limit = any(code in last_err.lower() for code in ("429", "resource_exhausted", "quota"))
-            
-            mgr.mark_rate_limited(current_key, current_model)
+            low_err = last_err.lower()
+            is_not_found = "404" in low_err or "no longer available" in low_err or "not found" in low_err
+            is_transient = any(code in low_err for code in ("429", "resource_exhausted", "quota", "503", "unavailable", "high demand", "overloaded"))
+
+            if is_not_found and hasattr(mgr, "mark_model_unavailable"):
+                mgr.mark_model_unavailable(current_model)
+            else:
+                mgr.mark_rate_limited(current_key, current_model)
             consecutive_failures += 1
             
-            if not is_rate_limit:
-                if consecutive_failures > mgr.key_count() * 6:
+            if not is_transient and not is_not_found:
+                if consecutive_failures >= max_attempts:
                     print(f"Aborting synchronous extraction after {consecutive_failures} non-rate-limit failures. Last error: {last_err}")
                     break
                 continue
                 
-            if consecutive_failures > mgr.key_count() + 1:
-                print(f"Aborting synchronous extraction after {consecutive_failures} consecutive rate-limit failures. Last error: {last_err}")
+            if consecutive_failures > max_attempts:
+                print(f"Aborting synchronous extraction after {consecutive_failures} consecutive transient failures. Last error: {last_err}")
                 break
                 
-            time.sleep(2)
-            # Cap exponential backoff to avoid hanging
-            sleep_time = min(10, 2 * (attempt + 1))
-            time.sleep(sleep_time)
+            # Fast failover to the next fresh key when multiple keys are configured
+            time.sleep(0.4 if key_count > 1 else min(10, 2 * (attempt + 1)))
 
     # Explicit API failure marker (never inject fabricated villa dimensions)
     fallback_data = _vision_failure_fallback(

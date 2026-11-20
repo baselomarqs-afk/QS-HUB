@@ -26,7 +26,7 @@ try:
             
         http_opts = kwargs['http_options']
         if isinstance(http_opts, dict):
-            timeout_val = http_opts.get('timeout', 300.0)
+            timeout_val = http_opts.get('timeout', 90.0)
             http_opts['httpx_client'] = httpx.Client(timeout=timeout_val, http2=False)
             http_opts['httpx_async_client'] = httpx.AsyncClient(timeout=timeout_val, http2=False)
             
@@ -44,46 +44,50 @@ try:
 except Exception:
     pass
 
-# النماذج التي سيتم التدوير بينها مع كل مفتاح
+# النماذج التي سيتم التدوير بينها مع كل مفتاح (مرتبة حسب أعلى دقة واستجابة أولاً، مع إبقاء 3.6-flash كاحتياطي أخير)
 ROTATION_MODELS = [
     "gemini-2.5-flash",
+    "gemini-3-flash-preview",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
     "gemini-3.1-flash-lite",
     "gemini-3.6-flash",
-    "gemini-3.5-flash",
-    "gemini-3.5-flash-lite"
 ]
 
 # ── حدود النماذج المختلفة (RPD) ──────────────────────────────────────────────
 MODEL_DAILY_LIMITS = {
     "gemini-2.5-flash":           1500,
-    "gemini-3.1-flash-lite":      500,
-    "gemini-3.6-flash":           1500,
+    "gemini-3-flash-preview":     1500,
     "gemini-3.5-flash":           1500,
     "gemini-3.5-flash-lite":      1500,
+    "gemini-3.1-flash-lite":      500,
+    "gemini-3.6-flash":           1500,
     "default":                    1500,
 }
 
 class KeyManager:
     """
-    يدير مصفوفة ثنائية الأبعاد (مفتاح × نموذج) ويدور بينها.
-    - يتتبع عدد الاستخدامات لكل (مفتاح، نموذج)
-    - يتخطى التركيبة التي تصل حدها (429)
+    يدير مصفوفة ثنائية الأبعاد (نموذج × مفتاح) ويدور بينها.
+    - يوزّع الضغط على كل المفاتيح على النماذج الأعلى دقة أولاً قبل الانتقال للنماذج الأخف
+    - يتخطى التركيبة التي تصل حدها (429 / 503) لمدة 60 ثانية
+    - يعطّل النموذج غير المتاح (404) لبقية اليوم
     """
 
     def __init__(self, keys: List[str]):
         self._keys  = [k.strip() for k in keys if k and k.strip()]
         self._lock  = threading.Lock()
 
-        # Rotate keys first, then models — spreads RPM load across keys before hitting same model twice
+        # Rotate across ALL keys on the highest-accuracy model first, then next model.
+        # This maximizes both vision accuracy and RPM distribution across keys.
         self._combinations = []
-        for k in self._keys:
-            for m in ROTATION_MODELS:
+        for m in ROTATION_MODELS:
+            for k in self._keys:
                 self._combinations.append((k, m))
 
         self._index = 0
         self._usage: dict = {}
         for k, m in self._combinations:
-            self._usage[(k, m)] = {"count": 0, "date": date.today(), "exhausted": False, "exhausted_at": 0}
+            self._usage[(k, m)] = {"count": 0, "date": date.today(), "exhausted": False, "exhausted_at": 0, "permanent": False}
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -96,15 +100,25 @@ class KeyManager:
                 self._usage[combo]["count"] += 1
                 self._advance()
                 return combo
-            return None, "gemini-3.1-flash-lite" # fallback if all exhausted
+            return None, "gemini-2.5-flash" # fallback if all exhausted
 
     def mark_rate_limited(self, key: str, model: str):
-        """استدعِ هذا عند استقبال 429 — يتخطى هذه التركيبة لمدة 60 ثانية فقط."""
+        """استدعِ هذا عند استقبال 429 أو 503 — يتخطى هذه التركيبة لمدة 60 ثانية فقط."""
         with self._lock:
             combo = (key, model)
             if combo in self._usage:
                 self._usage[combo]["exhausted"] = True
                 self._usage[combo]["exhausted_at"] = time.time()
+
+    def mark_model_unavailable(self, model: str):
+        """استدعِ هذا عند استقبال 404 لنموذج غير متاح — يعطّل النموذج لبقية اليوم."""
+        with self._lock:
+            now = time.time()
+            for combo, u in self._usage.items():
+                if combo[1] == model:
+                    u["exhausted"] = True
+                    u["exhausted_at"] = now
+                    u["permanent"] = True
 
     def mark_exhausted(self, key: str, model: str):
         """علّم تركيبة باعتبارها منتهية يدوياً."""
@@ -156,8 +170,8 @@ class KeyManager:
         for _ in range(len(self._combinations)):
             combo = self._combinations[self._index % len(self._combinations)]
             u = self._usage[combo]
-            # Auto-recover after 60 seconds
-            if u["exhausted"] and (now - u.get("exhausted_at", 0)) > 60:
+            # Auto-recover temporary 429/503 cooldowns after 60 seconds (never recover 404 permanent models same day)
+            if u["exhausted"] and not u.get("permanent") and (now - u.get("exhausted_at", 0)) > 60:
                 u["exhausted"] = False
             if not u["exhausted"]:
                 return combo
@@ -175,7 +189,7 @@ class KeyManager:
             k, m = combo
             u = self._usage[combo]
             if u["date"] != today:
-                self._usage[combo] = {"count": 0, "date": today, "exhausted": False, "exhausted_at": 0}
+                self._usage[combo] = {"count": 0, "date": today, "exhausted": False, "exhausted_at": 0, "permanent": False}
             else:
                 # Auto-mark exhausted when daily limit reached
                 limit = MODEL_DAILY_LIMITS.get(m, MODEL_DAILY_LIMITS["default"])

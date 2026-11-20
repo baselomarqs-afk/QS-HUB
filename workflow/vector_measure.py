@@ -199,18 +199,26 @@ def measure_tie_beams(pdf_path: str, page_index: int,
 
     labels = [(cx, cy, mk) for mk, pts in occ.items() for cx, cy in pts]
 
-    # tag each segment with nearest TB label
+    # tag each segment with nearest TB label (AABB pre-filter avoids O(N*M) math)
     tagged: dict[str, list] = defaultdict(list)
     matched_pts: dict[str, set] = defaultdict(set)
-    for s in raw:
-        best, bd = None, label_dist_pt
-        for lx, ly, mk in labels:
-            dd = _pt_seg_dist(lx, ly, *s)
-            if dd < bd:
-                bd, best = dd, (mk, lx, ly)
-        if best:
-            tagged[best[0]].append(s)
-            matched_pts[best[0]].add((best[1], best[2]))
+    if labels:
+        for s in raw:
+            x1, y1, x2, y2 = s
+            min_x = (x1 if x1 < x2 else x2) - label_dist_pt
+            max_x = (x2 if x2 > x1 else x1) + label_dist_pt
+            min_y = (y1 if y1 < y2 else y2) - label_dist_pt
+            max_y = (y2 if y2 > y1 else y1) + label_dist_pt
+            best, bd = None, label_dist_pt
+            for lx, ly, mk in labels:
+                if lx < min_x or lx > max_x or ly < min_y or ly > max_y:
+                    continue
+                dd = _pt_seg_dist(lx, ly, x1, y1, x2, y2)
+                if dd < bd:
+                    bd, best = dd, (mk, lx, ly)
+            if best:
+                tagged[best[0]].append(s)
+                matched_pts[best[0]].add((best[1], best[2]))
 
     def _orient(s):
         return "H" if abs(s[2] - s[0]) >= abs(s[3] - s[1]) else "V"

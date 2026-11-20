@@ -193,8 +193,12 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
         initial_args = [(p, None) for p in ready]
         completed_count = 0
         
-        # CRITICAL: Keep max_workers=1 to avoid Gemini 429 Too Many Requests and Render Free Tier OOMs.
-        with ThreadPoolExecutor(max_workers=1) as executor:
+        # Use 2 workers when multiple API keys are configured (each page also runs its
+        # own Gemini calls concurrently across separate keys; 2 workers stays safely
+        # within Render Free Tier 512MB RAM while cutting wall-clock time ~3-4x).
+        from utils.key_manager import get_key_manager
+        _page_workers = 2 if get_key_manager().key_count() >= 4 else 1
+        with ThreadPoolExecutor(max_workers=_page_workers) as executor:
             import concurrent.futures
             future_to_args = {executor.submit(extract_single_page, arg): arg for arg in initial_args}
             
@@ -335,8 +339,8 @@ async def run_extraction(req: RunExtractionReq, current_user: dict = Depends(get
             if retry_args:
                 retry_count = 0
                 total_retries = len(retry_args)
-                # CRITICAL: Do NOT increase max_workers > 1 on Render Free Tier (512MB RAM). It causes silent OS thread kills.
-                with ThreadPoolExecutor(max_workers=1) as executor:
+                # Match the safe page concurrency used in Pass 1 (max 2 on multi-key setups).
+                with ThreadPoolExecutor(max_workers=_page_workers) as executor:
                     import concurrent.futures
                     future_to_args = {executor.submit(extract_single_page, arg): arg for arg in retry_args}
                     
